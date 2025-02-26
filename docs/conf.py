@@ -1,0 +1,178 @@
+# Configuration file for the Sphinx documentation builder.
+from __future__ import annotations
+
+import os
+import sys
+from datetime import datetime
+
+# Add the project root directory to the path so Sphinx can find the modules
+sys.path.insert(0, os.path.abspath('..'))
+
+# -- Project information -----------------------------------------------------
+project = 'Valid8r'
+copyright = f'{datetime.now().year}, Valid8r Contributors'
+author = 'Valid8r Contributors'
+
+# Import the package to get the version
+import valid8r
+
+version = valid8r.__version__
+release = version
+
+# The document name of the "master" document
+master_doc = 'index'
+
+# -- General configuration ---------------------------------------------------
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.coverage',
+    'sphinx.ext.todo',
+    'sphinx_copybutton',
+    'autoapi.extension',
+    'myst_parser',
+]
+
+# Configure autoapi extension for automatic API documentation
+autoapi_type = 'python'
+autoapi_dirs = ['../valid8r']
+autoapi_keep_files = True
+autoapi_options = [
+    'members',
+    'undoc-members',
+    'show-inheritance',
+    'show-module-summary',
+    'special-members',
+    'imported-members',
+]
+
+# Configure autodoc
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
+    'special-members': '__init__',
+}
+autodoc_typehints = 'description'
+autodoc_member_order = 'bysource'
+
+# Configure napoleon for parsing Google-style and NumPy-style docstrings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_preprocess_types = False
+napoleon_type_aliases = None
+napoleon_attr_annotations = True
+
+# Configure intersphinx to link to external documentation
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+}
+
+# Add any paths that contain templates here, relative to this directory.
+templates_path = ['_templates']
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
+
+# Set the default role for inline code (to help with code formatting)
+default_role = 'code'
+
+# Configure MyST parser for Markdown
+myst_enable_extensions = [
+    'amsmath',
+    'colon_fence',
+    'deflist',
+    'dollarmath',
+    'html_admonition',
+    'html_image',
+    'linkify',
+    'replacements',
+    'smartquotes',
+    'substitution',
+    'tasklist',
+]
+myst_heading_anchors = 3
+myst_update_mathjax = False
+
+# -- Options for HTML output -------------------------------------------------
+html_theme = 'sphinx_rtd_theme'
+html_static_path = ['_static']
+html_css_files = ['css/custom.css']
+
+# Custom sidebar templates
+html_sidebars = {
+    '**': [
+        'relations.html',  # needs 'show_related': True theme option
+        'searchbox.html',
+    ]
+}
+
+# Theme options
+html_theme_options = {
+    'navigation_depth': 4,
+    'collapse_navigation': False,
+    'sticky_navigation': True,
+    'titles_only': False,
+    'display_version': True,
+    'logo_only': False,
+}
+
+# HTML context
+html_context = {
+    'display_github': True,
+    'github_user': 'yourusername',
+    'github_repo': 'valid8r',
+    'github_version': 'main',
+    'conf_py_path': '/docs/',
+}
+
+# Custom logo
+# html_logo = '_static/logo.png'
+html_favicon = None
+
+# -- Options for LaTeX output ------------------------------------------------
+latex_elements = {
+    'papersize': 'letterpaper',
+    'pointsize': '10pt',
+    'preamble': '',
+    'figure_align': 'htbp',
+}
+
+latex_documents = [
+    (master_doc, 'Valid8r.tex', 'Valid8r Documentation',
+     'Valid8r Contributors', 'manual'),
+]
+
+# -- Options for manual page output ------------------------------------------
+man_pages = [
+    (master_doc, 'valid8r', 'Valid8r Documentation',
+     [author], 1)
+]
+
+# -- Options for Texinfo output ----------------------------------------------
+texinfo_documents = [
+    (master_doc, 'Valid8r', 'Valid8r Documentation',
+     author, 'Valid8r', 'Clean, flexible input validation for Python applications.',
+     'Miscellaneous'),
+]
+
+# -- Options for todo extension ----------------------------------------------
+todo_include_todos = True
+
+# Custom CSS file for minor styling adjustments
+html_static_path = ['_static']
+def setup(app):
+    app.add_css_file('css/custom.css')

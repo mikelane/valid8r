@@ -1,0 +1,139 @@
+[tool.poetry]
+name = "valid8r"
+version = "0.1.0"
+description = "Clean, flexible input validation for Python applications"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yourusername/valid8r"
+keywords = ["validation", "input", "cli", "maybe-monad"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+packages = [{include = "valid8r"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+# No external dependencies for core functionality
+
+[tool.poetry.group.dev.dependencies]
+livereload = "^2.7.1"
+mypy = "^1.15.0"
+
+[tool.poetry.group.lint.dependencies]
+isort = "^6.0.0"
+ruff = "^0.9.7"
+
+[tool.poetry.group.docs.dependencies]
+myst-parser = "^4.0.1"
+sphinx = "^8.2.1"
+sphinx-autoapi = "^3.6.0"
+sphinx-autodoc-typehints = "^3.1.0"
+sphinx-copybutton = "^0.5.2"
+sphinx-rtd-theme = "^3.0.2"
+
+
+[tool.poetry.group.test.dependencies]
+behave = "^1.2.6"
+coverage = "^7.6.12"
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+pytest-mock = "^3.14.0"
+pytest-sugar = "^1.0.0"
+tox = "^4.24.1"
+
+[tool.poetry.scripts]
+docs-build = "scripts.docs:build"
+docs-serve = "scripts.docs:serve"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["it_*.py", "test_*.py"]
+python_functions = ["it_*"]
+python_classes = ["Describe[A-Z]*"]
+addopts = ["-s", "-ra", "-q", "-vv"]
+
+
+[tool.isort]
+line_length = 120
+profile = "black"
+multi_line_output = 3
+force_grid_wrap = 2
+include_trailing_comma = true
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.ruff]
+line-length = 120
+
+src = ["valid8r", "tests"]
+
+include = ["*.py"]
+
+exclude = [".git", ".venv", "__pycache__", "build", "dist"]
+
+target-version = "py312"
+
+respect-gitignore = true
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203", # Don't require 1 blank line before class docstring
+    "D213", # Don't require multiline docstring to start at the second line
+    "COM812", # Ignore missing trailing commas (conflicts with ruff format)
+    "ISC001", # Ignore implicitly concatenated strings (conflicts with ruff format)
+]
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = [
+    "D100", # Don't require module docstrings
+    "D101", # Don't require class docstrings
+    "D102", # Don't require method docstrings
+    "PLR2004", # Don't prevent magic values in tests
+    "S101", # Don't prevent asserts
+]
+"tests/*" = [
+    "D100", # Don't require module docstrings in tests
+    "D101", # Don't require class docstrings in tests
+    "D102", # Don't require method docstrings in tests
+    "D103", # Don't require function docstrings in tests
+    "D104", # Don't require init docstrings in tests
+]
+"tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
+"scripts/*" = ["T201"] # allow print function in the scripts
+"conftest.py" = ["D100"] # Don't require module docstrings in conftest
+"__init__.py" = ["F401"] # allow unused imports in __init__.py
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
