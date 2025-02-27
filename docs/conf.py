@@ -142,7 +142,7 @@ html_theme_options = {
 # HTML context
 html_context = {
     'display_github': True,
-    'github_user': 'yourusername',
+    'github_user': 'mikelane',
     'github_repo': 'valid8r',
     'github_version': 'main',
     'conf_py_path': '/docs/',

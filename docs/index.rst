@@ -5,8 +5,8 @@ Welcome to Valid8r's documentation!
    :target: https://www.python.org/downloads/
    :alt: Python 3.11+
 
-.. image:: https://img.shields.io/github/license/yourusername/valid8r
-   :target: https://github.com/yourusername/valid8r/blob/main/LICENSE
+.. image:: https://img.shields.io/github/license/mikelane/valid8r
+   :target: https://github.com/mikelane/valid8r/blob/main/LICENSE
    :alt: License: MIT
 
 **Valid8r** is a clean, flexible input validation library for Python applications. It provides a functional programming approach to validation with a Maybe monad for elegant error handling.
