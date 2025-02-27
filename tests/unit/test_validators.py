@@ -1,6 +1,16 @@
+"""Tests for the validator functions."""
+
 from __future__ import annotations
 
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
+
+import pytest
+
 from valid8r.core.validators import (
+    Validator,
     between,
     length,
     maximum,
@@ -8,79 +18,116 @@ from valid8r.core.validators import (
     predicate,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class DescribeValidators:
-    def it_validates_minimum_value(self) -> None:
-        validator = minimum(5)
+    @pytest.mark.parametrize(
+        ('validator_factory', 'threshold', 'test_values', 'expected_results'),
+        [
+            pytest.param(
+                minimum,
+                5,
+                [(10, True), (5, True), (4, False), (0, False)],
+                'Value must be at least 5',
+                id='minimum validator',
+            ),
+            pytest.param(
+                maximum,
+                10,
+                [(5, True), (10, True), (11, False), (20, False)],
+                'Value must be at most 10',
+                id='maximum validator',
+            ),
+        ],
+    )
+    def it_validates_threshold_values(
+        self,
+        validator_factory: Callable[[Any], Validator[Any]],
+        threshold: int,
+        test_values: list[tuple[Any, bool]],
+        expected_results: str,
+    ) -> None:
+        """Test threshold-based validators (minimum and maximum)."""
+        validator = validator_factory(threshold)
 
-        # Valid case
-        result = validator(10)
-        assert result.is_just()
-        assert result.value() == 10
+        for value, should_pass in test_values:
+            result = validator(value)
 
-        # Invalid case
-        result = validator(3)
-        assert result.is_nothing()
-        assert 'must be at least 5' in result.error()
+            if should_pass:
+                assert result.is_just()
+                assert result.value() == value
+            else:
+                assert result.is_nothing()
+                assert result.error() == expected_results
 
-    def it_validates_maximum_value(self) -> None:
-        validator = maximum(10)
+    @pytest.mark.parametrize(
+        ('min_val', 'max_val', 'test_value', 'should_pass'),
+        [
+            pytest.param(1, 10, 5, True, id='in range'),
+            pytest.param(1, 10, 1, True, id='min value'),
+            pytest.param(1, 10, 10, True, id='max value'),
+            pytest.param(1, 10, 0, False, id='below range'),
+            pytest.param(1, 10, 11, False, id='above range'),
+        ],
+    )
+    def it_validates_range_with_between(
+        self,
+        min_val: int,
+        max_val: int,
+        test_value: int,
+        should_pass: bool,
+    ) -> None:
+        """Test the between validator with various inputs."""
+        validator = between(min_val, max_val)
+        result = validator(test_value)
 
-        # Valid case
-        result = validator(5)
-        assert result.is_just()
-        assert result.value() == 5
+        if should_pass:
+            assert result.is_just()
+            assert result.value() == test_value
+        else:
+            assert result.is_nothing()
+            assert f'Value must be between {min_val} and {max_val}' in result.error()
 
-        # Invalid case
-        result = validator(15)
-        assert result.is_nothing()
-        assert 'must be at most 10' in result.error()
-
-    def it_validates_between_values(self) -> None:
-        validator = between(5, 10)
-
-        # Valid case
-        result = validator(7)
-        assert result.is_just()
-        assert result.value() == 7
-
-        # Lower bound invalid
-        result = validator(3)
-        assert result.is_nothing()
-        assert 'must be between 5 and 10' in result.error()
-
-        # Upper bound invalid
-        result = validator(12)
-        assert result.is_nothing()
-        assert 'must be between 5 and 10' in result.error()
-
-    def it_validates_predicate(self) -> None:
+    def it_validates_custom_predicates(self) -> None:
+        """Test predicate validator with custom functions."""
         is_even = predicate(lambda x: x % 2 == 0, 'Value must be even')
 
-        # Valid case
+        # Test valid case
         result = is_even(4)
         assert result.is_just()
         assert result.value() == 4
 
-        # Invalid case
+        # Test invalid case
         result = is_even(3)
         assert result.is_nothing()
-        assert 'Value must be even' in result.error()
+        assert result.error() == 'Value must be even'
 
-    def it_validates_string_length(self) -> None:
-        validator = length(3, 5)
+    @pytest.mark.parametrize(
+        ('min_len', 'max_len', 'test_string', 'should_pass'),
+        [
+            (3, 10, 'hello', True),
+            (3, 10, 'abc', True),
+            (3, 10, 'helloworld', True),
+            (3, 10, 'hi', False),
+            (3, 10, 'helloworldplus', False),
+        ],
+    )
+    def it_validates_string_length(
+        self,
+        min_len: int,
+        max_len: int,
+        test_string: str,
+        should_pass: bool,
+    ) -> None:
+        """Test the length validator with various inputs."""
+        validator = length(min_len, max_len)
+        result = validator(test_string)
 
-        # Valid case
-        result = validator('abcd')
-        assert result.is_just()
-        assert result.value() == 'abcd'
-
-        # Too short
-        result = validator('ab')
-        assert result.is_nothing()
-        assert 'length must be between 3 and 5' in result.error()
-
-        # Too long
-        result = validator('abcdef')
-        assert result.is_nothing()
-        assert 'length must be between 3 and 5' in result.error()
+        if should_pass:
+            assert result.is_just()
+            assert result.value() == test_string
+        else:
+            assert result.is_nothing()
+            assert f'String length must be between {min_len} and {max_len}' in result.error()
