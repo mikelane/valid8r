@@ -11,6 +11,7 @@ One of Valid8r's strengths is the ability to create complex validation chains:
 .. code-block:: python
 
    from valid8r import parsers, validators, Maybe
+   from valid8r.core.maybe import Success, Failure
 
    # Create complex validation logic
    def validate_password(password):
@@ -45,7 +46,7 @@ One of Valid8r's strengths is the ability to create complex validation chains:
 
        # Combine all validators
        return (
-           Maybe.just(password)
+           Maybe.success(password)
            .bind(lambda p: length_check(p))
            .bind(lambda p: has_uppercase(p))
            .bind(lambda p: has_lowercase(p))
@@ -55,13 +56,25 @@ One of Valid8r's strengths is the ability to create complex validation chains:
 
    # Test the password validator
    result = validate_password("Abc123!")  # Valid
+   match result:
+       case Success(value):
+           print(f"Valid password: {value}")  # Valid password: Abc123!
+       case Failure(error):
+           print(f"Invalid password: {error}")
+
    result = validate_password("abc123")   # Missing uppercase and special char
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Invalid password: {error}")  # Invalid password: Password must contain at least one uppercase letter
 
 The same validation chain can be written more concisely using validator composition:
 
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create the same validator using operator composition
    password_validator = (
@@ -85,7 +98,18 @@ The same validation chain can be written more concisely using validator composit
    )
 
    result = password_validator("Abc123!")  # Valid
+   match result:
+       case Success(value):
+           print(f"Valid password: {value}")  # Valid password: Abc123!
+       case Failure(_):
+           print("This won't happen")
+
    result = password_validator("abc123")   # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Invalid password: {error}")  # Invalid password: Password must contain at least one uppercase letter
 
 Custom Validator Factories
 --------------------------
@@ -95,6 +119,7 @@ You can create your own validator factory functions to extend Valid8r's capabili
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
    from datetime import date
 
    # Create a validator for dates
@@ -102,8 +127,8 @@ You can create your own validator factory functions to extend Valid8r's capabili
        """Create a validator that checks if a date is after the specified date."""
        def validator(value):
            if value > min_date:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Date must be after {min_date.isoformat()}"
            )
        return validators.Validator(validator)
@@ -112,8 +137,8 @@ You can create your own validator factory functions to extend Valid8r's capabili
        """Create a validator that checks if a date is before the specified date."""
        def validator(value):
            if value < max_date:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Date must be before {max_date.isoformat()}"
            )
        return validators.Validator(validator)
@@ -126,15 +151,30 @@ You can create your own validator factory functions to extend Valid8r's capabili
    # Combine them
    valid_date = is_in_future & is_this_century
 
-   # Test
+   # Test with pattern matching
    future_date = date(2030, 1, 1)
-   result = valid_date(future_date)  # Valid
+   result = valid_date(future_date)
+   match result:
+       case Success(value):
+           print(f"Valid date: {value.isoformat()}")  # Valid date: 2030-01-01
+       case Failure(_):
+           print("This won't happen")
 
    past_date = date(2020, 1, 1)
-   result = valid_date(past_date)    # Invalid - not in future
+   result = valid_date(past_date)
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Invalid date: {error}")  # Invalid date: Date must be in the future
 
    far_future = date(2200, 1, 1)
-   result = valid_date(far_future)   # Invalid - not in this century
+   result = valid_date(far_future)
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Invalid date: {error}")  # Invalid date: Date must be in this century
 
 Creating a Domain-Specific Validation Library
 ---------------------------------------------
@@ -144,6 +184,7 @@ You can build domain-specific validation libraries on top of Valid8r:
 .. code-block:: python
 
    from valid8r import Maybe, parsers, validators
+   from valid8r.core.maybe import Success, Failure
    import re
 
    # User validation library
@@ -187,15 +228,24 @@ You can build domain-specific validation libraries on top of Valid8r:
                message
            )
 
-   # Usage
+   # Usage with pattern matching
    username_validator = UserValidators.username()
    email_validator = UserValidators.email()
    phone_validator = UserValidators.phone()
 
    # Validate a user
-   username_result = username_validator("john_doe123")
-   email_result = email_validator("john@example.com")
-   phone_result = phone_validator("123-456-7890")
+   def validate_user_field(value, validator, field_name):
+       result = validator(value)
+       match result:
+           case Success(validated_value):
+               return f"Valid {field_name}: {validated_value}"
+           case Failure(error):
+               return f"Invalid {field_name}: {error}"
+
+   print(validate_user_field("john_doe123", username_validator, "username"))
+   print(validate_user_field("john@example.com", email_validator, "email"))
+   print(validate_user_field("123-456-7890", phone_validator, "phone"))
+   print(validate_user_field("invalid-email", email_validator, "email"))
 
 Working with External Data
 --------------------------
@@ -206,6 +256,7 @@ Valid8r can also validate data from external sources like JSON or CSV files:
 
    import json
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Define validators for user data
    user_validators = {
@@ -225,16 +276,17 @@ Valid8r can also validate data from external sources like JSON or CSV files:
        for field, validator in user_validators.items():
            if field in user_data:
                result = validator(user_data[field])
-               if result.is_just():
-                   results[field] = result.value()
-               else:
-                   errors[field] = result.error()
+               match result:
+                   case Success(value):
+                       results[field] = value
+                   case Failure(error):
+                       errors[field] = error
            else:
                errors[field] = f"Missing required field: {field}"
 
        if errors:
-           return Maybe.nothing(errors)
-       return Maybe.just(results)
+           return Maybe.failure(errors)
+       return Maybe.success(results)
 
    # Load data from a JSON file
    def load_and_validate_users(file_path):
@@ -246,12 +298,33 @@ Valid8r can also validate data from external sources like JSON or CSV files:
 
        for user in data:
            result = validate_user(user)
-           if result.is_just():
-               valid_users.append(result.value())
-           else:
-               invalid_users.append((user, result.error()))
+           match result:
+               case Success(validated_user):
+                   valid_users.append(validated_user)
+               case Failure(errors):
+                   invalid_users.append((user, errors))
 
        return valid_users, invalid_users
+
+   # Example usage with pattern matching
+   def process_users(file_path):
+       try:
+           valid_users, invalid_users = load_and_validate_users(file_path)
+           print(f"Valid users: {len(valid_users)}")
+           print(f"Invalid users: {len(invalid_users)}")
+
+           # Process valid users
+           for user in valid_users:
+               print(f"Processing valid user: {user['name']}, age {user['age']}")
+
+           # Report invalid users
+           for user, errors in invalid_users:
+               print(f"Invalid user: {user.get('name', 'Unknown')}")
+               for field, error in errors.items():
+                   print(f"  - {field}: {error}")
+
+       except Exception as e:
+           print(f"Error loading users: {e}")
 
 Integration with Web Frameworks
 -------------------------------
@@ -262,6 +335,7 @@ Valid8r can be integrated with web frameworks for form validation:
 
    from flask import Flask, request, jsonify
    from valid8r import parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    app = Flask(__name__)
 
@@ -282,13 +356,21 @@ Valid8r can be integrated with web frameworks for form validation:
 
        # Validate username
        username_result = username_validator(data.get('username', ''))
-       if username_result.is_nothing():
-           return jsonify({"error": "username", "message": username_result.error()}), 400
+       match username_result:
+           case Failure(error):
+               return jsonify({"error": "username", "message": error}), 400
+           case Success(_):
+               # Continue validation
+               pass
 
        # Validate password
        password_result = password_validator(data.get('password', ''))
-       if password_result.is_nothing():
-           return jsonify({"error": "password", "message": password_result.error()}), 400
+       match password_result:
+           case Failure(error):
+               return jsonify({"error": "password", "message": error}), 400
+           case Success(_):
+               # Continue validation
+               pass
 
        # Both valid, proceed with registration
        # ...
@@ -303,20 +385,23 @@ Valid8r's Maybe monad enables some advanced functional programming patterns:
 .. code-block:: python
 
    from valid8r import Maybe, parsers
+   from valid8r.core.maybe import Success, Failure
    from typing import List
 
    # Sequence operation - convert a list of Maybes to a Maybe of list
    def sequence(maybes: List[Maybe]):
        """Convert a list of Maybe values to a Maybe containing a list of values.
 
-       If any Maybe is Nothing, the result is Nothing with the first error.
+       If any Maybe is Failure, the result is Failure with the first error.
        """
        values = []
        for m in maybes:
-           if m.is_nothing():
-               return m  # Return the first Nothing
-           values.append(m.value())
-       return Maybe.just(values)
+           match m:
+               case Failure(error):
+                   return Maybe.failure(error)  # Return the first Failure
+               case Success(value):
+                   values.append(value)
+       return Maybe.success(values)
 
    # Parse multiple values
    results = [
@@ -327,21 +412,42 @@ Valid8r's Maybe monad enables some advanced functional programming patterns:
 
    # Sequence the results
    seq_result = sequence(results)
-   if seq_result.is_just():
-       print(f"All values parsed successfully: {seq_result.value()}")
-   else:
-       print(f"Error parsing values: {seq_result.error()}")
+   match seq_result:
+       case Success(values):
+           print(f"All values parsed successfully: {values}")  # All values parsed successfully: [42, 3.14, True]
+       case Failure(error):
+           print(f"Error parsing values: {error}")
 
-   # Map operation - apply a function to a list of values inside a Maybe
+   # Invalid case
+   results_with_error = [
+       parsers.parse_int("42"),
+       parsers.parse_int("not_a_number"),  # This will be a Failure
+       parsers.parse_bool("true")
+   ]
+
+   seq_result = sequence(results_with_error)
+   match seq_result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error parsing values: {error}")  # Error parsing values: Input must be a valid integer
+
+   # Map operation - apply a function to a value inside a Maybe
    def map_maybe(maybe, func):
        """Apply a function to a value inside a Maybe."""
-       if maybe.is_just():
-           return Maybe.just(func(maybe.value()))
-       return maybe
+       match maybe:
+           case Success(value):
+               return Maybe.success(func(value))
+           case Failure(error):
+               return Maybe.failure(error)
 
    # Double a number inside a Maybe
    doubled = map_maybe(parsers.parse_int("42"), lambda x: x * 2)
-   print(doubled.value())  # 84
+   match doubled:
+       case Success(value):
+           print(value)  # 84
+       case Failure(_):
+           print("This won't happen")
 
 Asynchronous Validation
 -----------------------
@@ -352,13 +458,14 @@ For asynchronous validation in asyncio-based applications:
 
    import asyncio
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    async def async_validator(value):
        """Simulate an asynchronous validation (e.g., checking a database)."""
        await asyncio.sleep(1)  # Simulate network delay
        if value.startswith("valid_"):
-           return Maybe.just(value)
-       return Maybe.nothing("Value must start with 'valid_'")
+           return Maybe.success(value)
+       return Maybe.failure("Value must start with 'valid_'")
 
    async def validate_user_exists(username):
        """Check if a username exists in the database."""
@@ -366,23 +473,39 @@ For asynchronous validation in asyncio-based applications:
        await asyncio.sleep(0.5)
        existing_users = ["alice", "bob", "charlie"]
        if username in existing_users:
-           return Maybe.just(username)
-       return Maybe.nothing(f"User '{username}' does not exist")
+           return Maybe.success(username)
+       return Maybe.failure(f"User '{username}' does not exist")
 
    async def main():
        # Validate a string asynchronously
        result = await async_validator("valid_user")
-       print(result.is_just())  # True
+       match result:
+           case Success(value):
+               print(f"Valid user: {value}")  # Valid user: valid_user
+           case Failure(_):
+               print("This won't happen")
 
        result = await async_validator("invalid_user")
-       print(result.is_nothing())  # True
+       match result:
+           case Success(_):
+               print("This won't happen")
+           case Failure(error):
+               print(f"Invalid user: {error}")  # Invalid user: Value must start with 'valid_'
 
        # Check if user exists
        result = await validate_user_exists("alice")
-       print(result.is_just())  # True
+       match result:
+           case Success(value):
+               print(f"User found: {value}")  # User found: alice
+           case Failure(_):
+               print("This won't happen")
 
        result = await validate_user_exists("dave")
-       print(result.is_nothing())  # True
+       match result:
+           case Success(_):
+               print("This won't happen")
+           case Failure(error):
+               print(f"User error: {error}")  # User error: User 'dave' does not exist
 
    # Run with asyncio
    asyncio.run(main())
@@ -396,6 +519,7 @@ Writing tests for your validators is crucial:
 
    import unittest
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    class TestValidators(unittest.TestCase):
        def test_minimum_validator(self):
@@ -404,13 +528,13 @@ Writing tests for your validators is crucial:
 
            # Test valid case
            result = is_positive(10)
-           self.assertTrue(result.is_just())
-           self.assertEqual(result.value(), 10)
+           self.assertTrue(result.is_success())
+           self.assertEqual(result.value_or(None), 10)
 
            # Test invalid case
            result = is_positive(-5)
-           self.assertTrue(result.is_nothing())
-           self.assertIn("must be at least 0", result.error())
+           self.assertTrue(result.is_failure())
+           self.assertIn("must be at least 0", result.value_or(""))
 
        def test_combined_validators(self):
            # Create combined validator
@@ -418,16 +542,16 @@ Writing tests for your validators is crucial:
 
            # Test valid case
            result = is_valid_age(30)
-           self.assertTrue(result.is_just())
+           self.assertTrue(result.is_success())
 
            # Test invalid cases
            result = is_valid_age(15)
-           self.assertTrue(result.is_nothing())
-           self.assertIn("must be at least 18", result.error())
+           self.assertTrue(result.is_failure())
+           self.assertIn("must be at least 18", result.value_or(""))
 
            result = is_valid_age(70)
-           self.assertTrue(result.is_nothing())
-           self.assertIn("must be at most 65", result.error())
+           self.assertTrue(result.is_failure())
+           self.assertIn("must be at most 65", result.value_or(""))
 
 Performance Considerations
 --------------------------
@@ -479,9 +603,32 @@ When dealing with large datasets or performance-critical code:
        print(f"Efficient: {end - start:.6f} seconds")
        return results
 
+   # Process results with pattern matching
+   def summarize_validation_results(results):
+       valid_count = 0
+       invalid_count = 0
+       errors = []
+
+       for result in results:
+           match result:
+               case Success(_):
+                   valid_count += 1
+               case Failure(error):
+                   invalid_count += 1
+                   errors.append(error)
+
+       return {
+           "valid": valid_count,
+           "invalid": invalid_count,
+           "errors": errors[:5]  # Show just the first few errors
+       }
+
    # Test with a large dataset
    test_data = list(range(10000))
-   validate_inefficient(test_data)
-   validate_efficient(test_data)
+   inefficient_results = validate_inefficient(test_data)
+   efficient_results = validate_efficient(test_data)
+
+   print(summarize_validation_results(inefficient_results))
+   print(summarize_validation_results(efficient_results))
 
 In the next sections, we'll explore concrete examples and the complete API reference.

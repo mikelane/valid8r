@@ -1,7 +1,7 @@
 User Input Prompting
 ====================
 
-The `prompt` module in Valid8r provides tools for interactively prompting users for input with built-in validation. This is particularly useful for command-line applications.
+The ``prompt`` module in Valid8r provides tools for interactively prompting users for input with built-in validation. This is particularly useful for command-line applications.
 
 Basic Usage
 -----------
@@ -9,19 +9,26 @@ Basic Usage
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Ask for a simple string
    name = prompt.ask("Enter your name: ")
-   if name.is_just():
-       print(f"Hello, {name.value()}!")
+   match name:
+       case Success(value):
+           print(f"Hello, {value}!")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Ask for an integer
    age = prompt.ask(
        "Enter your age: ",
        parser=parsers.parse_int
    )
-   if age.is_just():
-       print(f"You are {age.value()} years old.")
+   match age:
+       case Success(value):
+           print(f"You are {value} years old.")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Ask for a validated value
    score = prompt.ask(
@@ -29,13 +36,16 @@ Basic Usage
        parser=parsers.parse_int,
        validator=validators.between(0, 100)
    )
-   if score.is_just():
-       print(f"Score: {score.value()}")
+   match score:
+       case Success(value):
+           print(f"Score: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
-The `ask` Function
-------------------
+The ``ask`` Function
+--------------------
 
-The `ask` function is the main entry point for user input prompting:
+The ``ask`` function is the main entry point for user input prompting:
 
 .. code-block:: python
 
@@ -60,7 +70,7 @@ Parameters:
 
 Return Value:
 
-- A Maybe containing either the validated value or an error
+- A Maybe containing either the validated value (Success) or an error (Failure)
 
 Default Values
 --------------
@@ -70,6 +80,7 @@ You can provide a default value that will be used if the user enters nothing:
 .. code-block:: python
 
    from valid8r import prompt, parsers
+   from valid8r.core.maybe import Success, Failure
 
    # With a default value
    age = prompt.ask(
@@ -79,16 +90,22 @@ You can provide a default value that will be used if the user enters nothing:
    )
 
    # The prompt will show the default: "Enter your age: [30]: "
-   # If the user presses Enter without typing anything, 30 will be used
+   # If the user presses Enter without typing anything:
+   match age:
+       case Success(value):
+           print(f"Using age: {value}")  # Will be 30 if user pressed Enter
+       case Failure(error):
+           print(f"Error: {error}")
 
 Error Handling and Retries
 --------------------------
 
-By default, if the user enters invalid input, `ask` will return a Nothing with an error message. You can enable retries to keep asking until valid input is provided:
+By default, if the user enters invalid input, ``ask`` will return a Failure with an error message. You can enable retries to keep asking until valid input is provided:
 
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # No retry (default)
    age = prompt.ask(
@@ -96,7 +113,12 @@ By default, if the user enters invalid input, `ask` will return a Nothing with a
        parser=parsers.parse_int,
        validator=validators.between(0, 120)
    )
-   # If user enters "abc" or -5, a Nothing is returned
+   # If user enters "abc" or -5, a Failure is returned
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(error):
+           print(f"Invalid input: {error}")
 
    # Infinite retries
    age = prompt.ask(
@@ -105,6 +127,12 @@ By default, if the user enters invalid input, `ask` will return a Nothing with a
        validator=validators.between(0, 120),
        retry=True  # Keep asking until valid input
    )
+   # This will always return Success if it returns at all
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(_):
+           print("This won't happen unless interrupted")
 
    # Limited retries
    age = prompt.ask(
@@ -113,6 +141,13 @@ By default, if the user enters invalid input, `ask` will return a Nothing with a
        validator=validators.between(0, 120),
        retry=3  # Allow 3 attempts
    )
+   # If valid input is provided within 3 attempts, Success is returned
+   # Otherwise, Failure is returned
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(error):
+           print(f"Failed after maximum retries: {error}")
 
 When retry is enabled, error messages are displayed to the user:
 
@@ -123,7 +158,7 @@ When retry is enabled, error messages are displayed to the user:
    Enter your age (0-120): -5
    Error: Value must be between 0 and 120
    Enter your age (0-120): 42
-   # Valid input, function returns
+   # Valid input, function returns Success(42)
 
 Custom Error Messages
 ---------------------
@@ -133,6 +168,7 @@ You can provide a custom error message that overrides the default ones:
 .. code-block:: python
 
    from valid8r import prompt, parsers
+   from valid8r.core.maybe import Success, Failure
 
    age = prompt.ask(
        "Enter your age: ",
@@ -143,6 +179,38 @@ You can provide a custom error message that overrides the default ones:
 
    # If user enters "abc":
    # Error: Please enter a valid age as a positive number
+   # The prompt will keep asking with this error message until valid input
+
+Processing User Input
+---------------------
+
+Using pattern matching to process user input results:
+
+.. code-block:: python
+
+   from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
+
+   def process_age_input():
+       age = prompt.ask(
+           "Enter your age: ",
+           parser=parsers.parse_int,
+           validator=validators.between(0, 120),
+           retry=3
+       )
+
+       match age:
+           case Success(value) if value < 18:
+               return f"You are {value} years old. You are a minor."
+           case Success(value) if value >= 65:
+               return f"You are {value} years old. You are a senior citizen."
+           case Success(value):
+               return f"You are {value} years old. You are an adult."
+           case Failure(error):
+               return f"Could not process age: {error}"
+
+   result = process_age_input()
+   print(result)
 
 Common Patterns
 ---------------
@@ -154,13 +222,14 @@ Password Input
 
 .. code-block:: python
 
-   from valid8r import prompt, validators
+   from valid8r import prompt, validators, Maybe
+   from valid8r.core.maybe import Success, Failure
    from getpass import getpass
 
    # Custom parser that uses getpass for hidden input
    def password_parser(prompt_text):
        password = getpass(prompt_text)
-       return Maybe.just(password)
+       return Maybe.success(password)
 
    # Password validation
    password_validator = validators.length(8, 64) & validators.predicate(
@@ -175,12 +244,19 @@ Password Input
        retry=True
    )
 
+   match password:
+       case Success(value):
+           print(f"Password accepted: {'*' * len(value)}")
+       case Failure(error):
+           print(f"Password error: {error}")
+
 Confirmation Prompts
 ~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
    from valid8r import prompt, parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Ask for confirmation
    confirm = prompt.ask(
@@ -189,10 +265,13 @@ Confirmation Prompts
        retry=True
    )
 
-   if confirm.is_just() and confirm.value():
-       print("Proceeding...")
-   else:
-       print("Operation cancelled.")
+   match confirm:
+       case Success(value) if value:
+           print("Proceeding...")
+       case Success(_):
+           print("Operation cancelled.")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Menu Selection
 ~~~~~~~~~~~~~~
@@ -200,6 +279,7 @@ Menu Selection
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Display menu
    print("Select an option:")
@@ -216,56 +296,17 @@ Menu Selection
        retry=True
    )
 
-   if selection.is_just():
-       if selection.value() == 1:
+   match selection:
+       case Success(1):
            print("Viewing records...")
-       elif selection.value() == 2:
+       case Success(2):
            print("Adding record...")
-       elif selection.value() == 3:
+       case Success(3):
            print("Deleting record...")
-       else:  # 4
+       case Success(4):
            print("Exiting...")
-
-Complex Input Flow
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-   from valid8r import prompt, parsers, validators, Maybe
-
-   # Get user information with validation
-   name = prompt.ask("Enter your name: ", retry=True)
-
-   age = prompt.ask(
-       "Enter your age: ",
-       parser=parsers.parse_int,
-       validator=validators.between(0, 120),
-       retry=True
-   )
-
-   # Custom email validation
-   import re
-
-   def is_valid_email(email):
-       pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-       return bool(re.match(pattern, email))
-
-   email = prompt.ask(
-       "Enter your email: ",
-       validator=validators.predicate(is_valid_email, "Invalid email format"),
-       retry=True
-   )
-
-   # Create user record if all inputs are valid
-   if all(result.is_just() for result in [name, age, email]):
-       user = {
-           "name": name.value(),
-           "age": age.value(),
-           "email": email.value()
-       }
-       print(f"User created: {user}")
-   else:
-       print("Failed to create user")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Interactive Applications
 ------------------------
@@ -275,6 +316,7 @@ The prompt module is ideal for building interactive command-line applications:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
    import sys
 
    def main():
@@ -294,24 +336,34 @@ The prompt module is ideal for building interactive command-line applications:
                retry=True
            )
 
-           if not choice.is_just():
-               continue
-
-           if choice.value() == 1:
-               add_contact()
-           elif choice.value() == 2:
-               view_contacts()
-           else:
-               print("Goodbye!")
-               sys.exit(0)
+           match choice:
+               case Success(1):
+                   add_contact()
+               case Success(2):
+                   view_contacts()
+               case Success(3):
+                   print("Goodbye!")
+                   sys.exit(0)
+               case Failure(error):
+                   print(f"Error: {error}")
+                   continue
 
    def add_contact():
        # Implementation using prompt.ask
-       pass
+       name = prompt.ask("Enter name: ", retry=True)
+       phone = prompt.ask("Enter phone: ", retry=True)
+
+       match (name, phone):
+           case (Success(name_val), Success(phone_val)):
+               print(f"Added contact: {name_val}, {phone_val}")
+           case (Failure(error), _):
+               print(f"Name error: {error}")
+           case (_, Failure(error)):
+               print(f"Phone error: {error}")
 
    def view_contacts():
        # Implementation
-       pass
+       print("No contacts available")
 
    if __name__ == "__main__":
        main()
@@ -325,13 +377,14 @@ Best Practices
 4. **Enable retries for better UX**: Especially in interactive applications
 5. **Provide helpful error messages**: Explain what went wrong and how to fix it
 6. **Use default values where appropriate**: Makes input quicker for common cases
+7. **Handle all result cases**: Always use pattern matching to handle both Success and Failure cases
 
 Limitations
 -----------
 
 1. **Terminal-based only**: The prompt module is designed for command-line interfaces
-2. **No input masking**: For sensitive input like passwords, use `getpass` module
+2. **No input masking**: For sensitive input like passwords, use ``getpass`` module
 3. **No colored output**: Error messages are displayed in plain text
 4. **No interactive features**: No arrow key navigation, autocomplete, etc.
 
-Next, we'll explore advanced usage patterns and more complex examples in the next section.
+In the next section, we'll explore advanced usage patterns and more complex examples.

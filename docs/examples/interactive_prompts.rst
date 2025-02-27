@@ -1,21 +1,25 @@
 Interactive Prompts
 ===================
 
-This section demonstrates how to use Valid8r's prompting functionality for interactive command-line applications.
+This section demonstrates how to use Valid8r's prompting functionality for interactive command-line applications. The prompt module provides a clean interface for collecting and validating user input with integrated error handling.
 
 Basic User Input
 ----------------
 
-Simple examples of prompting for different types of input:
+The following examples demonstrate prompting for different types of input:
 
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Basic string input
    name = prompt.ask("Enter your name: ")
-   if name.is_just():
-       print(f"Hello, {name.value()}!")
+   match name:
+       case Success(value):
+           print(f"Hello, {value}!")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Integer input
    age = prompt.ask(
@@ -23,8 +27,11 @@ Simple examples of prompting for different types of input:
        parser=parsers.parse_int,
        retry=True
    )
-   if age.is_just():
-       print(f"You are {age.value()} years old.")
+   match age:
+       case Success(value):
+           print(f"You are {value} years old.")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Validated integer input
    score = prompt.ask(
@@ -33,8 +40,11 @@ Simple examples of prompting for different types of input:
        validator=validators.between(0, 100),
        retry=True
    )
-   if score.is_just():
-       print(f"Your score: {score.value()}/100")
+   match score:
+       case Success(value):
+           print(f"Your score: {value}/100")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Boolean input (yes/no)
    confirm = prompt.ask(
@@ -42,19 +52,23 @@ Simple examples of prompting for different types of input:
        parser=parsers.parse_bool,
        retry=True
    )
-   if confirm.is_just() and confirm.value():
-       print("Continuing...")
-   else:
-       print("Operation cancelled.")
+   match confirm:
+       case Success(value) if value:
+           print("Continuing...")
+       case Success(_):
+           print("Operation cancelled.")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Using Default Values
 --------------------
 
-Provide default values for prompts:
+Default values provide convenient options for users:
 
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # String with default
    username = prompt.ask(
@@ -62,7 +76,11 @@ Provide default values for prompts:
        default="guest",
        retry=True
    )
-   print(f"Username: {username.value()}")
+   match username:
+       case Success(value):
+           print(f"Username: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Integer with default
    port = prompt.ask(
@@ -72,7 +90,11 @@ Provide default values for prompts:
        default=8080,
        retry=True
    )
-   print(f"Using port: {port.value()}")
+   match port:
+       case Success(value):
+           print(f"Using port: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Date with default
    from datetime import date
@@ -86,16 +108,21 @@ Provide default values for prompts:
        default=date.today().isoformat(),
        retry=True
    )
-   print(f"Expiry date: {expiry_date.value()}")
+   match expiry_date:
+       case Success(value):
+           print(f"Expiry date: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Controlling Retry Behavior
 --------------------------
 
-Specify how many retries are allowed:
+Valid8r offers flexible retry control for handling invalid input:
 
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # No retries (default)
    value = prompt.ask(
@@ -103,8 +130,11 @@ Specify how many retries are allowed:
        parser=parsers.parse_int,
        validator=validators.minimum(0)
    )
-   if value.is_nothing():
-       print(f"Invalid input: {value.error()}")
+   match value:
+       case Success(num):
+           print(f"Valid number: {num}")
+       case Failure(error):
+           print(f"Invalid input: {error}")
 
    # Infinite retries
    value = prompt.ask(
@@ -113,7 +143,12 @@ Specify how many retries are allowed:
        validator=validators.minimum(0),
        retry=True  # True means infinite retries
    )
-   print(f"You entered: {value.value()}")
+   # This will always return Success if it returns at all
+   match value:
+       case Success(num):
+           print(f"You entered: {num}")
+       case Failure(_):
+           print("This won't happen unless interrupted")
 
    # Limited retries
    value = prompt.ask(
@@ -122,20 +157,21 @@ Specify how many retries are allowed:
        validator=validators.minimum(0),
        retry=3  # Allow 3 retry attempts
    )
-
-   if value.is_just():
-       print(f"You entered: {value.value()}")
-   else:
-       print(f"Failed after 3 attempts: {value.error()}")
+   match value:
+       case Success(num):
+           print(f"You entered: {num}")
+       case Failure(error):
+           print(f"Failed after 3 attempts: {error}")
 
 Custom Error Messages
 ---------------------
 
-Customize error messages for better user experience:
+Customize error messages for a better user experience:
 
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Custom error message for parser
    age = prompt.ask(
@@ -143,6 +179,11 @@ Customize error messages for better user experience:
        parser=lambda s: parsers.parse_int(s, error_message="Age must be a number"),
        retry=True
    )
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Custom error message for validator
    age = prompt.ask(
@@ -153,6 +194,11 @@ Customize error messages for better user experience:
        ),
        retry=True
    )
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Custom error message for the prompt itself
    age = prompt.ask(
@@ -162,6 +208,11 @@ Customize error messages for better user experience:
        error_message="Please enter a valid age between 0 and 120",
        retry=True
    )
+   match age:
+       case Success(value):
+           print(f"Age: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Building a Menu System
 ----------------------
@@ -171,6 +222,7 @@ Create interactive menus using prompts:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
    import sys
 
    def main_menu():
@@ -189,14 +241,18 @@ Create interactive menus using prompts:
                retry=True
            )
 
-           if choice.value() == 1:
-               user_menu()
-           elif choice.value() == 2:
-               file_menu()
-           elif choice.value() == 3:
-               settings_menu()
-           else:  # 4
-               sys.exit(0)
+           match choice:
+               case Success(1):
+                   user_menu()
+               case Success(2):
+                   file_menu()
+               case Success(3):
+                   settings_menu()
+               case Success(4):
+                   print("Goodbye!")
+                   sys.exit(0)
+               case Failure(error):
+                   print(f"Error: {error}")
 
    def user_menu():
        while True:
@@ -214,15 +270,18 @@ Create interactive menus using prompts:
                retry=True
            )
 
-           if choice.value() == 1:
-               print("Listing users...")
-               # Implementation...
-           elif choice.value() == 2:
-               add_user()
-           elif choice.value() == 3:
-               delete_user()
-           else:  # 4
-               return
+           match choice:
+               case Success(1):
+                   print("Listing users...")
+                   # Implementation...
+               case Success(2):
+                   add_user()
+               case Success(3):
+                   delete_user()
+               case Success(4):
+                   return
+               case Failure(error):
+                   print(f"Error: {error}")
 
    def add_user():
        print("\nAdd User")
@@ -255,10 +314,19 @@ Create interactive menus using prompts:
            retry=True
        )
 
-       print(f"\nUser added successfully:")
-       print(f"Username: {username.value()}")
-       print(f"Email: {email.value()}")
-       print(f"Age: {age.value()}")
+       # Process all inputs with pattern matching
+       match (username, email, age):
+           case (Success(u), Success(e), Success(a)):
+               print("\nUser added successfully:")
+               print(f"Username: {u}")
+               print(f"Email: {e}")
+               print(f"Age: {a}")
+           case (Failure(error), _, _):
+               print(f"Username error: {error}")
+           case (_, Failure(error), _):
+               print(f"Email error: {error}")
+           case (_, _, Failure(error)):
+               print(f"Age error: {error}")
 
    # Implementation of other functions...
    def file_menu():
@@ -284,13 +352,14 @@ Password input with masking:
 
 .. code-block:: python
 
-   from valid8r import prompt, Maybe, validators
+   from valid8r import prompt, validators, Maybe
+   from valid8r.core.maybe import Success, Failure
    from getpass import getpass
 
    # Custom parser that uses getpass for hidden input
    def password_parser(prompt_text):
        password = getpass(prompt_text)
-       return Maybe.just(password)
+       return Maybe.success(password)
 
    # Password validation
    def validate_password():
@@ -325,18 +394,26 @@ Password input with masking:
            retry=True
        )
 
-       if password.value() != confirm.value():
-           print("Error: Passwords do not match")
-           return Maybe.nothing("Passwords do not match")
-
-       return password
+       # Check if passwords match
+       match (password, confirm):
+           case (Success(pass1), Success(pass2)) if pass1 == pass2:
+               return Maybe.success(pass1)
+           case (Success(_), Success(_)):
+               print("Error: Passwords do not match")
+               return Maybe.failure("Passwords do not match")
+           case (Failure(error), _):
+               return Maybe.failure(error)
+           case (_, Failure(error)):
+               return Maybe.failure(error)
 
    # Usage
    password_result = validate_password()
-   if password_result.is_just():
-       print("Password set successfully")
-   else:
-       print(f"Failed to set password: {password_result.error()}")
+   match password_result:
+       case Success(value):
+           print("Password set successfully")
+           print(f"Password hash: {hash(value)}")  # Don't actually store the password like this
+       case Failure(error):
+           print(f"Failed to set password: {error}")
 
 Multi-stage Input Flow
 ----------------------
@@ -346,6 +423,7 @@ Complex multi-stage form with validation:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators, Maybe
+   from valid8r.core.maybe import Success, Failure
    import re
 
    def register_user():
@@ -360,7 +438,7 @@ Complex multi-stage form with validation:
        )
 
        email_validator = validators.predicate(
-           lambda s: bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", s)),
+           lambda s: bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", s)),
            "Invalid email format"
        )
 
@@ -417,9 +495,12 @@ Complex multi-stage form with validation:
 
                # Validate password
                result = password_validator(password)
-               if result.is_nothing():
-                   print(f"Error: {result.error()}")
-                   continue
+               match result:
+                   case Failure(error):
+                       print(f"Error: {error}")
+                       continue
+                   case Success(_):
+                       pass
 
                # Confirm password
                confirm = getpass("Confirm password: ")
@@ -427,7 +508,7 @@ Complex multi-stage form with validation:
                    print("Error: Passwords do not match")
                    continue
 
-               return Maybe.just(password)
+               return Maybe.success(password)
 
        password = prompt.ask(
            "Enter password: ",
@@ -460,37 +541,57 @@ Complex multi-stage form with validation:
            retry=True
        )
 
-       # Step 4: Confirmation
+       # Step 4: Confirmation - process all inputs with pattern matching
        print("\nStep 4: Confirmation")
        print("===================")
-       print(f"Name: {name.value()}")
-       print(f"Email: {email.value()}")
-       print(f"Age: {age.value()}")
-       print(f"Username: {username.value()}")
-       print(f"Password: {'*' * len(password.value())}")
-       print(f"Receive emails: {receive_emails.value()}")
-       print(f"Theme: {theme_choices[theme_index.value() - 1]}")
 
-       confirm = prompt.ask(
-           "\nConfirm registration? (yes/no): ",
-           parser=parsers.parse_bool,
-           retry=True
-       )
+       # Collect all inputs
+       inputs = (name, email, age, username, password, receive_emails, theme_index)
 
-       if confirm.value():
-           print("\nRegistration successful!")
-           return {
-               "name": name.value(),
-               "email": email.value(),
-               "age": age.value(),
-               "username": username.value(),
-               "password": password.value(),
-               "receive_emails": receive_emails.value(),
-               "theme": theme_choices[theme_index.value() - 1]
-           }
-       else:
-           print("\nRegistration cancelled.")
-           return None
+       # Verify all inputs are valid
+       match inputs:
+           case (Success(name_val), Success(email_val), Success(age_val),
+                 Success(username_val), Success(password_val),
+                 Success(receive_val), Success(theme_idx)):
+               theme_val = theme_choices[theme_idx - 1]
+
+               # Display confirmation
+               print(f"Name: {name_val}")
+               print(f"Email: {email_val}")
+               print(f"Age: {age_val}")
+               print(f"Username: {username_val}")
+               print(f"Password: {'*' * len(password_val)}")
+               print(f"Receive emails: {receive_val}")
+               print(f"Theme: {theme_val}")
+
+               # Ask for final confirmation
+               confirm = prompt.ask(
+                   "\nConfirm registration? (yes/no): ",
+                   parser=parsers.parse_bool,
+                   retry=True
+               )
+
+               match confirm:
+                   case Success(True):
+                       print("\nRegistration successful!")
+                       return {
+                           "name": name_val,
+                           "email": email_val,
+                           "age": age_val,
+                           "username": username_val,
+                           "password": password_val,
+                           "receive_emails": receive_val,
+                           "theme": theme_val
+                       }
+                   case Success(False):
+                       print("\nRegistration cancelled.")
+                       return None
+                   case Failure(error):
+                       print(f"Confirmation error: {error}")
+                       return None
+           case _:
+               print("Some inputs were invalid. Please try again.")
+               return None
 
    # Usage
    user_data = register_user()
@@ -505,6 +606,7 @@ Combine command-line parsing with interactive prompts:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
    import argparse
    import sys
 
@@ -529,7 +631,12 @@ Combine command-line parsing with interactive prompts:
                default="localhost",
                retry=True
            )
-           host = host_result.value()
+           match host_result:
+               case Success(value):
+                   host = value
+               case Failure(error):
+                   print(f"Error: {error}")
+                   return
 
        # Get port (with prompt fallback)
        port = args.port
@@ -541,7 +648,12 @@ Combine command-line parsing with interactive prompts:
                default=8080,
                retry=True
            )
-           port = port_result.value()
+           match port_result:
+               case Success(value):
+                   port = value
+               case Failure(error):
+                   print(f"Error: {error}")
+                   return
 
        # Get username (with prompt fallback)
        username = args.username
@@ -551,7 +663,12 @@ Combine command-line parsing with interactive prompts:
                validator=validators.length(3, 20),
                retry=True
            )
-           username = username_result.value()
+           match username_result:
+               case Success(value):
+                   username = value
+               case Failure(error):
+                   print(f"Error: {error}")
+                   return
 
        # Debug mode from args
        debug_mode = args.debug
@@ -577,6 +694,7 @@ Build a complete data entry form with validation:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
    from datetime import date
 
    def employee_form():
@@ -628,68 +746,83 @@ Build a complete data entry form with validation:
            retry=True
        )
 
-       department = departments[dept_choice.value() - 1]
+       # Process employee data with pattern matching
+       match (employee_id, first_name, last_name, dob, dept_choice):
+           case (Success(id_val), Success(first_val), Success(last_val),
+                 Success(dob_val), Success(dept_idx)):
+               department = departments[dept_idx - 1]
 
-       # Salary
-       salary = prompt.ask(
-           "Annual Salary: ",
-           parser=parsers.parse_float,
-           validator=validators.minimum(0),
-           retry=True
-       )
+               # Collect additional information
+               salary = prompt.ask(
+                   "Annual Salary: ",
+                   parser=parsers.parse_float,
+                   validator=validators.minimum(0),
+                   retry=True
+               )
 
-       # Start Date
-       start_date = prompt.ask(
-           "Start Date (YYYY-MM-DD): ",
-           parser=parsers.parse_date,
-           validator=validators.predicate(
-               lambda d: d <= date.today(),
-               "Start date cannot be in the future"
-           ),
-           default=date.today().isoformat(),
-           retry=True
-       )
+               start_date = prompt.ask(
+                   "Start Date (YYYY-MM-DD): ",
+                   parser=parsers.parse_date,
+                   validator=validators.predicate(
+                       lambda d: d <= date.today(),
+                       "Start date cannot be in the future"
+                   ),
+                   default=date.today().isoformat(),
+                   retry=True
+               )
 
-       # Full-time status
-       full_time = prompt.ask(
-           "Full-time employee? (yes/no): ",
-           parser=parsers.parse_bool,
-           default=True,
-           retry=True
-       )
+               full_time = prompt.ask(
+                   "Full-time employee? (yes/no): ",
+                   parser=parsers.parse_bool,
+                   default=True,
+                   retry=True
+               )
 
-       # Display summary
-       print("\nEmployee Summary:")
-       print(f"ID: {employee_id.value()}")
-       print(f"Name: {first_name.value()} {last_name.value()}")
-       print(f"Date of Birth: {dob.value().isoformat()}")
-       print(f"Department: {department}")
-       print(f"Salary: ${salary.value():,.2f}")
-       print(f"Start Date: {start_date.value().isoformat()}")
-       print(f"Full-time: {full_time.value()}")
+               # Process final data
+               match (salary, start_date, full_time):
+                   case (Success(salary_val), Success(start_val), Success(ft_val)):
+                       # Display summary
+                       print("\nEmployee Summary:")
+                       print(f"ID: {id_val}")
+                       print(f"Name: {first_val} {last_val}")
+                       print(f"Date of Birth: {dob_val.isoformat()}")
+                       print(f"Department: {department}")
+                       print(f"Salary: ${salary_val:,.2f}")
+                       print(f"Start Date: {start_val.isoformat()}")
+                       print(f"Full-time: {ft_val}")
 
-       # Save confirmation
-       save = prompt.ask(
-           "\nSave employee record? (yes/no): ",
-           parser=parsers.parse_bool,
-           retry=True
-       )
+                       # Save confirmation
+                       save = prompt.ask(
+                           "\nSave employee record? (yes/no): ",
+                           parser=parsers.parse_bool,
+                           retry=True
+                       )
 
-       if save.value():
-           print("Employee record saved successfully!")
-           return {
-               "id": employee_id.value(),
-               "first_name": first_name.value(),
-               "last_name": last_name.value(),
-               "dob": dob.value(),
-               "department": department,
-               "salary": salary.value(),
-               "start_date": start_date.value(),
-               "full_time": full_time.value()
-           }
-       else:
-           print("Employee record discarded.")
-           return None
+                       match save:
+                           case Success(True):
+                               print("Employee record saved successfully!")
+                               return {
+                                   "id": id_val,
+                                   "first_name": first_val,
+                                   "last_name": last_val,
+                                   "dob": dob_val,
+                                   "department": department,
+                                   "salary": salary_val,
+                                   "start_date": start_val,
+                                   "full_time": ft_val
+                               }
+                           case Success(False):
+                               print("Employee record discarded.")
+                               return None
+                           case Failure(error):
+                               print(f"Error: {error}")
+                               return None
+                   case _:
+                       print("Error collecting employee details.")
+                       return None
+           case _:
+               print("Error collecting employee information.")
+               return None
 
    # Usage
    employee = employee_form()

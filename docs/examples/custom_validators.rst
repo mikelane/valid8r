@@ -1,49 +1,59 @@
 Custom Validators
 =================
 
-This section demonstrates how to create custom validators to extend Valid8r's capabilities for specific validation scenarios.
+This section demonstrates how to create custom validators to extend Valid8r's capabilities for specific validation scenarios. While Valid8r provides many built-in validators, you can easily create your own validators for domain-specific validation needs.
 
 Creating a Simple Custom Validator
 ----------------------------------
 
-Custom validators are functions that take a value and return a Maybe object:
+Custom validators are functions that take a value and return a Maybe object. To create a custom validator:
 
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create a custom validator for even numbers
    def validate_even(value):
        if value % 2 == 0:
-           return Maybe.just(value)
-       return Maybe.nothing("Value must be even")
+           return Maybe.success(value)
+       return Maybe.failure("Value must be even")
 
    # Convert to a Validator instance for operator overloading
    is_even = validators.Validator(validate_even)
 
-   # Use the custom validator
+   # Use the custom validator with pattern matching
    result = is_even(42)  # Valid
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid even number: {value}")  # Valid even number: 42
+       case Failure(_):
+           print("This won't happen")
 
+   # Invalid case
    result = is_even(43)  # Invalid
-   print(result.is_nothing())  # True
-   print(result.error())  # "Value must be even"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be even
 
 Creating a Validator Factory Function
 -------------------------------------
 
-For reusable validators with parameters, create factory functions:
+For reusable validators with parameters, create factory functions that return validator instances:
 
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Validator factory for divisibility check
    def divisible_by(n, error_message=None):
        def validator(value):
            if value % n == 0:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Value must be divisible by {n}"
            )
        return validators.Validator(validator)
@@ -52,18 +62,33 @@ For reusable validators with parameters, create factory functions:
    is_divisible_by_3 = divisible_by(3)
    is_divisible_by_5 = divisible_by(5)
 
-   # Use the validators
-   result = is_divisible_by_3(9)  # Valid
-   print(result.is_just())  # True
+   # Process results with pattern matching
+   def check_divisibility(value):
+       div3_result = is_divisible_by_3(value)
+       div5_result = is_divisible_by_5(value)
 
-   result = is_divisible_by_5(7)  # Invalid
-   print(result.is_nothing())  # True
-   print(result.error())  # "Value must be divisible by 5"
+       match (div3_result, div5_result):
+           case (Success(_), Success(_)):
+               return f"{value} is divisible by both 3 and 5"
+           case (Success(_), Failure(_)):
+               return f"{value} is divisible by 3 but not by 5"
+           case (Failure(_), Success(_)):
+               return f"{value} is divisible by 5 but not by 3"
+           case (Failure(_), Failure(_)):
+               return f"{value} is divisible by neither 3 nor 5"
+
+   # Test with different values
+   for value in [9, 10, 15, 7]:
+       print(check_divisibility(value))
 
    # Custom error message
    is_multiple_of_10 = divisible_by(10, "Must be a multiple of 10")
    result = is_multiple_of_10(15)
-   print(result.error())  # "Must be a multiple of 10"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Must be a multiple of 10
 
 String Validation Examples
 --------------------------
@@ -73,6 +98,7 @@ Custom validators for common string validation scenarios:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
    import re
 
    # Email validation
@@ -81,8 +107,8 @@ Custom validators for common string validation scenarios:
 
        def validator(value):
            if re.match(pattern, value):
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Invalid email format"
            )
        return validators.Validator(validator)
@@ -93,8 +119,8 @@ Custom validators for common string validation scenarios:
 
        def validator(value):
            if re.match(pattern, value):
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Invalid URL format"
            )
        return validators.Validator(validator)
@@ -110,35 +136,67 @@ Custom validators for common string validation scenarios:
 
        def validator(value):
            if re.match(pattern, value):
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Invalid phone number for {country} format"
            )
        return validators.Validator(validator)
 
-   # Use the validators
-   is_valid_email = email_validator()
-   is_valid_url = url_validator()
-   is_valid_us_phone = phone_validator("us")
+   # Validate contact information with pattern matching
+   def validate_contact_info(email, url, phone):
+       is_valid_email = email_validator()
+       is_valid_url = url_validator()
+       is_valid_us_phone = phone_validator("us")
 
-   email_result = is_valid_email("user@example.com")  # Valid
-   print(email_result.is_just())  # True
+       email_result = is_valid_email(email)
+       url_result = is_valid_url(url)
+       phone_result = is_valid_us_phone(phone)
 
-   url_result = is_valid_url("https://example.com/path")  # Valid
-   print(url_result.is_just())  # True
+       # Process all validation results at once
+       match (email_result, url_result, phone_result):
+           case (Success(e), Success(u), Success(p)):
+               return {
+                   "status": "valid",
+                   "contact": {
+                       "email": e,
+                       "website": u,
+                       "phone": p
+                   }
+               }
+           case (Failure(error), _, _):
+               return {
+                   "status": "invalid",
+                   "field": "email",
+                   "error": error
+               }
+           case (_, Failure(error), _):
+               return {
+                   "status": "invalid",
+                   "field": "website",
+                   "error": error
+               }
+           case (_, _, Failure(error)):
+               return {
+                   "status": "invalid",
+                   "field": "phone",
+                   "error": error
+               }
 
-   phone_result = is_valid_us_phone("555-123-4567")  # Valid
-   print(phone_result.is_just())  # True
+   # Test with valid data
+   result = validate_contact_info(
+       "user@example.com",
+       "https://example.com",
+       "555-123-4567"
+   )
+   print(result["status"])  # valid
 
-   # Invalid examples
-   email_result = is_valid_email("not-an-email")
-   print(email_result.error())  # "Invalid email format"
-
-   url_result = is_valid_url("not-a-url")
-   print(url_result.error())  # "Invalid URL format"
-
-   phone_result = is_valid_us_phone("123")
-   print(phone_result.error())  # "Invalid phone number for us format"
+   # Test with invalid data
+   result = validate_contact_info(
+       "not-an-email",
+       "https://example.com",
+       "555-123-4567"
+   )
+   print(f"{result['status']}: {result['field']} - {result['error']}")
 
 Date and Time Validators
 ------------------------
@@ -148,14 +206,15 @@ Custom validators for date and time validation:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
    from datetime import date, timedelta
 
    # Date range validator
    def date_between(start_date, end_date, error_message=None):
        def validator(value):
            if start_date <= value <= end_date:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Date must be between {start_date} and {end_date}"
            )
        return validators.Validator(validator)
@@ -165,10 +224,10 @@ Custom validators for date and time validation:
        def validator(value):
            today = date.today()
            if include_today and value >= today:
-               return Maybe.just(value)
+               return Maybe.success(value)
            elif not include_today and value > today:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Date must be in the future"
            )
        return validators.Validator(validator)
@@ -178,10 +237,10 @@ Custom validators for date and time validation:
        def validator(value):
            today = date.today()
            if include_today and value <= today:
-               return Maybe.just(value)
+               return Maybe.success(value)
            elif not include_today and value < today:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Date must be in the past"
            )
        return validators.Validator(validator)
@@ -190,8 +249,8 @@ Custom validators for date and time validation:
    def is_weekday(error_message=None):
        def validator(value):
            if value.weekday() < 5:  # Monday(0) to Friday(4)
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Date must be a weekday"
            )
        return validators.Validator(validator)
@@ -200,32 +259,43 @@ Custom validators for date and time validation:
    def is_weekend(error_message=None):
        def validator(value):
            if value.weekday() >= 5:  # Saturday(5) and Sunday(6)
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Date must be a weekend"
            )
        return validators.Validator(validator)
 
-   # Use the validators
-   today = date.today()
-   next_month = today + timedelta(days=30)
+   # Process date with pattern matching
+   def validate_appointment_date(appointment_date):
+       today = date.today()
+       next_month = today + timedelta(days=30)
 
-   # Create validators
-   is_this_month = date_between(today, next_month)
-   is_future = future_date(include_today=False)
-   is_past = past_date(include_today=False)
-   is_business_day = is_weekday()
-   is_weekend_day = is_weekend()
+       # Create validators
+       is_this_month = date_between(today, next_month)
+       is_weekday = is_weekday()
 
-   # Test with a specific date
-   test_date = date(2023, 4, 15)  # A Saturday in April 2023
+       # Check if date is valid for appointment
+       month_result = is_this_month(appointment_date)
+       weekday_result = is_weekday(appointment_date)
 
-   result = is_weekend_day(test_date)  # Valid (it's a Saturday)
-   print(result.is_just())  # True
+       match (month_result, weekday_result):
+           case (Success(_), Success(_)):
+               return f"Appointment on {appointment_date.isoformat()} is valid (weekday this month)"
+           case (Failure(_), Success(_)):
+               return f"Appointment on {appointment_date.isoformat()} is invalid (not within a month)"
+           case (Success(_), Failure(_)):
+               return f"Appointment on {appointment_date.isoformat()} is invalid (not a weekday)"
+           case (Failure(err1), Failure(err2)):
+               return f"Appointment on {appointment_date.isoformat()} is invalid: {err1} and {err2}"
 
-   result = is_business_day(test_date)  # Invalid (it's not a weekday)
-   print(result.is_nothing())  # True
-   print(result.error())  # "Date must be a weekday"
+   # Test with different dates
+   valid_date = date.today() + timedelta(days=5)
+   weekend_date = date.today() + timedelta(days=(5 - date.today().weekday() + 6) % 7)
+   future_date = date.today() + timedelta(days=60)
+
+   print(validate_appointment_date(valid_date))
+   print(validate_appointment_date(weekend_date))
+   print(validate_appointment_date(future_date))
 
 Collection Validators
 ---------------------
@@ -235,6 +305,7 @@ Custom validators for collections like lists and dictionaries:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # List length validator
    def list_length(min_length, max_length=None, error_message=None):
@@ -243,17 +314,17 @@ Custom validators for collections like lists and dictionaries:
 
        def validator(value):
            if not isinstance(value, list):
-               return Maybe.nothing("Value must be a list")
+               return Maybe.failure("Value must be a list")
 
            if min_length <= len(value) <= max_length:
-               return Maybe.just(value)
+               return Maybe.success(value)
 
            if min_length == max_length:
-               return Maybe.nothing(
+               return Maybe.failure(
                    error_message or f"List must contain exactly {min_length} items"
                )
 
-           return Maybe.nothing(
+           return Maybe.failure(
                error_message or f"List must contain between {min_length} and {max_length} items"
            )
        return validators.Validator(validator)
@@ -262,65 +333,117 @@ Custom validators for collections like lists and dictionaries:
    def each_item(item_validator, error_message=None):
        def validator(value):
            if not isinstance(value, list):
-               return Maybe.nothing("Value must be a list")
+               return Maybe.failure("Value must be a list")
 
            errors = []
            results = []
 
            for i, item in enumerate(value):
                result = item_validator(item)
-               if result.is_just():
-                   results.append(result.value())
-               else:
-                   errors.append(f"Item {i}: {result.error()}")
+               match result:
+                   case Success(validated_item):
+                       results.append(validated_item)
+                   case Failure(error):
+                       errors.append(f"Item {i}: {error}")
 
            if errors:
-               return Maybe.nothing(
+               return Maybe.failure(
                    error_message or "\n".join(errors)
                )
 
-           return Maybe.just(results)
+           return Maybe.success(results)
        return validators.Validator(validator)
 
    # Dictionary validator with required keys
    def has_keys(required_keys, error_message=None):
        def validator(value):
            if not isinstance(value, dict):
-               return Maybe.nothing("Value must be a dictionary")
+               return Maybe.failure("Value must be a dictionary")
 
            missing_keys = [key for key in required_keys if key not in value]
 
            if missing_keys:
-               return Maybe.nothing(
+               return Maybe.failure(
                    error_message or f"Missing required keys: {', '.join(missing_keys)}"
                )
 
-           return Maybe.just(value)
+           return Maybe.success(value)
        return validators.Validator(validator)
 
-   # Use the validators
-   is_non_empty_list = list_length(1)
-   has_max_5_items = list_length(0, 5, "List cannot have more than 5 items")
-   all_positive = each_item(validators.minimum(0))
+   # Validate a product catalog with pattern matching
+   def validate_product_catalog(products):
+       is_non_empty_list = list_length(1)
+       is_positive_price = validators.minimum(0)
+       all_valid_prices = each_item(is_positive_price)
+       has_required_product_fields = has_keys(["name", "price", "stock"])
 
-   # Test list validators
-   result = is_non_empty_list([1, 2, 3])  # Valid
-   print(result.is_just())  # True
+       # First validate that we have a non-empty list
+       list_result = is_non_empty_list(products)
+       match list_result:
+           case Failure(error):
+               return f"Invalid product catalog: {error}"
+           case Success(_):
+               pass  # Continue validation
 
-   result = has_max_5_items([1, 2, 3, 4, 5, 6])  # Invalid
-   print(result.error())  # "List cannot have more than 5 items"
+       # Then validate each product
+       valid_products = []
+       invalid_products = []
 
-   result = all_positive([1, 2, 3, -4, 5])  # Invalid
-   print(result.error())  # "Item 3: Value must be at least 0"
+       for i, product in enumerate(products):
+           # Validate product structure
+           structure_result = has_required_product_fields(product)
 
-   # Test dictionary validator
-   has_required_fields = has_keys(["name", "email", "age"])
+           match structure_result:
+               case Failure(error):
+                   invalid_products.append({
+                       "index": i,
+                       "product": product,
+                       "error": error
+                   })
+                   continue
+               case Success(_):
+                   # Validate price
+                   price_result = is_positive_price(product.get("price", 0))
+                   match price_result:
+                       case Failure(error):
+                           invalid_products.append({
+                               "index": i,
+                               "product": product,
+                               "error": f"Price is invalid: {error}"
+                           })
+                           continue
+                       case Success(_):
+                           valid_products.append(product)
 
-   result = has_required_fields({"name": "John", "email": "john@example.com", "age": 30})  # Valid
-   print(result.is_just())  # True
+       if invalid_products:
+           return {
+               "status": "partial",
+               "valid_count": len(valid_products),
+               "invalid_count": len(invalid_products),
+               "invalid_products": invalid_products
+           }
 
-   result = has_required_fields({"name": "John", "email": "john@example.com"})  # Invalid
-   print(result.error())  # "Missing required keys: age"
+       return {
+           "status": "success",
+           "product_count": len(valid_products),
+           "products": valid_products
+       }
+
+   # Test with a product catalog
+   products = [
+       {"name": "Laptop", "price": 999.99, "stock": 10},
+       {"name": "Phone", "price": 499.99, "stock": 20},
+       {"name": "Headphones", "price": -49.99, "stock": 30},  # Invalid price
+       {"name": "Tablet", "stock": 15}  # Missing price
+   ]
+
+   result = validate_product_catalog(products)
+   print(f"Status: {result['status']}")
+   if result["status"] == "partial":
+       print(f"Valid products: {result['valid_count']}")
+       print(f"Invalid products: {result['invalid_count']}")
+       for invalid in result["invalid_products"]:
+           print(f"  Product #{invalid['index']}: {invalid['error']}")
 
 Custom Domain-Specific Validators
 ---------------------------------
@@ -330,6 +453,7 @@ Creating validators for specific business domains:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Credit card validator
    def credit_card_validator(error_message=None):
@@ -358,8 +482,8 @@ Creating validators for specific business domains:
            card_number = ''.join(c for c in value if c.isdigit() or c.isalpha())
 
            if luhn_check(card_number):
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Invalid credit card number"
            )
        return validators.Validator(validator)
@@ -397,50 +521,56 @@ Creating validators for specific business domains:
            isbn = ''.join(c for c in value if c.isdigit() or c == 'X')
 
            if validate_isbn10(isbn) or validate_isbn13(isbn):
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or "Invalid ISBN"
            )
        return validators.Validator(validator)
 
-   # Postcode/Zip code validator
-   def postcode_validator(country="US", error_message=None):
-       patterns = {
-           "US": r"^\d{5}(-\d{4})?$",
-           "UK": r"^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$",
-           "CA": r"^[A-Z]\d[A-Z] \d[A-Z]\d$",
-           "AU": r"^\d{4}$"
-       }
+   # Validate payment and product information
+   def validate_purchase(credit_card, isbn):
+       cc_validator = credit_card_validator()
+       book_validator = isbn_validator()
 
-       pattern = patterns.get(country, patterns["US"])
+       cc_result = cc_validator(credit_card)
+       isbn_result = book_validator(isbn)
 
-       def validator(value):
-           import re
-           if re.match(pattern, value, re.IGNORECASE):
-               return Maybe.just(value)
-           return Maybe.nothing(
-               error_message or f"Invalid {country} postal code"
-           )
-       return validators.Validator(validator)
-
-   # Use the domain-specific validators
-   is_valid_credit_card = credit_card_validator()
-   is_valid_isbn = isbn_validator()
-   is_valid_us_zip = postcode_validator("US")
-   is_valid_uk_postcode = postcode_validator("UK")
+       match (cc_result, isbn_result):
+           case (Success(cc), Success(book)):
+               return {
+                   "status": "approved",
+                   "message": "Purchase approved",
+                   "payment": f"xxxx-xxxx-xxxx-{cc[-4:]}",
+                   "product": book
+               }
+           case (Failure(error), _):
+               return {
+                   "status": "declined",
+                   "reason": "payment",
+                   "message": error
+               }
+           case (_, Failure(error)):
+               return {
+                   "status": "declined",
+                   "reason": "product",
+                   "message": error
+               }
 
    # Test with valid values
-   cc_result = is_valid_credit_card("4111 1111 1111 1111")  # Valid test number
-   print(cc_result.is_just())  # True
+   purchase_result = validate_purchase(
+       "4111 1111 1111 1111",  # Valid test number
+       "978-3-16-148410-0"     # Valid ISBN-13
+   )
+   print(f"Purchase status: {purchase_result['status']}")
 
-   isbn_result = is_valid_isbn("978-3-16-148410-0")  # Valid ISBN-13
-   print(isbn_result.is_just())  # True
-
-   zip_result = is_valid_us_zip("90210")  # Valid US ZIP
-   print(zip_result.is_just())  # True
-
-   postcode_result = is_valid_uk_postcode("SW1A 1AA")  # Valid UK postcode
-   print(postcode_result.is_just())  # True
+   # Test with invalid values
+   purchase_result = validate_purchase(
+       "4111 1111 1111 1112",  # Invalid number
+       "978-3-16-148410-0"     # Valid ISBN-13
+   )
+   print(f"Purchase status: {purchase_result['status']}")
+   print(f"Reason: {purchase_result['reason']}")
+   print(f"Message: {purchase_result['message']}")
 
 Creating Stateful Validators
 ----------------------------
@@ -450,6 +580,7 @@ Validators that maintain state or depend on external resources:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Validator that ensures uniqueness within a session
    class UniqueValidator:
@@ -459,49 +590,43 @@ Validators that maintain state or depend on external resources:
 
        def __call__(self, value):
            if value in self.seen_values:
-               return Maybe.nothing(self.error_message)
+               return Maybe.failure(self.error_message)
            self.seen_values.add(value)
-           return Maybe.just(value)
+           return Maybe.success(value)
 
        def reset(self):
            self.seen_values.clear()
 
-   # Validator that checks against a database
-   class DatabaseValidator:
-       def __init__(self, db_connection, query_template, error_message=None):
-           self.db_connection = db_connection
-           self.query_template = query_template
-           self.error_message = error_message
+   # Use stateful validators with pattern matching
+   def register_usernames(usernames):
+       is_unique = UniqueValidator("This username has already been registered")
 
-       def __call__(self, value):
-           cursor = self.db_connection.cursor()
-           query = self.query_template.format(value=value)
-           cursor.execute(query)
-           result = cursor.fetchone()
+       registered = []
+       errors = []
 
-           if result:
-               return Maybe.just(value)
-           return Maybe.nothing(self.error_message or "Invalid value")
+       for i, username in enumerate(usernames):
+           result = is_unique(username)
+           match result:
+               case Success(value):
+                   registered.append(value)
+               case Failure(error):
+                   errors.append({"index": i, "username": username, "error": error})
 
-   # Usage example (simulated)
-   # Create a unique validator
-   is_unique = UniqueValidator("This value has already been used")
+       return {
+           "registered": registered,
+           "errors": errors,
+           "success_count": len(registered),
+           "error_count": len(errors)
+       }
 
-   # Test with sequential values
-   result1 = is_unique("apple")  # Valid
-   print(result1.is_just())  # True
+   # Test with a list of usernames
+   result = register_usernames(["alice", "bob", "charlie", "alice", "david", "bob"])
+   print(f"Registered {result['success_count']} users:")
+   for user in result["registered"]:
+       print(f"  - {user}")
 
-   result2 = is_unique("banana")  # Valid
-   print(result2.is_just())  # True
-
-   result3 = is_unique("apple")  # Invalid (already seen)
-   print(result3.is_nothing())  # True
-   print(result3.error())  # "This value has already been used"
-
-   # Reset the unique validator
-   is_unique.reset()
-
-   result4 = is_unique("apple")  # Valid again after reset
-   print(result4.is_just())  # True
+   print(f"Encountered {result['error_count']} errors:")
+   for error in result["errors"]:
+       print(f"  - {error['username']}: {error['error']}")
 
 In the next section, we'll explore interactive prompting techniques with validation.

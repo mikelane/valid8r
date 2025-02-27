@@ -5,7 +5,7 @@ valid8r.core.maybe
 
 .. autoapi-nested-parse::
 
-   Maybe monad for clean error handling.
+   Maybe monad for clean error handling using Success and Failure types.
 
 
 
@@ -24,6 +24,8 @@ Classes
 .. autoapisummary::
 
    valid8r.core.maybe.Maybe
+   valid8r.core.maybe.Success
+   valid8r.core.maybe.Failure
 
 
 Module Contents
@@ -33,41 +35,95 @@ Module Contents
 
 .. py:data:: U
 
-.. py:class:: Maybe(value = None, error = None)
+.. py:class:: Maybe
 
-   Bases: :py:obj:`Generic`\ [\ :py:obj:`T`\ ]
-
-
-   A Maybe monad implementation that handles computations which might fail.
-
-   The Maybe monad is a functional programming concept that provides a clean
-   way to handle operations that might fail, without using exceptions for
-   control flow.
-
-   .. admonition:: Examples
-
-      >>> from valid8r.core.maybe import Maybe
-      >>> Maybe.just(5)
-      Just(5)
-      >>> Maybe.nothing("Error")
-      Nothing(Error)
-      >>> Maybe.just(5).bind(lambda x: Maybe.just(x * 2))
-      Just(10)
+   Bases: :py:obj:`Generic`\ [\ :py:obj:`T`\ ], :py:obj:`abc.ABC`
 
 
-   .. py:method:: just(value)
+   Base class for the Maybe monad.
+
+
+   .. py:method:: success(value)
       :staticmethod:
 
 
-      Create a Maybe containing a value.
+      Create a Success containing a value.
 
 
 
-   .. py:method:: nothing(error)
+   .. py:method:: failure(error)
       :staticmethod:
 
 
-      Create a Maybe containing an error.
+      Create a Failure containing an error message.
+
+
+
+   .. py:method:: is_success()
+      :abstractmethod:
+
+
+      Check if the Maybe is a Success.
+
+
+
+   .. py:method:: is_failure()
+      :abstractmethod:
+
+
+      Check if the Maybe is a Failure.
+
+
+
+   .. py:method:: bind(f)
+      :abstractmethod:
+
+
+      Chain operations that might fail.
+
+
+
+   .. py:method:: map(f)
+      :abstractmethod:
+
+
+      Transform the value if present.
+
+
+
+   .. py:method:: value_or(default)
+      :abstractmethod:
+
+
+      Safely get the value or a default.
+
+
+
+.. py:class:: Success(value)
+
+   Bases: :py:obj:`Maybe`\ [\ :py:obj:`T`\ ]
+
+
+   Represents a successful computation with a value.
+
+
+   .. py:attribute:: __match_args__
+      :value: ('value',)
+
+
+
+   .. py:attribute:: value
+
+
+   .. py:method:: is_success()
+
+      Check if the Maybe is a Success.
+
+
+
+   .. py:method:: is_failure()
+
+      Check if the Maybe is a Failure.
 
 
 
@@ -79,31 +135,65 @@ Module Contents
 
    .. py:method:: map(f)
 
+      Transform the value.
+
+
+
+   .. py:method:: value_or(_default)
+
+      Safely get the value or a default.
+
+      Default is unused in Success case as we always return the value.
+
+
+
+   .. py:method:: __str__()
+
+      Get a string representation.
+
+
+
+.. py:class:: Failure(error)
+
+   Bases: :py:obj:`Maybe`\ [\ :py:obj:`T`\ ]
+
+
+   Represents a failed computation with an error message.
+
+
+   .. py:attribute:: __match_args__
+      :value: ('error',)
+
+
+
+   .. py:attribute:: error
+
+
+   .. py:method:: is_success()
+
+      Check if the Maybe is a Success.
+
+
+
+   .. py:method:: is_failure()
+
+      Check if the Maybe is a Failure.
+
+
+
+   .. py:method:: bind(_f)
+
+      Chain operations that might fail.
+
+      Function is unused in Failure case as we always propagate the error.
+
+
+
+   .. py:method:: map(_f)
+
       Transform the value if present.
 
-
-
-   .. py:method:: is_just()
-
-      Check if this Maybe contains a value.
-
-
-
-   .. py:method:: is_nothing()
-
-      Check if this Maybe contains an error.
-
-
-
-   .. py:method:: value()
-
-      Get the contained value. Unsafe if is_nothing().
-
-
-
-   .. py:method:: error()
-
-      Get the error message. Unsafe if is_just().
+      Function is unused in Failure case as we always propagate the error.
 
 
 
@@ -115,7 +205,7 @@ Module Contents
 
    .. py:method:: __str__()
 
-      Get a string representation of the Maybe.
+      Get a string representation.
 
 
 

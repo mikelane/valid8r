@@ -1,16 +1,17 @@
 Chaining Validators
 ===================
 
-This section demonstrates techniques for combining validators to create complex validation rules.
+This section demonstrates techniques for combining validators to create complex validation rules. Valid8r's composable validator architecture allows you to build sophisticated validation logic through simple chaining.
 
 Basic Validator Chaining
 ------------------------
 
-Using the `&` operator to combine validators with logical AND:
+Using the ``&`` operator to combine validators with logical AND:
 
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create individual validators
    is_positive = validators.minimum(0, "Value must be positive")
@@ -21,24 +22,37 @@ Using the `&` operator to combine validators with logical AND:
 
    # Test the combined validator
    result = is_valid_percentage(50)  # Valid
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid percentage: {value}")  # Valid percentage: 50
+       case Failure(_):
+           print("This won't happen")
 
+   # Test with invalid value (too small)
    result = is_valid_percentage(-10)  # Invalid
-   print(result.is_nothing())  # True
-   print(result.error())  # "Value must be positive"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be positive
 
+   # Test with invalid value (too large)
    result = is_valid_percentage(150)  # Invalid
-   print(result.is_nothing())  # True
-   print(result.error())  # "Value must be less than 100"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be less than 100
 
-Using Logical OR with the `|` Operator
---------------------------------------
+Using Logical OR with the ``|`` Operator
+----------------------------------------
 
-Combine validators with logical OR using the `|` operator:
+Combine validators with logical OR using the ``|`` operator:
 
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create individual validators
    is_zero = validators.predicate(lambda x: x == 0, "Value must be zero")
@@ -47,25 +61,39 @@ Combine validators with logical OR using the `|` operator:
    # Combine validators with logical OR
    is_valid = is_zero | is_positive
 
-   # Test the combined validator
+   # Test with value that satisfies first validator
    result = is_valid(0)  # Valid (satisfies is_zero)
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid value: {value}")  # Valid value: 0
+       case Failure(_):
+           print("This won't happen")
 
+   # Test with value that satisfies second validator
    result = is_valid(10)  # Valid (satisfies is_positive)
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid value: {value}")  # Valid value: 10
+       case Failure(_):
+           print("This won't happen")
 
+   # Test with value that satisfies neither validator
    result = is_valid(-5)  # Invalid (satisfies neither)
-   print(result.is_nothing())  # True
-   print(result.error())  # "Value must be positive"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be positive
 
-Negating Validators with the `~` Operator
------------------------------------------
+Negating Validators with the ``~`` Operator
+-------------------------------------------
 
-Negate a validator using the `~` operator:
+Negate a validator using the ``~`` operator:
 
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create a validator
    is_even = validators.predicate(lambda x: x % 2 == 0, "Value must be even")
@@ -73,21 +101,34 @@ Negate a validator using the `~` operator:
    # Negate the validator
    is_odd = ~is_even
 
-   # Test the negated validator
+   # Test with an odd number
    result = is_odd(5)  # Valid
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid odd number: {value}")  # Valid odd number: 5
+       case Failure(_):
+           print("This won't happen")
 
+   # Test with an even number
    result = is_odd(4)  # Invalid
-   print(result.is_nothing())  # True
-   print(result.error())  # "Negated validation failed"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Negated validation failed
 
    # Provide a custom error message for the negated validator
    from valid8r.core.combinators import not_validator
 
    is_odd_custom = not_validator(is_even, "Value must be odd")
 
+   # Test with an even number
    result = is_odd_custom(4)  # Invalid
-   print(result.error())  # "Value must be odd"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be odd
 
 Complex Validation Chains
 -------------------------
@@ -97,6 +138,7 @@ Combine multiple validators with complex logic:
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create individual validators
    is_positive = validators.minimum(0, "Value must be positive")
@@ -111,21 +153,25 @@ Combine multiple validators with complex logic:
    # (Positive AND Even) OR (Multiple of 3 AND Less than 100)
    complex_validator = (is_positive & is_even) | (is_multiple_of_3 & is_less_than_100)
 
-   # Test the complex validator
-   result = complex_validator(4)   # Valid (positive and even)
-   print(result.is_just())  # True
+   # Test the complex validator with pattern matching
+   def validate_number(number):
+       result = complex_validator(number)
+       match result:
+           case Success(value):
+               if value % 2 == 0 and value >= 0:
+                   return f"{value} is valid (positive and even)"
+               elif value % 3 == 0 and value < 100:
+                   return f"{value} is valid (multiple of 3 and less than 100)"
+               else:
+                   return f"{value} is valid (satisfies complex condition)"
+           case Failure(error):
+               return f"{number} is invalid: {error}"
 
-   result = complex_validator(9)   # Valid (multiple of 3 and less than 100)
-   print(result.is_just())  # True
-
-   result = complex_validator(99)  # Valid (multiple of 3 and less than 100)
-   print(result.is_just())  # True
-
-   result = complex_validator(-2)  # Invalid (not positive)
-   print(result.is_nothing())  # True
-
-   result = complex_validator(102)  # Invalid (not even, > 100)
-   print(result.is_nothing())  # True
+   print(validate_number(4))    # 4 is valid (positive and even)
+   print(validate_number(9))    # 9 is valid (multiple of 3 and less than 100)
+   print(validate_number(99))   # 99 is valid (multiple of 3 and less than 100)
+   print(validate_number(-2))   # -2 is invalid: Value must be positive
+   print(validate_number(102))  # 102 is valid (positive and even)
 
 Validation Priority and Short-Circuit Behavior
 ----------------------------------------------
@@ -135,6 +181,7 @@ Validators are evaluated from left to right with short-circuit behavior:
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
    import time
 
    # Create a slow validator that takes time to evaluate
@@ -153,16 +200,28 @@ Validators are evaluated from left to right with short-circuit behavior:
    slow_first = slow & is_even
    even_first = is_even & slow
 
-   # Test with invalid input for the first validator
-   start = time.time()
-   result = slow_first(-5)  # Invalid for slow, won't evaluate is_even
-   end = time.time()
-   print(f"slow_first took {end - start:.2f} seconds")  # ~1 second
+   # Test with efficient pattern matching
+   def benchmark_validation(validator, value, description):
+       start = time.time()
+       result = validator(value)
+       end = time.time()
 
-   start = time.time()
-   result = even_first(3)  # Invalid for is_even, won't evaluate slow
-   end = time.time()
-   print(f"even_first took {end - start:.2f} seconds")  # Much less than 1 second
+       match result:
+           case Success(val):
+               print(f"{description} succeeded in {end - start:.2f} seconds with value {val}")
+           case Failure(error):
+               print(f"{description} failed in {end - start:.2f} seconds with error: {error}")
+
+       return end - start
+
+   # Invalid for is_even, won't evaluate slow
+   benchmark_validation(even_first, 3, "even_first with odd number")  # Much faster
+
+   # Invalid for slow, won't evaluate is_even
+   benchmark_validation(slow_first, -5, "slow_first with negative number")  # Slower (≈1 second)
+
+   # Valid case (evaluates both)
+   benchmark_validation(even_first, 42, "even_first with valid number")  # Slower (≈1 second)
 
 Validator Composition for Form Validation
 -----------------------------------------
@@ -172,6 +231,7 @@ Use validator chaining to validate form fields:
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
    import re
 
    # Username validation: 3-20 chars, alphanumeric with underscores
@@ -206,23 +266,49 @@ Use validator chaining to validate form fields:
        "Invalid email format"
    )
 
-   # Test the validators
-   username_result = username_validator("john_doe")
-   password_result = password_validator("Passw0rd")
-   email_result = email_validator("john@example.com")
+   # Validate user registration form
+   def validate_registration(username, password, email):
+       # Validate each field
+       username_result = username_validator(username)
+       password_result = password_validator(password)
+       email_result = email_validator(email)
 
-   print(f"Username valid: {username_result.is_just()}")
-   print(f"Password valid: {password_result.is_just()}")
-   print(f"Email valid: {email_result.is_just()}")
+       # Process results with pattern matching
+       match (username_result, password_result, email_result):
+           case (Success(u), Success(p), Success(e)):
+               return {
+                   "status": "success",
+                   "message": "Registration successful",
+                   "data": {
+                       "username": u,
+                       "password": "*" * len(p),  # Mask the password
+                       "email": e
+                   }
+               }
+           case (Failure(error), _, _):
+               return {
+                   "status": "error",
+                   "field": "username",
+                   "message": error
+               }
+           case (_, Failure(error), _):
+               return {
+                   "status": "error",
+                   "field": "password",
+                   "message": error
+               }
+           case (_, _, Failure(error)):
+               return {
+                   "status": "error",
+                   "field": "email",
+                   "message": error
+               }
+
+   # Test with valid inputs
+   print(validate_registration("john_doe", "Passw0rd123", "john@example.com"))
 
    # Test with invalid inputs
-   invalid_username = username_validator("jo")
-   invalid_password = password_validator("password")  # Missing uppercase and digit
-   invalid_email = email_validator("not-an-email")
-
-   print(f"Invalid username error: {invalid_username.error()}")
-   print(f"Invalid password error: {invalid_password.error()}")
-   print(f"Invalid email error: {invalid_email.error()}")
+   print(validate_registration("jo", "password", "not-an-email"))
 
 Validator Factory Functions
 ---------------------------
@@ -232,13 +318,14 @@ Create functions that generate validators:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Factory function for creating a validator that checks if a value is divisible by n
    def divisible_by(n, error_message=None):
        def validator(value):
            if value % n == 0:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Value must be divisible by {n}"
            )
        return validators.Validator(validator)
@@ -249,34 +336,32 @@ Create functions that generate validators:
            min_val = target * (1 - percentage / 100)
            max_val = target * (1 + percentage / 100)
            if min_val <= value <= max_val:
-               return Maybe.just(value)
-           return Maybe.nothing(
+               return Maybe.success(value)
+           return Maybe.failure(
                error_message or f"Value must be within {percentage}% of {target}"
            )
        return validators.Validator(validator)
 
-   # Use the factory functions
-   is_divisible_by_5 = divisible_by(5)
-   is_within_10pct_of_100 = within_percentage(100, 10)
+   # Create a validation pipeline with factory-generated validators
+   def validate_measurement(value):
+       # Use the factory functions
+       is_divisible_by_5 = divisible_by(5)
+       is_within_10pct_of_100 = within_percentage(100, 10)
 
-   # Combine with other validators
-   valid_number = validators.minimum(0) & is_divisible_by_5 & is_within_10pct_of_100
+       # Combine with other validators
+       valid_number = validators.minimum(0) & is_divisible_by_5 & is_within_10pct_of_100
 
-   # Test
-   result = valid_number(100)  # Valid
-   print(result.is_just())  # True
+       # Validate with pattern matching
+       result = valid_number(value)
+       match result:
+           case Success(validated):
+               return f"{validated} is a valid measurement"
+           case Failure(error):
+               return f"Invalid measurement ({value}): {error}"
 
-   result = valid_number(105)  # Valid
-   print(result.is_just())  # True
-
-   result = valid_number(95)  # Valid
-   print(result.is_just())  # True
-
-   result = valid_number(85)  # Invalid (not within 10% of 100)
-   print(result.is_nothing())  # True
-
-   result = valid_number(7)  # Invalid (not divisible by 5)
-   print(result.is_nothing())  # True
+   # Test with various values
+   for value in [100, 105, 95, 85, 7, 120]:
+       print(validate_measurement(value))
 
 Real-world Example: Data Pipeline Validation
 --------------------------------------------
@@ -286,6 +371,7 @@ Use validator chaining in a data processing pipeline:
 .. code-block:: python
 
    from valid8r import Maybe, validators
+   from valid8r.core.maybe import Success, Failure
    from datetime import datetime
 
    # Sample data record
@@ -311,10 +397,10 @@ Use validator chaining in a data processing pipeline:
            dt = datetime.fromisoformat(ts_str)
            # Ensure timestamp is not in the future
            if dt > datetime.now():
-               return Maybe.nothing("Timestamp cannot be in the future")
-           return Maybe.just(dt)
+               return Maybe.failure("Timestamp cannot be in the future")
+           return Maybe.success(dt)
        except ValueError:
-           return Maybe.nothing("Invalid timestamp format")
+           return Maybe.failure("Invalid timestamp format")
 
    # Validate amount
    def validate_amount(amount):
@@ -339,57 +425,52 @@ Use validator chaining in a data processing pipeline:
            f"Status must be one of {valid_statuses}"
        )(status)
 
-   # Validate complete record
+   # Validate complete transaction record
    def validate_transaction(record):
-       # Check required fields
-       required_fields = ["id", "timestamp", "amount", "currency", "status"]
-       for field in required_fields:
-           if field not in record:
-               return Maybe.nothing(f"Missing required field: {field}")
+       # Process all validations at once using pattern matching
+       id_result = validate_id(record.get("id", ""))
+       timestamp_result = validate_timestamp(record.get("timestamp", ""))
+       amount_result = validate_amount(record.get("amount", 0))
+       currency_result = validate_currency(record.get("currency", ""))
+       status_result = validate_status(record.get("status", ""))
 
-       # Validate each field
-       id_result = validate_id(record["id"])
-       if id_result.is_nothing():
-           return Maybe.nothing(f"Invalid ID: {id_result.error()}")
+       # Check all results together
+       match (id_result, timestamp_result, amount_result, currency_result, status_result):
+           case (Success(id_val), Success(ts_val), Success(amt_val), Success(curr_val), Success(stat_val)):
+               # All validations passed, return validated record
+               validated_record = record.copy()
+               validated_record["timestamp"] = ts_val  # Replace with parsed datetime
+               return Maybe.success(validated_record)
+           case (Failure(error), _, _, _, _):
+               return Maybe.failure(f"Invalid ID: {error}")
+           case (_, Failure(error), _, _, _):
+               return Maybe.failure(f"Invalid timestamp: {error}")
+           case (_, _, Failure(error), _, _):
+               return Maybe.failure(f"Invalid amount: {error}")
+           case (_, _, _, Failure(error), _):
+               return Maybe.failure(f"Invalid currency: {error}")
+           case (_, _, _, _, Failure(error)):
+               return Maybe.failure(f"Invalid status: {error}")
 
-       timestamp_result = validate_timestamp(record["timestamp"])
-       if timestamp_result.is_nothing():
-           return Maybe.nothing(f"Invalid timestamp: {timestamp_result.error()}")
-
-       amount_result = validate_amount(record["amount"])
-       if amount_result.is_nothing():
-           return Maybe.nothing(f"Invalid amount: {amount_result.error()}")
-
-       currency_result = validate_currency(record["currency"])
-       if currency_result.is_nothing():
-           return Maybe.nothing(f"Invalid currency: {currency_result.error()}")
-
-       status_result = validate_status(record["status"])
-       if status_result.is_nothing():
-           return Maybe.nothing(f"Invalid status: {status_result.error()}")
-
-       # All validations passed, return validated record
-       validated_record = record.copy()
-       validated_record["timestamp"] = timestamp_result.value()  # Replace with parsed datetime
-       return Maybe.just(validated_record)
-
-   # Process a batch of records
-   def process_batch(records):
-       valid_records = []
-       invalid_records = []
-
-       for record in records:
-           result = validate_transaction(record)
-           if result.is_just():
-               valid_records.append(result.value())
-           else:
-               invalid_records.append((record, result.error()))
-
-       return valid_records, invalid_records
+   # Process a transaction record
+   def process_transaction(record):
+       result = validate_transaction(record)
+       match result:
+           case Success(valid_record):
+               print("Transaction is valid:")
+               for key, value in valid_record.items():
+                   print(f"  {key}: {value}")
+               return True
+           case Failure(error):
+               print(f"Transaction is invalid: {error}")
+               return False
 
    # Test with our sample record
-   valid, invalid = process_batch([record])
-   print(f"Valid records: {len(valid)}")
-   print(f"Invalid records: {len(invalid)}")
+   process_transaction(record)
+
+   # Test with invalid record
+   invalid_record = record.copy()
+   invalid_record["amount"] = -10
+   process_transaction(invalid_record)
 
 In the next sections, we'll explore more examples and patterns for custom validators and interactive prompting.

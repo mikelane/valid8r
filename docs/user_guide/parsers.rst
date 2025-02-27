@@ -12,17 +12,19 @@ Basic Usage
 
    # Parse a string to an integer
    result = parsers.parse_int("42")
-   if result.is_just():
-       print(f"Parsed integer: {result.value()}")
-   else:
-       print(f"Error: {result.error()}")
+   match result:
+       case Success(value):
+           print(f"Parsed integer: {value}")  # Parsed integer: 42
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Parse a string to a float
    result = parsers.parse_float("3.14")
-   if result.is_just():
-       print(f"Parsed float: {result.value()}")
-   else:
-       print(f"Error: {result.error()}")
+   match result:
+       case Success(value):
+           print(f"Parsed float: {value}")  # Parsed float: 3.14
+       case Failure(error):
+           print(f"Error: {error}")
 
 Available Parsers
 -----------------
@@ -35,18 +37,39 @@ Integer Parser
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Basic usage
    result = parsers.parse_int("42")
+   match result:
+       case Success(value):
+           print(value)  # 42
+       case Failure(_):
+           print("This won't happen")
 
    # Custom error message
    result = parsers.parse_int("abc", error_message="Please enter a valid number")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Please enter a valid number"
 
    # Handles whitespace
    result = parsers.parse_int("  42  ")
+   match result:
+       case Success(value):
+           print(value)  # 42
+       case Failure(_):
+           print("This won't happen")
 
    # Parses integers with integer-equivalent float notation
-   result = parsers.parse_int("42.0")  # Parses to 42
+   result = parsers.parse_int("42.0")
+   match result:
+       case Success(value):
+           print(value)  # 42
+       case Failure(_):
+           print("This won't happen")
 
 Float Parser
 ~~~~~~~~~~~~
@@ -54,18 +77,39 @@ Float Parser
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Basic usage
    result = parsers.parse_float("3.14")
+   match result:
+       case Success(value):
+           print(value)  # 3.14
+       case Failure(_):
+           print("This won't happen")
 
    # Scientific notation
    result = parsers.parse_float("1.23e-4")
+   match result:
+       case Success(value):
+           print(value)  # 0.000123
+       case Failure(_):
+           print("This won't happen")
 
    # Handles whitespace
    result = parsers.parse_float("  3.14  ")
+   match result:
+       case Success(value):
+           print(value)  # 3.14
+       case Failure(_):
+           print("This won't happen")
 
    # Integer as float
-   result = parsers.parse_float("42")  # Parses to 42.0
+   result = parsers.parse_float("42")
+   match result:
+       case Success(value):
+           print(value)  # 42.0
+       case Failure(_):
+           print("This won't happen")
 
 Boolean Parser
 ~~~~~~~~~~~~~~
@@ -73,20 +117,35 @@ Boolean Parser
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
-   # Various true values
-   for value in ["true", "True", "TRUE", "t", "T", "yes", "y", "1"]:
+   # Parse various true values
+   true_values = ["true", "True", "TRUE", "t", "T", "yes", "y", "1"]
+   for value in true_values:
        result = parsers.parse_bool(value)
-       # All parse to True
+       match result:
+           case Success(value):
+               assert value is True  # All parse to True
+           case Failure(_):
+               print("This won't happen")
 
-   # Various false values
-   for value in ["false", "False", "FALSE", "f", "F", "no", "n", "0"]:
+   # Parse various false values
+   false_values = ["false", "False", "FALSE", "f", "F", "no", "n", "0"]
+   for value in false_values:
        result = parsers.parse_bool(value)
-       # All parse to False
+       match result:
+           case Success(value):
+               assert value is False  # All parse to False
+           case Failure(_):
+               print("This won't happen")
 
-   # Invalid boolean string
+   # Parse invalid boolean string
    result = parsers.parse_bool("maybe")
-   # Returns Nothing with error
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must be a valid boolean"
 
 Date Parser
 ~~~~~~~~~~~
@@ -94,15 +153,32 @@ Date Parser
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from datetime import date
 
    # ISO format (default)
    result = parsers.parse_date("2023-01-15")
+   match result:
+       case Success(value):
+           print(value)  # date(2023, 1, 15)
+       case Failure(_):
+           print("This won't happen")
 
    # Custom format
    result = parsers.parse_date("15/01/2023", date_format="%d/%m/%Y")
+   match result:
+       case Success(value):
+           print(value)  # date(2023, 1, 15)
+       case Failure(_):
+           print("This won't happen")
 
-   # Another format example
+   # Process date attributes
    result = parsers.parse_date("Jan 15, 2023", date_format="%b %d, %Y")
+   match result:
+       case Success(value):
+           print(f"Year: {value.year}, Month: {value.month}, Day: {value.day}")
+       case Failure(_):
+           print("This won't happen")
 
 Complex Number Parser
 ~~~~~~~~~~~~~~~~~~~~~
@@ -110,18 +186,39 @@ Complex Number Parser
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Standard notation
    result = parsers.parse_complex("3+4j")
+   match result:
+       case Success(value):
+           print(value)  # (3+4j)
+       case Failure(_):
+           print("This won't happen")
 
    # Alternative notation
-   result = parsers.parse_complex("3+4i")  # Also works
+   result = parsers.parse_complex("3+4i")
+   match result:
+       case Success(value):
+           print(value)  # (3+4j)
+       case Failure(_):
+           print("This won't happen")
 
    # Just real part
-   result = parsers.parse_complex("5")  # Parses to (5+0j)
+   result = parsers.parse_complex("5")
+   match result:
+       case Success(value):
+           print(value)  # (5+0j)
+       case Failure(_):
+           print("This won't happen")
 
    # Just imaginary part
-   result = parsers.parse_complex("3j")  # Parses to (0+3j)
+   result = parsers.parse_complex("3j")
+   match result:
+       case Success(value):
+           print(value)  # (0+3j)
+       case Failure(_):
+           print("This won't happen")
 
 Enum Parser
 ~~~~~~~~~~~
@@ -130,6 +227,7 @@ Enum Parser
 
    from enum import Enum
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Define an enum
    class Color(Enum):
@@ -139,12 +237,19 @@ Enum Parser
 
    # Parse to enum
    result = parsers.parse_enum("RED", Color)
-   if result.is_just():
-       print(result.value() == Color.RED)  # True
+   match result:
+       case Success(value):
+           print(value == Color.RED)  # True
+       case Failure(_):
+           print("This won't happen")
 
    # Invalid enum value
    result = parsers.parse_enum("YELLOW", Color)
-   print(result.error())  # "Input must be a valid enumeration value"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must be a valid enumeration value"
 
 Error Handling
 --------------
@@ -158,18 +263,31 @@ All parsers follow consistent error handling patterns:
 .. code-block:: python
 
    from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
 
    # Empty input
    result = parsers.parse_int("")
-   print(result.error())  # "Input must not be empty"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must not be empty"
 
    # Invalid input
    result = parsers.parse_int("abc")
-   print(result.error())  # "Input must be a valid integer"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must be a valid integer"
 
    # Custom error message
    result = parsers.parse_int("abc", error_message="Please enter a number")
-   print(result.error())  # "Please enter a number"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Please enter a number"
 
 Common Parser Features
 ----------------------
@@ -177,7 +295,7 @@ Common Parser Features
 All parsers have these common features:
 
 1. **Whitespace handling**: Leading and trailing whitespace is automatically removed
-2. **Maybe return value**: All parsers return a Maybe object
+2. **Maybe return value**: All parsers return a Maybe object that can be pattern matched
 3. **Custom error messages**: All parsers accept an optional error_message parameter
 4. **Empty input handling**: All parsers check for empty input first
 
@@ -189,21 +307,65 @@ Parsers are often used together with validators to create a complete validation 
 .. code-block:: python
 
    from valid8r import parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Parse a string to an integer, then validate it's positive
    result = parsers.parse_int("42").bind(
        lambda x: validators.minimum(0)(x)
    )
 
+   match result:
+       case Success(value):
+           print(f"Valid positive number: {value}")  # Valid positive number: 42
+       case Failure(error):
+           print(f"Error: {error}")
+
    # Parse a string to a date, then validate it's in the future
    from datetime import date
 
    def is_future_date(d):
        if d > date.today():
-           return Maybe.just(d)
-       return Maybe.nothing("Date must be in the future")
+           return Maybe.success(d)
+       return Maybe.failure("Date must be in the future")
 
    result = parsers.parse_date("2025-01-01").bind(is_future_date)
+
+   match result:
+       case Success(value):
+           print(f"Valid future date: {value}")  # Valid future date: 2025-01-01
+       case Failure(error):
+           print(f"Error: {error}")
+
+Parser Function Errors vs Validation Logic
+------------------------------------------
+
+When deciding between handling errors in parser functions versus validation logic:
+
+.. code-block:: python
+
+   from valid8r import parsers, validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Approach 1: Handle it in the parser directly
+   result = parsers.parse_int("42.5")  # Will fail because it's not an integer
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must be a valid integer"
+
+   # Approach 2: Parse as float, then validate it's an integer
+   def validate_integer_value(x):
+       if x.is_integer():
+           return Maybe.success(int(x))
+       return Maybe.failure("Value must be an integer")
+
+   result = parsers.parse_float("42.5").bind(validate_integer_value)
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Value must be an integer"
 
 Parser Limitations and Edge Cases
 ---------------------------------

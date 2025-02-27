@@ -21,13 +21,13 @@ Basic Concepts
 
 Valid8r is built around a few key concepts:
 
-1. **Maybe Monad**: A functional programming construct that helps handle operations that might fail, without using exceptions.
-2. **Parsers**: Functions that convert strings to other data types, returning Maybe objects.
-3. **Validators**: Functions that validate values based on specific rules, returning Maybe objects.
+1. **Success and Failure Types**: Functional programming constructs that represent computations which succeed or fail, without using exceptions.
+2. **Parsers**: Functions that convert strings to other data types, returning Success or Failure results.
+3. **Validators**: Functions that validate values based on specific rules, returning Success or Failure results.
 4. **Combinators**: Functions that allow combining validators with logical operations (AND, OR, NOT).
 5. **Prompts**: Functions that ask for user input and handle validation and retries.
 
-These components work together to create a clean, flexible validation system.
+These components work together to create a clean, flexible validation system with elegant error handling via pattern matching.
 
 Your First Validation
 ---------------------
@@ -37,54 +37,80 @@ Here's a simple example that validates a number:
 .. code-block:: python
 
    from valid8r import parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Parse a string to an integer
    result = parsers.parse_int("42")
 
-   if result.is_just():
-       print(f"Parsed successfully: {result.value()}")
-   else:
-       print(f"Error: {result.error()}")
+   match result:
+       case Success(value):
+           print(f"Parsed successfully: {value}")  # Parsed successfully: 42
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Validate that the number is positive
    parsed_value = parsers.parse_int("42")
    validated = parsed_value.bind(lambda x: validators.minimum(0)(x))
 
-   if validated.is_just():
-       print(f"Valid positive number: {validated.value()}")
-   else:
-       print(f"Error: {validated.error()}")
+   match validated:
+       case Success(value):
+           print(f"Valid positive number: {value}")  # Valid positive number: 42
+       case Failure(error):
+           print(f"Error: {error}")
 
-Using the Maybe Monad
----------------------
+Using Success and Failure Types
+------------------------------
 
-The Maybe monad is at the heart of Valid8r. It represents a value that might exist (`Just`) or might not exist (`Nothing`):
+The Success and Failure types are at the heart of Valid8r. They represent a value that might exist (Success) or might not exist (Failure):
 
 .. code-block:: python
 
    from valid8r import Maybe
+   from valid8r.core.maybe import Success, Failure
 
-   # Creating a Just (success case)
-   success = Maybe.just(42)
-   print(success.is_just())  # True
-   print(success.value())    # 42
+   # Creating a Success (success case)
+   success = Maybe.success(42)
+   print(success.is_success())  # True
 
-   # Creating a Nothing (failure case)
-   failure = Maybe.nothing("Something went wrong")
-   print(failure.is_nothing())  # True
-   print(failure.error())       # "Something went wrong"
+   # Creating a Failure (failure case)
+   failure = Maybe.failure("Something went wrong")
+   print(failure.is_failure())  # True
+
+   # Using pattern matching
+   result = Maybe.success(42)
+   match result:
+       case Success(value):
+           print(f"Success: {value}")  # Success: 42
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Pattern matching with failure
+   result = Maybe.failure("An error occurred")
+   match result:
+       case Success(value):
+           print(f"Success: {value}")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: An error occurred
 
    # Using bind for chaining operations
-   result = Maybe.just(5).bind(
-       lambda x: Maybe.just(x * 2)
+   result = Maybe.success(5).bind(
+       lambda x: Maybe.success(x * 2)
    )
-   print(result.value())  # 10
+   match result:
+       case Success(value):
+           print(value)  # 10
+       case Failure(_):
+           print("This won't happen")
 
    # Error propagation happens automatically
-   result = Maybe.nothing("First error").bind(
-       lambda x: Maybe.just(x * 2)
+   result = Maybe.failure("First error").bind(
+       lambda x: Maybe.success(x * 2)
    )
-   print(result.error())  # "First error"
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # First error
 
 Chaining Validators
 -------------------
@@ -94,6 +120,7 @@ One of the powerful features of Valid8r is the ability to chain validators using
 .. code-block:: python
 
    from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
 
    # Create a complex validation rule: between 1-100 AND (even OR divisible by 5)
    is_in_range = validators.between(1, 100)
@@ -103,16 +130,44 @@ One of the powerful features of Valid8r is the ability to chain validators using
    # Combine validators with & (AND) and | (OR)
    valid_number = is_in_range & (is_even | is_div_by_5)
 
-   # Test the combined validator
+   # Test the combined validator with pattern matching
    result = valid_number(42)  # Valid: in range and even
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid number: {value}")  # Valid number: 42
+       case Failure(error):
+           print(f"Error: {error}")
 
    result = valid_number(35)  # Valid: in range and divisible by 5
-   print(result.is_just())  # True
+   match result:
+       case Success(value):
+           print(f"Valid number: {value}")  # Valid number: 35
+       case Failure(error):
+           print(f"Error: {error}")
 
    result = valid_number(37)  # Invalid: in range but neither even nor divisible by 5
-   print(result.is_nothing())  # True
-   print(result.error())  # Shows the error message
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Number must be divisible by 5
+
+   # Pattern matching with conditions
+   def describe_number(num):
+       result = valid_number(num)
+       match result:
+           case Success(value) if value % 2 == 0:
+               return f"{value} is valid (even)"
+           case Success(value) if value % 5 == 0:
+               return f"{value} is valid (divisible by 5)"
+           case Success(value):
+               return f"{value} is valid"
+           case Failure(error):
+               return f"{num} is invalid: {error}"
+
+   print(describe_number(42))  # 42 is valid (even)
+   print(describe_number(35))  # 35 is valid (divisible by 5)
+   print(describe_number(37))  # 37 is invalid: Number must be divisible by 5
 
 Prompting for User Input
 ------------------------
@@ -122,6 +177,7 @@ Valid8r makes it easy to prompt for user input with validation:
 .. code-block:: python
 
    from valid8r import prompt, parsers, validators
+   from valid8r.core.maybe import Success, Failure
 
    # Ask for a positive number with retry
    number = prompt.ask(
@@ -131,8 +187,11 @@ Valid8r makes it easy to prompt for user input with validation:
        retry=True
    )
 
-   if number.is_just():
-       print(f"You entered: {number.value()}")
+   match number:
+       case Success(value):
+           print(f"You entered: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
    # Ask for a value with a default
    age = prompt.ask(
@@ -143,15 +202,39 @@ Valid8r makes it easy to prompt for user input with validation:
        retry=True
    )
 
-   if age.is_just():
-       print(f"Your age is: {age.value()}")
+   match age:
+       case Success(value):
+           print(f"Your age is: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Processing multiple inputs with pattern matching
+   def collect_user_info():
+       name = prompt.ask("Enter your name: ", retry=True)
+       age = prompt.ask(
+           "Enter your age: ",
+           parser=parsers.parse_int,
+           validator=validators.between(0, 120),
+           retry=True
+       )
+
+       # Pattern match on both results at once
+       match (name, age):
+           case (Success(name_val), Success(age_val)):
+               return f"Hello, {name_val}! You are {age_val} years old."
+           case (Failure(error), _):
+               return f"Name error: {error}"
+           case (_, Failure(error)):
+               return f"Age error: {error}"
+
+   print(collect_user_info())
 
 Next Steps
 ----------
 
 Now that you understand the basics, you can explore:
 
-* The :doc:`Maybe monad </user_guide/maybe_monad>` in more detail
+* The :doc:`Success and Failure types </user_guide/maybe_monad>` in more detail
 * Available :doc:`parsers </user_guide/parsers>` for different data types
 * Built-in :doc:`validators </user_guide/validators>` and how to create custom ones
 * Advanced :doc:`prompting techniques </user_guide/prompting>`

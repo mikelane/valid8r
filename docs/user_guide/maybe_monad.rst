@@ -8,8 +8,8 @@ Basic Concepts
 
 The Maybe monad has two states:
 
-1. **Just**: Represents a successful computation with a value.
-2. **Nothing**: Represents a failed computation with an error message.
+1. **Success**: Represents a successful computation with a value.
+2. **Failure**: Represents a failed computation with an error message.
 
 This pattern allows for:
 
@@ -17,6 +17,7 @@ This pattern allows for:
 * Chaining operations that might fail
 * Propagating errors through a chain of operations
 * Better type safety
+* Elegant pattern matching with Python's match statement
 
 Creating Maybe Instances
 ------------------------
@@ -26,10 +27,10 @@ Creating Maybe Instances
    from valid8r import Maybe
 
    # Success case
-   success = Maybe.just(42)
+   success = Maybe.success(42)
 
    # Failure case
-   failure = Maybe.nothing("Invalid input")
+   failure = Maybe.failure("Invalid input")
 
 Checking Maybe Status
 ---------------------
@@ -37,14 +38,14 @@ Checking Maybe Status
 .. code-block:: python
 
    # Check if it's a success
-   if success.is_just():
+   if success.is_success():
        # Safe to access the value
-       value = success.value()
+       value = success.value_or("default")
 
    # Check if it's a failure
-   if failure.is_nothing():
+   if failure.is_failure():
        # Safe to access the error
-       error_message = failure.error()
+       error_message = failure.value_or("default error")
 
 Extracting Values Safely
 ------------------------
@@ -53,52 +54,96 @@ Extracting Values Safely
 
    # Safe extraction with a default value
    value = success.value_or(0)  # Returns 42
-   value = failure.value_or(0)  # Returns 0 (the default)
+   value = failure.value_or(0)  # Returns the error message or the default if no error message
 
-   # Unsafe extraction (will raise ValueError if called on the wrong state)
-   try:
-       value = success.value()    # Works
-       value = failure.value()    # Raises ValueError
-   except ValueError as e:
-       print(f"Error: {e}")
+Pattern Matching with Match Statement
+-------------------------------------
 
-   try:
-       error = success.error()    # Raises ValueError
-       error = failure.error()    # Works
-   except ValueError as e:
-       print(f"Error: {e}")
+One of the most powerful features of the Maybe monad in Valid8r is its support for Python's match statement:
+
+.. code-block:: python
+
+   from valid8r.core.maybe import Success, Failure
+
+   # Pattern matching with match statement
+   def process_result(result):
+       match result:
+           case Success(value):
+               return f"Success: got value {value}"
+           case Failure(error):
+               return f"Error: {error}"
+           case _:
+               return "Unknown result type"
+
+   # Usage examples
+   result1 = Maybe.success(42)
+   print(process_result(result1))  # Success: got value 42
+
+   result2 = Maybe.failure("Invalid input")
+   print(process_result(result2))  # Error: Invalid input
+
+Advanced Pattern Matching
+-------------------------
+
+You can use more complex pattern matching with guards for conditional logic:
+
+.. code-block:: python
+
+   def describe_result(result):
+       match result:
+           case Success(value) if value > 100:
+               return f"Large value: {value}"
+           case Success(value) if value % 2 == 0:
+               return f"Even value: {value}"
+           case Success(value):
+               return f"Other value: {value}"
+           case Failure(error) if "invalid" in error.lower():
+               return f"Validation error: {error}"
+           case Failure(error):
+               return f"Other error: {error}"
+
+   # Examples
+   print(describe_result(Maybe.success(150)))  # Large value: 150
+   print(describe_result(Maybe.success(42)))   # Even value: 42
+   print(describe_result(Maybe.success(7)))    # Other value: 7
+   print(describe_result(Maybe.failure("Invalid format")))  # Validation error: Invalid format
+   print(describe_result(Maybe.failure("Timeout")))         # Other error: Timeout
 
 Chaining Operations with `bind`
 -------------------------------
 
-The most powerful feature of the Maybe monad is the ability to chain operations with the `bind` method:
+The `bind` method allows you to chain operations that might fail:
 
 .. code-block:: python
 
    # Define some functions that return Maybe
    def validate_positive(x):
        if x > 0:
-           return Maybe.just(x)
-       return Maybe.nothing("Value must be positive")
+           return Maybe.success(x)
+       return Maybe.failure("Value must be positive")
 
    def validate_even(x):
        if x % 2 == 0:
-           return Maybe.just(x)
-       return Maybe.nothing("Value must be even")
+           return Maybe.success(x)
+       return Maybe.failure("Value must be even")
 
    # Chain validations
-   result = Maybe.just(42).bind(validate_positive).bind(validate_even)
-   print(result.is_just())  # True
-   print(result.value())    # 42
+   result = Maybe.success(42).bind(validate_positive).bind(validate_even)
+
+   match result:
+       case Success(value):
+           print(f"Valid value: {value}")  # Valid value: 42
+       case Failure(error):
+           print(f"Error: {error}")
 
    # If any step fails, the error is propagated
-   result = Maybe.just(-2).bind(validate_positive).bind(validate_even)
-   print(result.is_nothing())  # True
-   print(result.error())       # "Value must be positive"
+   result = Maybe.success(-2).bind(validate_positive).bind(validate_even)
 
-   result = Maybe.just(3).bind(validate_positive).bind(validate_even)
-   print(result.is_nothing())  # True
-   print(result.error())       # "Value must be even"
+   match result:
+       case Success(value):
+           print(f"Valid value: {value}")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be positive
 
 Transforming Values with `map`
 ------------------------------
@@ -107,14 +152,23 @@ The `map` method allows you to transform the value inside a Maybe without changi
 
 .. code-block:: python
 
-   # Transform the value in a Just
-   doubled = Maybe.just(21).map(lambda x: x * 2)
-   print(doubled.value())  # 42
+   # Transform the value in a Success
+   doubled = Maybe.success(21).map(lambda x: x * 2)
 
-   # Nothing remains Nothing when mapped
-   still_nothing = Maybe.nothing("Error").map(lambda x: x * 2)
-   print(still_nothing.is_nothing())  # True
-   print(still_nothing.error())      # "Error"
+   match doubled:
+       case Success(value):
+           print(value)  # 42
+       case _:
+           print("This won't happen")
+
+   # Failure remains Failure when mapped
+   still_failure = Maybe.failure("Error").map(lambda x: x * 2)
+
+   match still_failure:
+       case Failure(error):
+           print(error)  # Error
+       case _:
+           print("This won't happen")
 
 Why Use the Maybe Monad?
 ------------------------
@@ -153,10 +207,11 @@ Let's compare traditional error handling with the Maybe monad approach:
        lambda x: validators.minimum(0)(x)
    )
 
-   if result.is_just():
-       print(f"Valid value: {result.value()}")
-   else:
-       print(f"Error: {result.error()}")
+   match result:
+       case Success(value):
+           print(f"Valid value: {value}")
+       case Failure(error):
+           print(f"Error: {error}")
 
 Benefits of the Maybe monad approach:
 
@@ -165,6 +220,7 @@ Benefits of the Maybe monad approach:
 3. **Composability**: Easy to chain multiple operations that might fail
 4. **Self-documenting**: The code makes it clear that a function might fail
 5. **Consistent error handling**: All errors are handled in a uniform way
+6. **Pattern matching support**: Elegant handling of different cases with Python's match statement
 
 Advanced Usage
 --------------
@@ -177,7 +233,12 @@ Advanced Usage
 
    # Customize error message
    result = parsers.parse_int("abc", error_message="Please enter a number")
-   print(result.error())  # "Please enter a number"
+
+   match result:
+       case Failure(error):
+           print(error)  # "Please enter a number"
+       case _:
+           print("This won't happen")
 
 **Handling complex chaining:**
 
@@ -198,9 +259,20 @@ Advanced Usage
        )
 
    result = validate_user_input("42")
-   if result.is_just():
-       print(f"Valid input: {result.value()}")
-   else:
-       print(f"Invalid input: {result.error()}")
+
+   match result:
+       case Success(value):
+           print(f"Valid input: {value}")  # Valid input: 42
+       case Failure(error):
+           print(f"Invalid input: {error}")
+
+   # Invalid input
+   result = validate_user_input("43")
+
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Invalid input: {error}")  # Invalid input: Number must be even
 
 In the next section, we'll explore the available parsers for converting strings to various data types.
