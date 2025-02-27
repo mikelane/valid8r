@@ -58,8 +58,9 @@ class DescribeParsers:
     )
     def it_parses_integers_successfully(self, input_str: str, expected_result: int) -> None:
         """Test that parse_int successfully parses valid integers."""
-        assert parse_int(input_str).is_just()
-        assert parse_int(input_str).value() == expected_result
+        result = parse_int(input_str)
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -72,20 +73,20 @@ class DescribeParsers:
     def it_handles_invalid_integers(self, input_str: str, expected_result: str) -> None:
         """Test that parse_int correctly handles invalid inputs."""
         result = parse_int(input_str)
-        assert result.is_nothing()
-        assert result.error() == expected_result
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_result
 
     def it_handles_custom_error_messages_for_integers(self) -> None:
         """Test that parse_int uses custom error messages when provided."""
         custom_msg = 'Please provide a valid number'
-        assert parse_int('abc', error_message=custom_msg).error() == custom_msg
+        assert parse_int('abc', error_message=custom_msg).value_or('TEST') == custom_msg
 
     def it_handles_large_integers(self) -> None:
         """Test that parse_int handles very large integers."""
         large_int = '999999999999999999999999999999'
         result = parse_int(large_int)
-        assert result.is_just()
-        assert result.value() == 999999999999999999999999999999
+        assert result.is_success()
+        assert result.value_or('TEST') == 999999999999999999999999999999
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -102,13 +103,13 @@ class DescribeParsers:
     def it_parses_floats_successfully(self, input_str: str, expected_result: float) -> None:
         """Test that parse_float successfully parses valid floats."""
         result = parse_float(input_str)
-        assert result.is_just()
+        assert result.is_success()
 
         # Handle NaN case separately since NaN != NaN in Python
         if input_str == 'NaN':
-            assert str(result.value()) == 'nan'
+            assert str(result.value_or('TEST')) == 'nan'
         else:
-            assert result.value() == expected_result
+            assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -121,8 +122,8 @@ class DescribeParsers:
     def it_handles_invalid_floats(self, input_str: str, expected_result: str) -> None:
         """Test that parse_float correctly handles invalid inputs."""
         result = parse_float(input_str)
-        assert result.is_nothing()
-        assert result.error() == expected_result
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_value'),
@@ -146,8 +147,8 @@ class DescribeParsers:
     def it_parses_booleans_successfully(self, input_str: str, expected_value: bool) -> None:
         """Test that parse_bool successfully parses valid boolean strings."""
         result = parse_bool(input_str)
-        assert result.is_just()
-        assert result.value() == expected_value
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_value
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_value'),
@@ -159,8 +160,8 @@ class DescribeParsers:
     def it_handles_invalid_booleans(self, input_str: str, expected_value: str) -> None:
         """Test that parse_bool correctly handles invalid inputs."""
         result = parse_bool(input_str)
-        assert result.is_nothing()
-        assert result.error() == expected_value
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_value
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_value'),
@@ -172,8 +173,8 @@ class DescribeParsers:
     def it_parses_dates_with_iso_format(self, input_str: str, expected_value: date) -> None:
         """Test that parse_date successfully parses dates in ISO format."""
         result = parse_date(input_str)
-        assert result.is_just()
-        assert result.value() == expected_value
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_value
 
     @pytest.mark.parametrize(
         ('input_str', 'format_str', 'expected_date'),
@@ -187,8 +188,8 @@ class DescribeParsers:
     def it_parses_dates_with_custom_formats(self, input_str: str, format_str: str, expected_date: date) -> None:
         """Test that parse_date successfully parses dates with custom formats."""
         result = parse_date(input_str, date_format=format_str)
-        assert result.is_just()
-        assert result.value() == expected_date
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_date
 
     @pytest.mark.parametrize(
         ('input_str', 'date_format', 'expected_error'),
@@ -202,8 +203,8 @@ class DescribeParsers:
     def it_handles_invalid_dates(self, input_str: str, date_format: str, expected_error: str) -> None:
         """Test that parse_date correctly handles invalid inputs."""
         result = parse_date(input_str, date_format=date_format)
-        assert result.is_nothing()
-        assert result.error() == expected_error
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_error
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -221,8 +222,8 @@ class DescribeParsers:
     def it_parses_complex_numbers_successfully(self, input_str: str, expected_result: complex) -> None:
         """Test that parse_complex successfully parses complex numbers."""
         result = parse_complex(input_str)
-        assert result.is_just()
-        assert result.value() == expected_result
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_error'),
@@ -234,8 +235,8 @@ class DescribeParsers:
     def it_handles_invalid_complex_numbers(self, input_str: str, expected_error: str) -> None:
         """Test that parse_complex correctly handles invalid inputs."""
         result = parse_complex(input_str)
-        assert result.is_nothing()
-        assert result.error() == expected_error
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_error
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -248,8 +249,8 @@ class DescribeParsers:
         """Test that parse_enum successfully parses enum values."""
         # Match by value
         result = parse_enum(input_str, Color)
-        assert result.is_just()
-        assert result.value() == expected_result
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
@@ -263,8 +264,8 @@ class DescribeParsers:
         """Test that parse_enum handles special enum cases."""
         # Empty string when empty is a valid enum value
         result = parse_enum(input_str, StrangeEnum)
-        assert result.is_just()
-        assert result.value() == expected_result
+        assert result.is_success()
+        assert result.value_or('TEST') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'enum_class', 'expected_error'),
@@ -278,17 +279,17 @@ class DescribeParsers:
     def it_handles_invalid_enums(self, input_str: str, enum_class: Color | None, expected_error: str) -> None:
         """Test that parse_enum correctly handles invalid inputs."""
         result = parse_enum(input_str, enum_class)
-        assert result.is_nothing()
-        assert result.error() == expected_error
+        assert result.is_failure()
+        assert result.value_or('TEST') == expected_error
 
     def it_handles_custom_error_messages_for_all_parsers(self) -> None:
         """Test that all parsers handle custom error messages correctly."""
         custom_msg = 'Custom error message'
 
         # Check each parser with invalid input and custom message
-        assert parse_int('abc', error_message=custom_msg).error() == custom_msg
-        assert parse_float('abc', error_message=custom_msg).error() == custom_msg
-        assert parse_bool('invalid', error_message=custom_msg).error() == custom_msg
-        assert parse_date('invalid', error_message=custom_msg).error() == custom_msg
-        assert parse_complex('invalid', error_message=custom_msg).error() == custom_msg
-        assert parse_enum('INVALID', Color, error_message=custom_msg).error() == custom_msg
+        assert parse_int('abc', error_message=custom_msg).value_or('TEST') == custom_msg
+        assert parse_float('abc', error_message=custom_msg).value_or('TEST') == custom_msg
+        assert parse_bool('invalid', error_message=custom_msg).value_or('TEST') == custom_msg
+        assert parse_date('invalid', error_message=custom_msg).value_or('TEST') == custom_msg
+        assert parse_complex('invalid', error_message=custom_msg).value_or('TEST') == custom_msg
+        assert parse_enum('INVALID', Color, error_message=custom_msg).value_or('TEST') == custom_msg

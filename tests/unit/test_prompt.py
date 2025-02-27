@@ -1,4 +1,3 @@
-# test_prompt.py
 """Tests for the prompt/basic.py module."""
 
 from __future__ import annotations
@@ -44,8 +43,8 @@ class DescribePrompt:
         result = ask('Enter a number: ', parser=parse_int)
 
         mock_input.assert_called_once_with('Enter a number: ')
-        assert result.is_just()
-        assert result.value() == 42
+        assert result.is_success()
+        assert result.value_or('TESTTEST') == 42
         mock_print.assert_not_called()
 
     def it_handles_empty_input_with_default(self, mock_input: MockType, mock_print: MockType) -> None:
@@ -55,8 +54,8 @@ class DescribePrompt:
         result = ask('Enter a number: ', parser=parse_int, default=10)
 
         mock_input.assert_called_once_with('Enter a number:  [10]: ')
-        assert result.is_just()
-        assert result.value() == 10
+        assert result.is_success()
+        assert result.value_or('TESTTEST') == 10
         mock_print.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -74,8 +73,8 @@ class DescribePrompt:
         """Test prompt failure cases."""
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
-        assert result.is_nothing()
-        assert 'Input must be a valid integer' in result.error()
+        assert result.is_failure()
+        assert 'Input must be a valid integer' in result.value_or('TEST')
 
     @pytest.mark.parametrize(
         ('setup_input_scenario', 'max_retries', 'expected_value'),
@@ -92,8 +91,8 @@ class DescribePrompt:
         """Test prompt success cases after retries."""
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
-        assert result.is_just()
-        assert result.value() == expected_value
+        assert result.is_success()
+        assert result.value_or('TESTTEST') == expected_value
 
     @pytest.mark.parametrize(
         ('setup_input_scenario', 'max_retries'),
@@ -106,8 +105,8 @@ class DescribePrompt:
         """Test when loop exits immediately due to negative max_retries."""
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
-        assert result.is_nothing()
-        assert 'Maximum retry attempts reached' in result.error()
+        assert result.is_failure()
+        assert 'Maximum retry attempts reached' in result.value_or('TEST')
 
     def it_tests_display_error_different_retry_modes(self, mock_print: MockType) -> None:
         """Test error display behavior with different retry modes."""

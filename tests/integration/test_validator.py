@@ -10,6 +10,10 @@ from unittest.mock import (
     patch,
 )
 
+from valid8r.core.maybe import (
+    Failure,
+    Success,
+)
 from valid8r.core.parsers import (
     parse_date,
     parse_enum,
@@ -33,20 +37,29 @@ class DescribeValidatorIntegration:
         # Parse a string to a number and validate it
         result = parse_int('42').bind(lambda x: minimum(0)(x))
 
-        assert result.is_just()
-        assert result.value() == 42
+        match result:
+            case Success(value):
+                assert value == 42
+            case _:
+                assert False, 'Expected Success'
 
         # Validation fails
         result = parse_int('42').bind(lambda x: minimum(100)(x))
 
-        assert result.is_nothing()
-        assert 'at least 100' in result.error()
+        match result:
+            case Failure(error):
+                assert 'at least 100' in error
+            case _:
+                assert False, 'Expected Failure'
 
         # Parsing fails before validation
         result = parse_int('not a number').bind(lambda x: minimum(0)(x))
 
-        assert result.is_nothing()
-        assert 'valid integer' in result.error()
+        match result:
+            case Failure(error):
+                assert 'valid integer' in error
+            case _:
+                assert False, 'Expected Failure'
 
     def it_uses_operator_overloading_for_validators(self) -> None:
         """Test operator overloading for validators."""
@@ -60,35 +73,54 @@ class DescribeValidatorIntegration:
 
         # Test valid age
         result = working_age(30)
-        assert result.is_just()
-        assert result.value() == 30
+        match result:
+            case Success(value):
+                assert value == 30
+            case _:
+                assert False, 'Expected Success'
 
         # Test too young
         result = working_age(16)
-        assert result.is_nothing()
-        assert 'Must be at least 18' in result.error()
+        match result:
+            case Failure(error):
+                assert 'Must be at least 18' in error
+            case _:
+                assert False, 'Expected Failure'
 
         # Test too old
         result = working_age(70)
-        assert result.is_nothing()
-        assert 'Must be at most 65' in result.error()
+        match result:
+            case Failure(error):
+                assert 'Must be at most 65' in error
+            case _:
+                assert False, 'Expected Failure'
 
         # Combine with OR
         valid_number = is_even | is_adult
 
         # Test passes first condition
         result = valid_number(4)
-        assert result.is_just()
-        assert result.value() == 4
+        match result:
+            case Success(value):
+                assert value == 4
+            case _:
+                assert False, 'Expected Success'
 
         # Test passes second condition
         result = valid_number(19)
-        assert result.is_just()
-        assert result.value() == 19
+        match result:
+            case Success(value):
+                assert value == 19
+            case _:
+                assert False, 'Expected Success'
 
         # Test fails both conditions
         result = valid_number(15)
-        assert result.is_nothing()
+        match result:
+            case Failure(_):
+                pass  # Just verify it's a failure
+            case _:
+                assert False, 'Expected Failure'
 
     def it_works_with_complex_validation_chains(self) -> None:
         """Test complex validation chains."""
@@ -101,22 +133,35 @@ class DescribeValidatorIntegration:
 
         # Test valid number (in range and even)
         result = valid_number(42)
-        assert result.is_just()
-        assert result.value() == 42
+        match result:
+            case Success(value):
+                assert value == 42
+            case _:
+                assert False, 'Expected Success'
 
         # Test valid number (in range and divisible by 5)
         result = valid_number(35)
-        assert result.is_just()
-        assert result.value() == 35
+        match result:
+            case Success(value):
+                assert value == 35
+            case _:
+                assert False, 'Expected Success'
 
         # Test invalid (outside range)
         result = valid_number(101)
-        assert result.is_nothing()
-        assert 'between 1 and 100' in result.error()
+        match result:
+            case Failure(error):
+                assert 'between 1 and 100' in error
+            case _:
+                assert False, 'Expected Failure'
 
         # Test invalid (in range but not even or divisible by 5)
         result = valid_number(37)
-        assert result.is_nothing()
+        match result:
+            case Failure(_):
+                pass  # Just verify it's a failure
+            case _:
+                assert False, 'Expected Failure'
 
 
 class DescribePromptIntegration:
@@ -133,8 +178,11 @@ class DescribePromptIntegration:
         # Ask for input with validation
         result = ask('Enter an even positive number: ', parser=parse_int, validator=valid_number, retry=False)
 
-        assert result.is_just()
-        assert result.value() == 42
+        match result:
+            case Success(value):
+                assert value == 42
+            case _:
+                assert False, 'Expected Success'
 
     @patch('builtins.input', side_effect=['2023-02-31', '2023-02-15'])
     @patch('builtins.print')
@@ -153,8 +201,11 @@ class DescribePromptIntegration:
         assert mock_print.call_count == 1
 
         # Verify final result
-        assert result.is_just()
-        assert result.value() == date(2023, 2, 15)
+        match result:
+            case Success(value):
+                assert value == date(2023, 2, 15)
+            case _:
+                assert False, 'Expected Success'
 
     @patch('builtins.input', return_value='RED')
     def it_works_with_custom_types(self, mock_input: MagicMock) -> None:  # noqa: ARG002
@@ -173,5 +224,8 @@ class DescribePromptIntegration:
         # Ask for input
         result = ask('Enter a color (RED, GREEN, BLUE): ', parser=color_parser)
 
-        assert result.is_just()
-        assert result.value() == Color.RED
+        match result:
+            case Success(value):
+                assert value == Color.RED
+            case _:
+                assert False, 'Expected Success'

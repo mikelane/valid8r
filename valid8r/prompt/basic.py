@@ -12,7 +12,11 @@ from typing import (
     TypeVar,
 )
 
-from valid8r.core.maybe import Maybe
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -55,20 +59,18 @@ def _handle_user_input(prompt_text: str, default: T | None) -> tuple[str, bool]:
 
 
 def _process_input(user_input: str, parser: Callable[[str], Maybe[T]], validator: Callable[[T], Maybe[T]]) -> Maybe[T]:
-    """Process user input by parsing and validating.
-
-    Returns:
-        The result of parsing and validating the input.
-
-    """
+    """Process user input by parsing and validating."""
     # Parse input
     result = parser(user_input)
 
     # Validate if parsing was successful
-    if result.is_just():
-        result = validator(result.value())
+    match result:
+        case Success(value):
+            return validator(value)
+        case Failure(_):
+            return result
 
-    return result
+    return result  # This line is unreachable but keeps type checkers happy
 
 
 def ask(  # noqa: PLR0913
@@ -123,11 +125,11 @@ def _ask_with_config(prompt_text: str, config: PromptConfig) -> Maybe[T]:
     """Implement ask using a PromptConfig object."""
     # For testing the final return path
     if config._test_mode:  # noqa: SLF001
-        return Maybe.nothing(config.error_message or 'Maximum retry attempts reached')
+        return Maybe.failure(config.error_message or 'Maximum retry attempts reached')
 
     # Set default parser and validator if not provided
-    parser = config.parser or (lambda s: Maybe.just(s))
-    validator = config.validator or (lambda v: Maybe.just(v))
+    parser = config.parser or (lambda s: Maybe.success(s))
+    validator = config.validator or (lambda v: Maybe.success(v))
 
     # Calculate max retries
     max_retries = config.retry if isinstance(config.retry, int) else float('inf') if config.retry else 0
@@ -152,22 +154,23 @@ def _run_prompt_loop(  # noqa: PLR0913
 
         # Use default if requested
         if use_default:
-            return Maybe.just(default)
+            return Maybe.success(default)
 
         # Process the input
         result = _process_input(user_input, parser, validator)
 
-        if result.is_just():
-            return result
+        match result:
+            case Success(_):
+                return result
+            case Failure(error):
+                # Handle invalid input
+                attempt += 1
+                if attempt <= max_retries:
+                    _display_error(error, error_message, max_retries, attempt)
+                else:
+                    return result  # Return the failed result after max retries
 
-        # Handle invalid input
-        attempt += 1
-        if attempt <= max_retries:
-            _display_error(result.error(), error_message, max_retries, attempt)
-        else:
-            return result  # Return the failed result after max retries
-
-    return Maybe.nothing(error_message or 'Maximum retry attempts reached')
+    return Maybe.failure(error_message or 'Maximum retry attempts reached')
 
 
 def _display_error(result_error: str, custom_error: str | None, max_retries: float, attempt: int) -> None:

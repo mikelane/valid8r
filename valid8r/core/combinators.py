@@ -11,7 +11,10 @@ from typing import (
     TypeVar,
 )
 
-from valid8r.core.maybe import Maybe
+from valid8r.core.maybe import (
+    Maybe,
+    Success,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,9 +36,11 @@ def and_then(first: Callable[[T], Maybe[T]], second: Callable[[T], Maybe[T]]) ->
 
     def combined_validator(value: T) -> Maybe[T]:
         result = first(value)
-        if result.is_just():
-            return second(value)
-        return result
+        match result:
+            case Success(value):
+                return second(value)
+            case _:
+                return result
 
     return combined_validator
 
@@ -54,9 +59,11 @@ def or_else(first: Callable[[T], Maybe[T]], second: Callable[[T], Maybe[T]]) -> 
 
     def combined_validator(value: T) -> Maybe[T]:
         result = first(value)
-        if result.is_just():
-            return result
-        return second(value)
+        match result:
+            case Success(value):
+                return result
+            case _:
+                return second(value)
 
     return combined_validator
 
@@ -75,8 +82,8 @@ def not_validator(validator: Callable[[T], Maybe[T]], error_message: str) -> Cal
 
     def negated_validator(value: T) -> Maybe[T]:
         result = validator(value)
-        if result.is_nothing():
-            return Maybe.just(value)
-        return Maybe.nothing(error_message)
+        if result.is_failure():
+            return Maybe.success(value)
+        return Maybe.failure(error_message)
 
     return negated_validator

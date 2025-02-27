@@ -141,25 +141,27 @@ def step_prompt_with_limited_retries(
 @then('prompt result is successful with value {expected:d}')
 def step_prompt_result_is_success_with_int_value(context: Context, expected: int) -> None:
     pc = get_prompt_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('prompt result is successful with value "{expected}"')
 def step_prompt_result_is_success_with_string_value(context: Context, expected: str) -> None:
     pc = get_prompt_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('prompt result is failure with error "{expected_error}"')
 def step_prompt_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     pc = get_prompt_context(context)
-    assert pc.result.is_nothing(), f'Expected failure but got success: {pc.result}'
-    assert pc.result.error() == expected_error, f"Expected error '{expected_error}' but got '{pc.result.error()}'"
+    assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'
+    assert pc.result.value_or('TEST') == expected_error, (
+        f"Expected error '{expected_error}' but got '{pc.result.value_or('TEST')}'"
+    )
 
 
 @then('prompt result is failure')
 def step_prompt_result_is_failure(context: Context) -> None:
     pc = get_prompt_context(context)
-    assert pc.result.is_nothing(), f'Expected failure but got success: {pc.result}'
+    assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'

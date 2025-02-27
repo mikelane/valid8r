@@ -89,25 +89,27 @@ def step_validate_minimum_with_error(context: Context, value: int, min_val: int,
 @then('the validation result should be a successful Maybe with value {expected:d}')
 def step_validation_result_is_success_with_int_value(context: Context, expected: int) -> None:
     vc = get_validator_context(context)
-    assert vc.result.is_just(), f'Expected success but got failure: {vc.result}'
-    assert vc.result.value() == expected, f'Expected {expected} but got {vc.result.value()}'
+    assert vc.result.is_success(), f'Expected success but got failure: {vc.result}'
+    assert vc.result.value_or('TEST') == expected, f'Expected {expected} but got {vc.result.value_or("TEST")}'
 
 
 @then('the validation result should be a successful Maybe with string value "{expected}"')
 def step_validation_result_is_success_with_string_value(context: Context, expected: str) -> None:
     vc = get_validator_context(context)
-    assert vc.result.is_just(), f'Expected success but got failure: {vc.result}'
-    assert vc.result.value() == expected, f'Expected {expected} but got {vc.result.value()}'
+    assert vc.result.is_success(), f'Expected success but got failure: {vc.result}'
+    assert vc.result.value_or('TEST') == expected, f'Expected {expected} but got {vc.result.value_or("TEST")}'
 
 
 @then('the validation result should be a failure Maybe with error "{expected_error}"')
 def step_validation_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     vc = get_validator_context(context)
-    assert vc.result.is_nothing(), f'Expected failure but got success: {vc.result}'
-    assert vc.result.error() == expected_error, f"Expected error '{expected_error}' but got '{vc.result.error()}'"
+    assert vc.result.is_failure(), f'Expected failure but got success: {vc.result}'
+    assert vc.result.value_or('TEST') == expected_error, (
+        f"Expected error '{expected_error}' but got '{vc.result.value_or('TEST')}'"
+    )
 
 
 @then('the validation result should be a failure Maybe')
 def step_validation_result_is_failure(context: Context) -> None:
     vc = get_validator_context(context)
-    assert vc.result.is_nothing(), f'Expected failure but got success: {vc.result}'
+    assert vc.result.is_failure(), f'Expected failure but got success: {vc.result}'

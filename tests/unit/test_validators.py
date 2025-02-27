@@ -56,11 +56,11 @@ class DescribeValidators:
             result = validator(value)
 
             if should_pass:
-                assert result.is_just()
-                assert result.value() == value
+                assert result.is_success()
+                assert result.value_or('TEST') == value
             else:
-                assert result.is_nothing()
-                assert result.error() == expected_results
+                assert result.is_failure()
+                assert result.value_or('TEST') == expected_results
 
     @pytest.mark.parametrize(
         ('min_val', 'max_val', 'test_value', 'should_pass'),
@@ -84,11 +84,11 @@ class DescribeValidators:
         result = validator(test_value)
 
         if should_pass:
-            assert result.is_just()
-            assert result.value() == test_value
+            assert result.is_success()
+            assert result.value_or('TEST') == test_value
         else:
-            assert result.is_nothing()
-            assert f'Value must be between {min_val} and {max_val}' in result.error()
+            assert result.is_failure()
+            assert f'Value must be between {min_val} and {max_val}' in result.value_or('TEST')
 
     def it_validates_custom_predicates(self) -> None:
         """Test predicate validator with custom functions."""
@@ -96,13 +96,13 @@ class DescribeValidators:
 
         # Test valid case
         result = is_even(4)
-        assert result.is_just()
-        assert result.value() == 4
+        assert result.is_success()
+        assert result.value_or('TEST') == 4
 
         # Test invalid case
         result = is_even(3)
-        assert result.is_nothing()
-        assert result.error() == 'Value must be even'
+        assert result.is_failure()
+        assert result.value_or('TEST') == 'Value must be even'
 
     @pytest.mark.parametrize(
         ('min_len', 'max_len', 'test_string', 'should_pass'),
@@ -126,8 +126,8 @@ class DescribeValidators:
         result = validator(test_string)
 
         if should_pass:
-            assert result.is_just()
-            assert result.value() == test_string
+            assert result.is_success()
+            assert result.value_or('TEST') == test_string
         else:
-            assert result.is_nothing()
-            assert f'String length must be between {min_len} and {max_len}' in result.error()
+            assert result.is_failure()
+            assert f'String length must be between {min_len} and {max_len}' in result.value_or('TEST')

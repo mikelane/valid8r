@@ -100,8 +100,8 @@ def minimum(min_value: T, error_message: str | None = None) -> Validator[T]:
 
     def validator(value: T) -> Maybe[T]:
         if value >= min_value:
-            return Maybe.just(value)
-        return Maybe.nothing(error_message or f'Value must be at least {min_value}')
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be at least {min_value}')
 
     return Validator(validator)
 
@@ -120,8 +120,8 @@ def maximum(max_value: T, error_message: str | None = None) -> Validator[T]:
 
     def validator(value: T) -> Maybe[T]:
         if value <= max_value:
-            return Maybe.just(value)
-        return Maybe.nothing(error_message or f'Value must be at most {max_value}')
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be at most {max_value}')
 
     return Validator(validator)
 
@@ -141,8 +141,8 @@ def between(min_value: T, max_value: T, error_message: str | None = None) -> Val
 
     def validator(value: T) -> Maybe[T]:
         if min_value <= value <= max_value:
-            return Maybe.just(value)
-        return Maybe.nothing(error_message or f'Value must be between {min_value} and {max_value}')
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be between {min_value} and {max_value}')
 
     return Validator(validator)
 
@@ -161,8 +161,8 @@ def predicate(pred: Callable[[T], bool], error_message: str) -> Validator[T]:
 
     def validator(value: T) -> Maybe[T]:
         if pred(value):
-            return Maybe.just(value)
-        return Maybe.nothing(error_message)
+            return Maybe.success(value)
+        return Maybe.failure(error_message)
 
     return Validator(validator)
 
@@ -182,7 +182,7 @@ def length(min_length: int, max_length: int, error_message: str | None = None) -
 
     def validator(value: str) -> Maybe[str]:
         if min_length <= len(value) <= max_length:
-            return Maybe.just(value)
-        return Maybe.nothing(error_message or f'String length must be between {min_length} and {max_length}')
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'String length must be between {min_length} and {max_length}')
 
     return Validator(validator)

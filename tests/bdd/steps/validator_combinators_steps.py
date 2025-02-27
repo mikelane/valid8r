@@ -102,18 +102,20 @@ def step_validate_operator_and(context: Context, value: int) -> None:
 @then('the combinator result should be a successful Maybe with value {expected:d}')
 def step_combinator_result_is_success_with_int_value(context: Context, expected: int) -> None:
     cc = get_combinator_context(context)
-    assert cc.result.is_just(), f'Expected success but got failure: {cc.result}'
-    assert cc.result.value() == expected, f'Expected {expected} but got {cc.result.value()}'
+    assert cc.result.is_success(), f'Expected success but got failure: {cc.result}'
+    assert cc.result.value_or('TEST') == expected, f'Expected {expected} but got {cc.result.value_or("TEST")}'
 
 
 @then('the combinator result should be a failure Maybe with error "{expected_error}"')
 def step_combinator_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     cc = get_combinator_context(context)
-    assert cc.result.is_nothing(), f'Expected failure but got success: {cc.result}'
-    assert cc.result.error() == expected_error, f"Expected error '{expected_error}' but got '{cc.result.error()}'"
+    assert cc.result.is_failure(), f'Expected failure but got success: {cc.result}'
+    assert cc.result.value_or('TEST') == expected_error, (
+        f"Expected error '{expected_error}' but got '{cc.result.value_or('TEST')}'"
+    )
 
 
 @then('the combinator result should be a failure Maybe')
 def step_combinator_result_is_failure(context: Context) -> None:
     cc = get_combinator_context(context)
-    assert cc.result.is_nothing(), f'Expected failure but got success: {cc.result}'
+    assert cc.result.is_failure(), f'Expected failure but got success: {cc.result}'

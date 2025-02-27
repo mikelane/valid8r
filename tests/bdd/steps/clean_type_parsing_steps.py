@@ -52,7 +52,7 @@ def step_have_custom_parser(context: Context, parser_type: str) -> None:
     if parser_type == 'IPAddress':
         from ipaddress import ip_address
 
-        pc.custom_parser = lambda s: Maybe.just(ip_address(s))
+        pc.custom_parser = lambda s: Maybe.success(ip_address(s))
 
 
 @given('I have defined an enum "{enum_name}" with values "{enum_values}"')
@@ -125,61 +125,63 @@ def step_parse_to_enum(context: Context, input_str: str) -> None:
 @then('the result should be a successful Maybe with value {expected:d}')
 def step_result_is_success_with_int_value(context: Context, expected: int) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('the result should be a successful Maybe with value {expected:f}')
 def step_result_is_success_with_float_value(context: Context, expected: float) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('the result should be a successful Maybe with value {expected}')
 def step_result_is_success_with_bool_value(context: Context, expected: str) -> None:
     pc = get_parse_context(context)
     expected_bool = expected.lower() == 'true'
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value() == expected_bool, f'Expected {expected_bool} but got {pc.result.value()}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST') == expected_bool, f'Expected {expected_bool} but got {pc.result.value_or("TEST")}'
 
 
 @then('the result should be a successful Maybe with date value "{expected_date}"')
 def step_result_is_success_with_date_value(context: Context, expected_date: str) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
     expected = date.fromisoformat(expected_date)
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('the result should be a successful Maybe with complex value {expected_complex}')
 def step_result_is_success_with_complex_value(context: Context, expected_complex: numbers.Complex) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
     # Parse the complex number string to a complex number
     expected = complex(expected_complex)
-    assert pc.result.value() == expected, f'Expected {expected} but got {pc.result.value()}'
+    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
 
 
 @then('the result should be a successful Maybe with the parsed IP address')
 def step_result_is_success_with_ip_address(context: Context) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
     # We don't check the exact value as it's validated by the custom parser
 
 
 @then('the result should be a successful Maybe with the RED enum value')
 def step_result_is_success_with_enum_value(context: Context) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_just(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value().name == 'RED', f'Expected RED but got {pc.result.value().name}'
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+    assert pc.result.value_or('TEST').name == 'RED', f'Expected RED but got {pc.result.value_or("TEST").name}'
 
 
 @then('the result should be a failure Maybe with error "{expected_error}"')
 def step_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_nothing(), f'Expected failure but got success: {pc.result}'
-    assert pc.result.error() == expected_error, f"Expected error '{expected_error}' but got '{pc.result.error()}'"
+    assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'
+    assert pc.result.value_or('TEST') == expected_error, (
+        f"Expected error '{expected_error}' but got '{pc.result.value_or('TEST')}'"
+    )
 
 
 @when('I parse "" to integer type')
