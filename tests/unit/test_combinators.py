@@ -14,7 +14,7 @@ from valid8r.core.validators import (
 
 
 class DescribeCombinators:
-    def it_combines_validators_with_and_then(self):
+    def it_combines_validators_with_and_then(self) -> None:
         # Create two validators
         is_adult = minimum(18, 'Must be at least 18')
         is_senior = maximum(65, 'Must be at most 65')
@@ -37,7 +37,7 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be at most 65'
 
-    def it_combines_validators_with_or_else(self):
+    def it_combines_validators_with_or_else(self) -> None:
         # Create two validators
         is_even = predicate(lambda x: x % 2 == 0, 'Must be even')
         is_divisible_by_five = predicate(lambda x: x % 5 == 0, 'Must be divisible by 5')
@@ -65,7 +65,7 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be divisible by 5'
 
-    def it_negates_validators_with_not_validator(self):
+    def it_negates_validators_with_not_validator(self) -> None:
         # Create a validator
         is_even = predicate(lambda x: x % 2 == 0, 'Must be even')
 
@@ -82,7 +82,7 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be odd'
 
-    def it_chains_multiple_validators(self):
+    def it_chains_multiple_validators(self) -> None:
         # Create validators
         is_positive = minimum(0, 'Must be positive')
         is_less_than_hundred = maximum(100, 'Must be less than 100')
@@ -111,10 +111,10 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be even'
 
-    def it_combines_validators_with_different_error_precedence(self):
+    def it_combines_validators_with_different_error_precedence(self) -> None:
         # Test that OR validators properly report the last validator's error
-        first_validator = predicate(lambda x: False, 'First error')
-        second_validator = predicate(lambda x: False, 'Second error')
+        first_validator = predicate(lambda _: False, 'First error')
+        second_validator = predicate(lambda _: False, 'Second error')
 
         combined = or_else(first_validator, second_validator)
         result = combined(42)
@@ -122,9 +122,9 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Second error'
 
-    def it_works_with_manually_created_maybes(self):
+    def it_works_with_manually_created_maybes(self) -> None:
         # Test that the combinators work with manually created Maybe objects
-        def custom_validator(value):
+        def custom_validator(value: int) -> Maybe[int]:
             if value > 0:
                 return Maybe.just(value)
             return Maybe.nothing('Custom error')
@@ -147,13 +147,12 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be even'
 
-    def it_overloads_operators_for_validators(self):
+    def it_overloads_operators_for_validators(self) -> None:
         # Create some validators
         is_positive = minimum(0, 'Must be positive')
         is_even = predicate(lambda x: x % 2 == 0, 'Must be even')
         is_less_than_hundred = maximum(100, 'Must be less than 100')
 
-        # Test & operator (AND)
         combined_and = is_positive & is_even
 
         # Valid case
@@ -166,7 +165,6 @@ class DescribeCombinators:
         assert result.is_nothing()
         assert result.error() == 'Must be positive'
 
-        # Test | operator (OR)
         combined_or = is_even | is_less_than_hundred
 
         # Pass first validator

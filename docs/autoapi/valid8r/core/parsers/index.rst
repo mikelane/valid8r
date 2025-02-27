@@ -7,6 +7,9 @@ valid8r.core.parsers
 
    String parsing functions with Maybe monad error handling.
 
+   This module provides functions to parse strings into various Python types.
+   All parsing functions return Maybe objects, allowing for clean error handling.
+
 
 
 Attributes
@@ -15,6 +18,7 @@ Attributes
 .. autoapisummary::
 
    valid8r.core.parsers.T
+   valid8r.core.parsers.ISO_DATE_LENGTH
 
 
 Functions
@@ -35,13 +39,16 @@ Module Contents
 
 .. py:data:: T
 
-.. py:function:: parse_int(input_value, error_message = None, max_digits = 30)
+.. py:data:: ISO_DATE_LENGTH
+   :value: 10
+
+
+.. py:function:: parse_int(input_value, error_message = None)
 
    Parse a string to an integer.
 
    :param input_value: String input to parse
    :param error_message: Optional custom error message
-   :param max_digits: Maximum number of digits allowed (default 30)
 
    :returns: A Maybe containing either the parsed integer or an error
 
@@ -57,15 +64,31 @@ Module Contents
 
    Parse a string to a float.
 
+   :param input_value: String input to parse
+   :param error_message: Optional custom error message
+
+   :returns: A Maybe containing either the parsed float or an error
+
 
 .. py:function:: parse_bool(input_value, error_message = None)
 
    Parse a string to a boolean.
 
+   :param input_value: String input to parse
+   :param error_message: Optional custom error message
+
+   :returns: A Maybe containing either the parsed boolean or an error
+
 
 .. py:function:: parse_date(input_value, date_format = None, error_message = None)
 
    Parse a string to a date.
+
+   :param input_value: String input to parse
+   :param date_format: Optional format string (strftime format)
+   :param error_message: Optional custom error message
+
+   :returns: A Maybe containing either the parsed date or an error
 
 
 .. py:function:: parse_complex(input_value, error_message = None)

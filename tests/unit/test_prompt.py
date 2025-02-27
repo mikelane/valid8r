@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
 
 from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import parse_int
@@ -13,7 +16,7 @@ from valid8r.prompt.basic import ask
 class DescribePrompt:
     @patch('builtins.input', return_value='42')
     @patch('builtins.print')
-    def it_handles_successful_input(self, mock_print, mock_input):
+    def it_handles_successful_input(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test successful input handling."""
         result = ask('Enter a number: ', parser=parse_int)
 
@@ -29,7 +32,7 @@ class DescribePrompt:
 
     @patch('builtins.input', return_value='')
     @patch('builtins.print')
-    def it_handles_empty_input_with_default(self, mock_print, mock_input):
+    def it_handles_empty_input_with_default(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test empty input with default value."""
         result = ask('Enter a number: ', parser=parse_int, default=10)
 
@@ -46,7 +49,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', '42'])
     @patch('builtins.print')
-    def it_retries_on_invalid_input(self, mock_print, mock_input):
+    def it_retries_on_invalid_input(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test retry on invalid input."""
         result = ask('Enter a number: ', parser=parse_int, retry=True)
 
@@ -65,7 +68,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', 'def', '42'])
     @patch('builtins.print')
-    def it_handles_specific_retry_count(self, mock_print, mock_input):
+    def it_handles_specific_retry_count(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test specific retry count."""
         result = ask(
             'Enter a number: ',
@@ -90,7 +93,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', 'def', 'ghi'])
     @patch('builtins.print')
-    def it_fails_after_max_retries(self, mock_print, mock_input):
+    def it_fails_after_max_retries(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test failure after maximum retries."""
         result = ask(
             'Enter a number: ',
@@ -110,7 +113,7 @@ class DescribePrompt:
 
     @patch('builtins.input', return_value='15')
     @patch('builtins.print')
-    def it_integrates_parser_and_validator(self, mock_print, mock_input):
+    def it_integrates_parser_and_validator(self, mock_print: MagicMock, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test integration of parser and validator."""
         is_valid_age = between(18, 65, 'Age must be between 18 and 65')
 
@@ -126,7 +129,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['25'])
     @patch('builtins.print')
-    def it_works_with_custom_error_message(self, mock_print, mock_input):
+    def it_works_with_custom_error_message(self, mock_print: MagicMock, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test custom error message."""
         result = ask('Enter a number: ', parser=parse_int, error_message='Custom error message')
 
@@ -139,7 +142,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', '42'])
     @patch('builtins.print')
-    def it_uses_custom_error_message_on_retry(self, mock_print, mock_input):
+    def it_uses_custom_error_message_on_retry(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test custom error message on retry."""
         result = ask('Enter a number: ', parser=parse_int, error_message='Please enter a number', retry=True)
 
@@ -156,7 +159,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', '42'])
     @patch('builtins.print')
-    def it_handles_infinite_retries(self, mock_print, mock_input):
+    def it_handles_infinite_retries(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test infinite retries behavior."""
         result = ask(
             'Enter a number: ',
@@ -175,7 +178,7 @@ class DescribePrompt:
         assert result.value() == 42
 
     @patch('builtins.input', return_value='hello world')
-    def it_works_with_default_parser_and_validator(self, mock_input):
+    def it_works_with_default_parser_and_validator(self, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test with default parser and validator."""
         result = ask('Enter text: ')
 
@@ -185,7 +188,7 @@ class DescribePrompt:
 
     @patch('builtins.input', side_effect=['abc', 'def', 'ghi'])
     @patch('builtins.print')
-    def it_returns_error_on_exceeded_retries(self, mock_print, mock_input):
+    def it_returns_error_on_exceeded_retries(self, mock_print: MagicMock, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test behavior when max retries are exceeded."""
         result = ask(
             'Enter a number: ',
@@ -201,7 +204,7 @@ class DescribePrompt:
         # rather than the custom error_message
         assert 'valid integer' in result.error()
 
-    def it_handles_edge_case_when_loop_exits_normally(self):
+    def it_handles_edge_case_when_loop_exits_normally(self) -> None:
         """Test the edge case where the while loop exits normally."""
         # This test uses the _test_mode parameter to directly test the final return path
         result = ask(
@@ -214,7 +217,7 @@ class DescribePrompt:
         assert result.is_nothing()
         assert result.error() == 'Custom message'
 
-    def it_uses_default_error_message_for_final_return(self):
+    def it_uses_default_error_message_for_final_return(self) -> None:
         """Test the default error message for the final return path."""
         # Test with no custom error message
         result = ask(
@@ -227,31 +230,31 @@ class DescribePrompt:
         assert result.is_nothing()
         assert result.error() == 'Maximum retry attempts reached'
 
-    def it_tests_max_retries_default_message(self):
+    def it_tests_max_retries_default_message(self) -> None:
         # Create a test mode or use mocking to reach the final return
         with patch('builtins.input', side_effect=['invalid'] * 5):
             result = ask(
                 'Enter value: ',
-                parser=lambda s: Maybe.nothing('Always fails'),
+                parser=lambda _: Maybe.nothing('Always fails'),
                 retry=3,  # Exactly 3 retries
             )
             assert result.is_nothing()
             assert result.error() == 'Always fails'
 
-    def it_tests_default_error_with_test_mode(self):
+    def it_tests_default_error_with_test_mode(self) -> None:
         # This should directly hit the final return path with the default message
         result = ask('Enter value: ', error_message=None, _test_mode=True)
         assert result.is_nothing()
         assert result.error() == 'Maximum retry attempts reached'
 
-    def it_tests_unreachable_retry_path(self):
+    def it_tests_unreachable_retry_path(self) -> None:
         # Create a situation where we exit the loop without returning
         # One way is to set max_retries to -1
         with patch('builtins.input', return_value='test'):
             # The loop condition will be false immediately (attempt=0, max_retries=-1)
             result = ask(
                 'Enter value: ',
-                parser=lambda s: Maybe.nothing('Always fails'),
+                parser=lambda _: Maybe.nothing('Always fails'),
                 retry=-1,  # This should skip the loop entirely
             )
             assert result.is_nothing()

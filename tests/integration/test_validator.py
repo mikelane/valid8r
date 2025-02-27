@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from unittest.mock import patch
+from typing import TYPE_CHECKING
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
 
 from valid8r.core.parsers import (
     parse_date,
@@ -19,9 +23,12 @@ from valid8r.core.validators import (
 )
 from valid8r.prompt.basic import ask
 
+if TYPE_CHECKING:
+    from valid8r.core.maybe import Maybe
+
 
 class DescribeValidatorIntegration:
-    def it_chains_parsers_and_validators(self):
+    def it_chains_parsers_and_validators(self) -> None:
         """Test chaining of parsers and validators."""
         # Parse a string to a number and validate it
         result = parse_int('42').bind(lambda x: minimum(0)(x))
@@ -41,7 +48,7 @@ class DescribeValidatorIntegration:
         assert result.is_nothing()
         assert 'valid integer' in result.error()
 
-    def it_uses_operator_overloading_for_validators(self):
+    def it_uses_operator_overloading_for_validators(self) -> None:
         """Test operator overloading for validators."""
         # Create composite validators
         is_adult = minimum(18, 'Must be at least 18')
@@ -83,7 +90,7 @@ class DescribeValidatorIntegration:
         result = valid_number(15)
         assert result.is_nothing()
 
-    def it_works_with_complex_validation_chains(self):
+    def it_works_with_complex_validation_chains(self) -> None:
         """Test complex validation chains."""
         # Create a complex validation chain: between 1-100 AND either even OR divisible by 5
         is_in_range = between(1, 100, 'Number must be between 1 and 100')
@@ -115,7 +122,7 @@ class DescribeValidatorIntegration:
 class DescribePromptIntegration:
     @patch('builtins.input', return_value='42')
     @patch('builtins.print')
-    def it_prompts_with_combined_validation(self, mock_print, mock_input):
+    def it_prompts_with_combined_validation(self, mock_print: MagicMock, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test prompting with combined validation."""
         # Create a validator that requires a number to be even and positive
         is_positive = minimum(0, 'Number must be positive')
@@ -131,7 +138,7 @@ class DescribePromptIntegration:
 
     @patch('builtins.input', side_effect=['2023-02-31', '2023-02-15'])
     @patch('builtins.print')
-    def it_handles_complex_data_types(self, mock_print, mock_input):
+    def it_handles_complex_data_types(self, mock_print: MagicMock, mock_input: MagicMock) -> None:
         """Test handling complex data types like dates."""
         # Create a validator that requires a date in February 2023
         is_feb_2023 = predicate(lambda d: d.year == 2023 and d.month == 2, 'Date must be in February 2023')
@@ -150,7 +157,7 @@ class DescribePromptIntegration:
         assert result.value() == date(2023, 2, 15)
 
     @patch('builtins.input', return_value='RED')
-    def it_works_with_custom_types(self, mock_input):
+    def it_works_with_custom_types(self, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test working with custom types like enums."""
 
         # Define an enum
@@ -160,7 +167,7 @@ class DescribePromptIntegration:
             BLUE = 'BLUE'
 
         # Create a custom parser for the enum
-        def color_parser(s):
+        def color_parser(s: str) -> Maybe[Color]:
             return parse_enum(s, Color)
 
         # Ask for input

@@ -5,7 +5,10 @@ valid8r.prompt.basic
 
 .. autoapi-nested-parse::
 
-   Basic input prompting functions with improved testability.
+   Basic input prompting functions with validation support.
+
+   This module provides functionality for prompting users for input via the command line
+   with built-in parsing, validation, and retry logic.
 
 
 
@@ -15,6 +18,14 @@ Attributes
 .. autoapisummary::
 
    valid8r.prompt.basic.T
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   valid8r.prompt.basic.PromptConfig
 
 
 Functions
@@ -30,7 +41,42 @@ Module Contents
 
 .. py:data:: T
 
-.. py:function:: ask(prompt_text, parser = None, validator = None, error_message = None, default = None, retry = False, _test_mode = False)
+.. py:class:: PromptConfig
+
+   Configuration for the ask function.
+
+
+   .. py:attribute:: parser
+      :type:  collections.abc.Callable[[str], valid8r.core.maybe.Maybe[T]] | None
+      :value: None
+
+
+
+   .. py:attribute:: validator
+      :type:  collections.abc.Callable[[T], valid8r.core.maybe.Maybe[T]] | None
+      :value: None
+
+
+
+   .. py:attribute:: error_message
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: default
+      :type:  T | None
+      :value: None
+
+
+
+   .. py:attribute:: retry
+      :type:  bool | int
+      :value: False
+
+
+
+.. py:function:: ask(prompt_text, *, parser = None, validator = None, error_message = None, default = None, retry = False, _test_mode = False)
 
    Prompt the user for input with validation.
 

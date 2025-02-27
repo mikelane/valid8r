@@ -1,4 +1,8 @@
-"""String parsing functions with Maybe monad error handling."""
+"""String parsing functions with Maybe monad error handling.
+
+This module provides functions to parse strings into various Python types.
+All parsing functions return Maybe objects, allowing for clean error handling.
+"""
 
 from __future__ import annotations
 
@@ -12,15 +16,15 @@ from valid8r.core.maybe import Maybe
 
 T = TypeVar('T')
 
+ISO_DATE_LENGTH = 10
 
-# valid8r/core/parsers.py
-def parse_int(input_value: str, error_message: str | None = None, max_digits: int = 30) -> Maybe[int]:
+
+def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
     """Parse a string to an integer.
 
     Args:
         input_value: String input to parse
         error_message: Optional custom error message
-        max_digits: Maximum number of digits allowed (default 30)
 
     Returns:
         A Maybe containing either the parsed integer or an error
@@ -58,7 +62,16 @@ def parse_int(input_value: str, error_message: str | None = None, max_digits: in
 
 
 def parse_float(input_value: str, error_message: str | None = None) -> Maybe[float]:
-    """Parse a string to a float."""
+    """Parse a string to a float.
+
+    Args:
+        input_value: String input to parse
+        error_message: Optional custom error message
+
+    Returns:
+        A Maybe containing either the parsed float or an error
+
+    """
     if not input_value:
         return Maybe.nothing('Input must not be empty')
 
@@ -70,7 +83,16 @@ def parse_float(input_value: str, error_message: str | None = None) -> Maybe[flo
 
 
 def parse_bool(input_value: str, error_message: str | None = None) -> Maybe[bool]:
-    """Parse a string to a boolean."""
+    """Parse a string to a boolean.
+
+    Args:
+        input_value: String input to parse
+        error_message: Optional custom error message
+
+    Returns:
+        A Maybe containing either the parsed boolean or an error
+
+    """
     if not input_value:
         return Maybe.nothing('Input must not be empty')
 
@@ -79,17 +101,27 @@ def parse_bool(input_value: str, error_message: str | None = None) -> Maybe[bool
 
     # True values
     if input_lower in ('true', 't', 'yes', 'y', '1'):
-        return Maybe.just(True)
+        return Maybe.just(value=True)
 
     # False values
     if input_lower in ('false', 'f', 'no', 'n', '0'):
-        return Maybe.just(False)
+        return Maybe.just(value=False)
 
     return Maybe.nothing(error_message or 'Input must be a valid boolean')
 
 
 def parse_date(input_value: str, date_format: str | None = None, error_message: str | None = None) -> Maybe[date]:
-    """Parse a string to a date."""
+    """Parse a string to a date.
+
+    Args:
+        input_value: String input to parse
+        date_format: Optional format string (strftime format)
+        error_message: Optional custom error message
+
+    Returns:
+        A Maybe containing either the parsed date or an error
+
+    """
     if not input_value:
         return Maybe.nothing('Input must not be empty')
 
@@ -99,12 +131,12 @@ def parse_date(input_value: str, date_format: str | None = None, error_message: 
 
         if date_format:
             # Parse with the provided format
-            dt = datetime.strptime(input_value, date_format)
+            dt = datetime.strptime(input_value, date_format)  # noqa: DTZ007
             return Maybe.just(dt.date())
 
         # Try ISO format by default, but be more strict
         # Standard ISO format should have dashes: YYYY-MM-DD
-        if len(input_value) == 10 and input_value[4] == '-' and input_value[7] == '-':
+        if len(input_value) == ISO_DATE_LENGTH and input_value[4] == '-' and input_value[7] == '-':
             return Maybe.just(date.fromisoformat(input_value))
         # Non-standard formats should be explicitly specified
         return Maybe.nothing(error_message or 'Input must be a valid date')
@@ -160,6 +192,31 @@ def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[c
         return Maybe.nothing(error_message or 'Input must be a valid complex number')
 
 
+def _check_enum_has_empty_value(enum_class: type) -> bool:
+    """Check if an enum has an empty string as a value."""
+    try:
+        return any(member.value == '' for member in enum_class)
+    except Exception:  # noqa: BLE001
+        # Handle any issues with iterating through the enum
+        return False
+
+
+def _find_enum_by_value(enum_class: type, value: str) -> T | None:
+    """Find an enum member by its value."""
+    for member in enum_class:
+        if member.value == value:
+            return member
+    return None
+
+
+def _find_enum_by_name(enum_class: type, value: str) -> T | None:
+    """Find an enum member by its name."""
+    try:
+        return enum_class[value]
+    except KeyError:
+        return None
+
+
 def parse_enum(input_value: str, enum_class: type, error_message: str | None = None) -> Maybe[object]:
     """Parse a string to an enum value.
 
@@ -190,35 +247,30 @@ def parse_enum(input_value: str, enum_class: type, error_message: str | None = N
         return Maybe.nothing(error_message or 'Invalid enum class provided')
 
     # Check if empty is valid for this enum
-    try:
-        has_empty_value = any(member.value == '' for member in enum_class)
-    except Exception:
-        # Handle any issues with iterating through the enum
-        has_empty_value = False
+    has_empty_value = _check_enum_has_empty_value(enum_class)
 
     if input_value == '' and not has_empty_value:
         return Maybe.nothing('Input must not be empty')
 
     # Try direct match with enum values
-    for member in enum_class:
-        if member.value == input_value:
-            return Maybe.just(member)
+    member = _find_enum_by_value(enum_class, input_value)
+    if member is not None:
+        return Maybe.just(member)
 
     # Try enum name lookup
-    try:
-        value = enum_class[input_value]
-        return Maybe.just(value)
-    except KeyError:
-        # Try with stripped value if different
-        input_stripped = input_value.strip()
-        if input_stripped != input_value:
-            for member in enum_class:
-                if member.value == input_stripped:
-                    return Maybe.just(member)
-            try:
-                value = enum_class[input_stripped]
-                return Maybe.just(value)
-            except KeyError:
-                pass
+    member = _find_enum_by_name(enum_class, input_value)
+    if member is not None:
+        return Maybe.just(member)
 
-        return Maybe.nothing(error_message or 'Input must be a valid enumeration value')
+    # Try with stripped value if different
+    input_stripped = input_value.strip()
+    if input_stripped != input_value:
+        member = _find_enum_by_value(enum_class, input_stripped)
+        if member is not None:
+            return Maybe.just(member)
+
+        member = _find_enum_by_name(enum_class, input_stripped)
+        if member is not None:
+            return Maybe.just(member)
+
+    return Maybe.nothing(error_message or 'Input must be a valid enumeration value')

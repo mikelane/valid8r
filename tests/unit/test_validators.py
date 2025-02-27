@@ -10,7 +10,7 @@ from valid8r.core.validators import (
 
 
 class DescribeValidators:
-    def it_validates_minimum_value(self):
+    def it_validates_minimum_value(self) -> None:
         validator = minimum(5)
 
         # Valid case
@@ -23,7 +23,7 @@ class DescribeValidators:
         assert result.is_nothing()
         assert 'must be at least 5' in result.error()
 
-    def it_validates_maximum_value(self):
+    def it_validates_maximum_value(self) -> None:
         validator = maximum(10)
 
         # Valid case
@@ -36,7 +36,7 @@ class DescribeValidators:
         assert result.is_nothing()
         assert 'must be at most 10' in result.error()
 
-    def it_validates_between_values(self):
+    def it_validates_between_values(self) -> None:
         validator = between(5, 10)
 
         # Valid case
@@ -54,7 +54,7 @@ class DescribeValidators:
         assert result.is_nothing()
         assert 'must be between 5 and 10' in result.error()
 
-    def it_validates_predicate(self):
+    def it_validates_predicate(self) -> None:
         is_even = predicate(lambda x: x % 2 == 0, 'Value must be even')
 
         # Valid case
@@ -67,7 +67,7 @@ class DescribeValidators:
         assert result.is_nothing()
         assert 'Value must be even' in result.error()
 
-    def it_validates_string_length(self):
+    def it_validates_string_length(self) -> None:
         validator = length(3, 5)
 
         # Valid case

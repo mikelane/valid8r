@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from unittest.mock import patch
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
 
 from valid8r.core.parsers import (
     parse_bool,
@@ -14,19 +21,22 @@ from valid8r.core.parsers import (
 )
 from valid8r.prompt.basic import ask
 
+if TYPE_CHECKING:
+    from valid8r.core.maybe import Maybe
+
 
 class DescribeParsers:
-    def it_parses_complex_numbers(self):
+    def it_parses_complex_numbers(self) -> None:
         result = parse_complex('3+4j')
         assert result.is_just()
         assert result.value() == complex(3, 4)
 
-    def it_handles_invalid_complex_numbers(self):
+    def it_handles_invalid_complex_numbers(self) -> None:
         result = parse_complex('not a complex')
         assert result.is_nothing()
         assert result.error() == 'Input must be a valid complex number'
 
-    def it_parses_enums(self):
+    def it_parses_enums(self) -> None:
         from enum import Enum
 
         class Color(Enum):
@@ -38,7 +48,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == Color.RED
 
-    def it_handles_invalid_enum_values(self):
+    def it_handles_invalid_enum_values(self) -> None:
         from enum import Enum
 
         class Color(Enum):
@@ -50,12 +60,12 @@ class DescribeParsers:
         assert result.is_nothing()
         assert result.error() == 'Input must be a valid enumeration value'
 
-    def it_handles_large_integers(self):
+    def it_handles_large_integers(self) -> None:
         result = parse_int('999999999999999999999999999999')
         assert result.is_just()
         assert result.value() == 999999999999999999999999999999
 
-    def it_handles_empty_input_for_all_parsers(self):
+    def it_handles_empty_input_for_all_parsers(self) -> None:
         """Test that all parsers handle empty input correctly."""
         # Test empty input for float
         result = parse_float('')
@@ -85,7 +95,7 @@ class DescribeParsers:
         assert result.is_nothing()
         assert result.error() == 'Input must not be empty'
 
-    def it_handles_custom_error_messages_for_all_parsers(self):
+    def it_handles_custom_error_messages_for_all_parsers(self) -> None:
         """Test that all parsers handle custom error messages correctly."""
         custom_msg = 'Custom error message'
 
@@ -117,7 +127,7 @@ class DescribeParsers:
         assert result.is_nothing()
         assert result.error() == custom_msg
 
-    def it_parses_valid_floats_with_different_formats(self):
+    def it_parses_valid_floats_with_different_formats(self) -> None:
         """Test that parse_float can handle different float formats."""
         # Test standard format
         result = parse_float('123.456')
@@ -144,7 +154,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == 3.14
 
-    def it_handles_invalid_floats_correctly(self):
+    def it_handles_invalid_floats_correctly(self) -> None:
         """Test that parse_float rejects invalid floats."""
         # Test non-numeric string
         result = parse_float('abc')
@@ -156,7 +166,7 @@ class DescribeParsers:
         assert result.is_nothing()
         assert result.error() == 'Input must be a valid number'
 
-    def it_parses_complex_numbers_in_different_formats(self):
+    def it_parses_complex_numbers_in_different_formats(self) -> None:
         """Test that parse_complex can handle different complex number formats."""
         # Standard form
         result = parse_complex('3+4j')
@@ -188,7 +198,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == complex(1, 2)
 
-    def it_parses_dates_with_default_iso_format(self):
+    def it_parses_dates_with_default_iso_format(self) -> None:
         """Test that parse_date handles ISO format dates correctly."""
         # Basic ISO format
         result = parse_date('2023-01-15')
@@ -200,7 +210,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == date(2023, 1, 15)
 
-    def it_handles_enum_case_sensitivity(self):
+    def it_handles_enum_case_sensitivity(self) -> None:
         """Test that parse_enum handles case sensitivity correctly."""
 
         class Color(Enum):
@@ -223,7 +233,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == Color.RED
 
-    def it_handles_edge_cases_in_int_parsing(self):
+    def it_handles_edge_cases_in_int_parsing(self) -> None:
         """Test edge cases in parse_int."""
         # Zero
         result = parse_int('0')
@@ -245,8 +255,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == 42
 
-    def it_tests_boundary_conditions_for_parsers(self):
-        """Test boundary conditions and edge cases for various"""
+    def it_tests_boundary_conditions_for_parsers(self) -> None:
         # Test date with invalid formats
         result = parse_date('2023-01-15', date_format='%d/%m/%Y')
         assert result.is_nothing()
@@ -284,8 +293,7 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == 42
 
-    def it_tests_parser_error_handling(self):
-        """Test detailed error handling in"""
+    def it_tests_parser_error_handling(self) -> None:
         # Test float parsing with a string that causes a specific ValueError
         result = parse_float('inf')  # Special floating point value
         assert result.is_just()
@@ -318,7 +326,7 @@ class DescribeParsers:
         result = parse_date('20230115')  # Compact ISO format without separators
         assert result.is_nothing()  # Should fail without proper format specified
 
-    def it_handles_unusual_enum_cases(self):
+    def it_handles_unusual_enum_cases(self) -> None:
         """Test enum parsing with unusual cases."""
 
         # Create an enum with unusual values
@@ -342,14 +350,14 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == Strange.NUMBER
 
-    def it_handles_error_message_customization(self):
+    def it_handles_error_message_customization(self) -> None:
         """Test that custom error messages are used when provided."""
         custom_msg = 'Please provide a valid number'
         result = parse_int('not a number', error_message=custom_msg)
         assert result.is_nothing()
         assert result.error() == custom_msg
 
-    def it_correctly_handles_integers_with_decimal_point(self):
+    def it_correctly_handles_integers_with_decimal_point(self) -> None:
         """Test that strings like '42.0' are properly handled in parse_int."""
         # Should successfully parse since it's a whole number
         result = parse_int('42.0')
@@ -361,7 +369,7 @@ class DescribeParsers:
         assert result.is_nothing()
         assert 'valid integer' in result.error()
 
-    def it_handles_overflow_errors_in_parse_int(self):
+    def it_handles_overflow_errors_in_parse_int(self) -> None:
         """Test that overflow errors are handled properly in parse_int."""
         # This will force a simulated overflow error by mocking int()
         import builtins
@@ -369,7 +377,7 @@ class DescribeParsers:
         original_int = builtins.int
         try:
             # Mock int to raise OverflowError
-            def mock_int(val, *args, **kwargs):
+            def mock_int(val: str, *args: Any, **kwargs: Any) -> int:  # noqa: ANN401
                 if val == '9' * 1000:  # Extremely large number to simulate overflow
                     raise OverflowError('Mock overflow')
                 return original_int(val, *args, **kwargs)
@@ -389,7 +397,7 @@ class DescribeParsers:
             # Restore original int function
             builtins.int = original_int
 
-    def it_parses_empty_strings_for_all_parsers(self):
+    def it_parses_empty_strings_for_all_parsers(self) -> None:
         """Ensure all parsers handle empty strings consistently."""
         # Check that each parser rejects empty input with the correct message
         for parser_name, parser_func in [
@@ -403,7 +411,7 @@ class DescribeParsers:
             assert result.is_nothing(), f'{parser_name} should reject empty string'
             assert result.error() == 'Input must not be empty', f'{parser_name} should have correct error message'
 
-    def it_handles_enum_parsing_edge_cases(self):
+    def it_handles_enum_parsing_edge_cases(self) -> None:
         """Test edge cases with enum parsing."""
 
         class Color(Enum):
@@ -432,15 +440,15 @@ class DescribeParsers:
             from unittest.mock import patch
 
             # Mock the any() function to raise an exception when used in parse_enum
-            with patch('valid8r.core.any', side_effect=Exception('Simulated error')):
+            with patch('valid8r.core.any', side_effect=ValueError('Simulated error')):
                 result = parse_enum('value', Color)
                 assert result.is_nothing()
                 assert 'valid enumeration value' in result.error()
-        except Exception:
+        except ValueError:
             # If patching doesn't work in this context, this test can be skipped
             pass
 
-    def it_handles_all_float_parsing_edge_cases(self):
+    def it_handles_all_float_parsing_edge_cases(self) -> None:
         """Test edge cases in float parsing to cover all branches."""
         # Test float with NaN
         result = parse_float('NaN')
@@ -457,13 +465,13 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == float('-inf')
 
-    def it_handles_date_parsing_with_none_format(self):
+    def it_handles_date_parsing_with_none_format(self) -> None:
         """Test date parsing with None format."""
         # Test parsing date with None format (should fall back to ISO)
         result = parse_date('2023-01-15', date_format=None)
         assert result.is_just()
 
-    def it_handles_enum_parsing_with_stripped_value(self):
+    def it_handles_enum_parsing_with_stripped_value(self) -> None:
         """Test enum parsing with whitespace that needs stripping."""
 
         class Color(Enum):
@@ -481,7 +489,7 @@ class DescribeParsers:
         assert result.is_nothing()
         assert 'valid enumeration value' in result.error()
 
-    def it_exits_loop_without_max_retries(self):
+    def it_exits_loop_without_max_retries(self) -> None:
         """Test case where loop exits without hitting max retries."""
         # This is difficult to test directly, so we'll use _test_mode
         result = ask(
@@ -494,7 +502,7 @@ class DescribeParsers:
         assert result.error() == 'Maximum retry attempts reached'
 
     @patch('builtins.input', side_effect=[''])
-    def it_parses_empty_enum_value(self, mock_input):
+    def it_parses_empty_enum_value(self, mock_input: MagicMock) -> None:  # noqa: ARG002
         """Test parsing enum with empty value."""
 
         class StatusCode(Enum):
@@ -503,7 +511,7 @@ class DescribeParsers:
             ERROR = 'ERROR'
 
         # Custom parser for StatusCode enum
-        def status_parser(s):
+        def status_parser(s: str) -> Maybe[StatusCode]:
             return parse_enum(s, StatusCode)
 
         # Ask for input with empty value
@@ -512,19 +520,19 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == StatusCode.EMPTY
 
-    def it_tests_empty_string_in_bool_parser(self):
+    def it_tests_empty_string_in_bool_parser(self) -> None:
         result = parse_bool('')
         assert result.is_nothing()
         assert result.error() == 'Input must not be empty'
 
-    def it_tests_enum_parsing_advanced_edge_cases(self):
+    def it_tests_enum_parsing_advanced_edge_cases(self) -> None:
         # Test with None as enum_class
         result = parse_enum('value', None)
         assert result.is_nothing()
 
         # Test with something that's not an Enum but handles any() calls
         class FakeClass:
-            def __iter__(self):
+            def __iter__(self) -> None:
                 return iter([])  # Empty iterator for any() check
 
         result = parse_enum('value', FakeClass())
@@ -535,13 +543,13 @@ class DescribeParsers:
             result = parse_enum('test', Enum('Test', {'A': 'A'}))
             assert result.is_nothing()
 
-    def it_tests_parse_date_edge_formats(self):
+    def it_tests_parse_date_edge_formats(self) -> None:
         # Test date with unusual format that still works
         result = parse_date('20230115', date_format='%Y%m%d')
         assert result.is_just()
         assert result.value() == date(2023, 1, 15)
 
-    def it_tests_bool_parser_true_and_false_values(self):
+    def it_tests_bool_parser_true_and_false_values(self) -> None:
         # Test true values
         for true_value in ['true', 't', 'yes', 'y', '1']:
             result = parse_bool(true_value)
@@ -554,14 +562,14 @@ class DescribeParsers:
             assert result.is_just()
             assert result.value() is False
 
-    def it_tests_enum_edge_cases(self):
+    def it_tests_enum_edge_cases(self) -> None:
         # Test with None as enum_class (line 189)
         result = parse_enum('test', None)
         assert result.is_nothing()
 
         # Test with exception during the any() call (line 194-196)
         class BadEnum:
-            def __iter__(self):
+            def __iter__(self) -> None:
                 raise AttributeError('Test error')
 
         result = parse_enum('test', BadEnum())
@@ -583,11 +591,11 @@ class DescribeParsers:
         assert result.value() == Color.GREEN
 
         # Test general exception handling (lines 225-226)
-        with patch('valid8r.core.parsers.any', side_effect=Exception('Test error')):
+        with patch('valid8r.core.parsers.any', side_effect=ValueError('Test error')):
             result = parse_enum('test', Color)
             assert result.is_nothing()
 
-    def it_tests_enum_outer_exception_handling(self):
+    def it_tests_enum_outer_exception_handling(self) -> None:
         """Test exception handling in the main try block of parse_enum."""
         from enum import Enum
 

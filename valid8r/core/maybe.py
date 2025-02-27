@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import (
+    TYPE_CHECKING,
     Generic,
     TypeVar,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -30,7 +34,8 @@ class Maybe(Generic[T]):
 
     """
 
-    def __init__(self, value: T | None = None, error: str | None = None):
+    def __init__(self, value: T | None = None, error: str | None = None) -> None:
+        """Initialize a Maybe with a value or an error."""
         self._value = value
         self._error = error
         self._has_value = error is None
@@ -84,6 +89,7 @@ class Maybe(Generic[T]):
         return default
 
     def __str__(self) -> str:
+        """Get a string representation of the Maybe."""
         if self._has_value:
             return f'Just({self._value})'
         return f'Nothing({self._error})'

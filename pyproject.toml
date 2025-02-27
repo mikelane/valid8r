@@ -72,6 +72,8 @@ include_trailing_comma = true
 use_parentheses = true
 ensure_newline_before_comments = true
 
+known_first_party = ["valid8r"]
+
 [tool.ruff]
 line-length = 120
 
@@ -94,10 +96,14 @@ line-ending = "auto"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "COM812", # Ignore missing trailing commas (conflicts with ruff format)
     "D203", # Don't require 1 blank line before class docstring
     "D213", # Don't require multiline docstring to start at the second line
-    "COM812", # Ignore missing trailing commas (conflicts with ruff format)
+    "EM101", # Allow raw strings as error messages
     "ISC001", # Ignore implicitly concatenated strings (conflicts with ruff format)
+    "PLR0911", # I don't agree that there could be too many return statements.
+    "T201", # This module needs to print, so don't prevent it
+    "TRY003", # Don't be so strict about the length of exception messages or whatever this is
 ]
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
@@ -116,6 +122,10 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "D102", # Don't require method docstrings in tests
     "D103", # Don't require function docstrings in tests
     "D104", # Don't require init docstrings in tests
+    "PLR0913", # Allow tests to have as many arguments as we want
+]
+"tests/bdd/steps/*" = [
+    "S101", # Allow asserts in behave tests
 ]
 "tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
 "scripts/*" = ["T201"] # allow print function in the scripts
@@ -124,6 +134,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
+known-first-party = ["valid8r"]
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"

@@ -1,20 +1,29 @@
-# Configuration file for the Sphinx documentation builder.
+"""Sphinx configuration file for the Valid8r documentation."""
+
 from __future__ import annotations
 
-import os
 import sys
-from datetime import datetime
-
-# Add the project root directory to the path so Sphinx can find the modules
-sys.path.insert(0, os.path.abspath('..'))
-
-# -- Project information -----------------------------------------------------
-project = 'Valid8r'
-copyright = f'{datetime.now().year}, Valid8r Contributors'
-author = 'Valid8r Contributors'
+from datetime import (
+    UTC,
+    datetime,
+)
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Import the package to get the version
 import valid8r
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+
+# Add the project root directory to the path so Sphinx can find the modules
+sys.path.insert(0, str(Path('..').resolve()))
+
+# -- Project information -----------------------------------------------------
+project = 'Valid8r'
+copyright = f'{datetime.now(tz=UTC).year}, Valid8r Contributors'  # noqa: A001
+author = 'Valid8r Contributors'
+
 
 version = valid8r.__version__
 release = version
@@ -140,7 +149,7 @@ html_context = {
 }
 
 # Custom logo
-# html_logo = '_static/logo.png'
+# html_logo = '_static/logo.png'  # noqa: ERA001
 html_favicon = None
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -178,5 +187,6 @@ todo_include_todos = True
 html_static_path = ['_static']
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
+    """Add custom CSS file to Sphinx build."""
     app.add_css_file('css/custom.css')

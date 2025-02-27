@@ -1,23 +1,85 @@
-"""Basic input prompting functions with improved testability."""
+"""Basic input prompting functions with validation support.
+
+This module provides functionality for prompting users for input via the command line
+with built-in parsing, validation, and retry logic.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TypeVar
+from dataclasses import dataclass
+from typing import (
+    TYPE_CHECKING,
+    TypeVar,
+)
 
 from valid8r.core.maybe import Maybe
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 T = TypeVar('T')
 
 
-def ask(
+@dataclass
+class PromptConfig:
+    """Configuration for the ask function."""
+
+    parser: Callable[[str], Maybe[T]] | None = None
+    validator: Callable[[T], Maybe[T]] | None = None
+    error_message: str | None = None
+    default: T | None = None
+    retry: bool | int = False
+    _test_mode: bool = False
+
+
+def _handle_user_input(prompt_text: str, default: T | None) -> tuple[str, bool]:
+    """Handle getting user input and displaying the prompt.
+
+    Returns:
+        A tuple of (user_input, use_default) where use_default is True if the
+        default value should be used.
+
+    """
+    # Build prompt text with default if available
+    display_prompt = prompt_text
+    if default is not None:
+        display_prompt = f'{prompt_text} [{default}]: '
+
+    # Get user input
+    user_input = input(display_prompt)
+
+    # Check if we should use the default value
+    use_default = not user_input and default is not None
+
+    return user_input, use_default
+
+
+def _process_input(user_input: str, parser: Callable[[str], Maybe[T]], validator: Callable[[T], Maybe[T]]) -> Maybe[T]:
+    """Process user input by parsing and validating.
+
+    Returns:
+        The result of parsing and validating the input.
+
+    """
+    # Parse input
+    result = parser(user_input)
+
+    # Validate if parsing was successful
+    if result.is_just():
+        result = validator(result.value())
+
+    return result
+
+
+def ask(  # noqa: PLR0913
     prompt_text: str,
-    parser: Callable[[str], Maybe[T]] = None,
-    validator: Callable[[T], Maybe[T]] = None,
-    error_message: str = None,
-    default: T = None,
+    *,  # Force all other parameters to be keyword-only
+    parser: Callable[[str], Maybe[T]] | None = None,
+    validator: Callable[[T], Maybe[T]] | None = None,
+    error_message: str | None = None,
+    default: T | None = None,
     retry: bool | int = False,
-    _test_mode: bool = False,  # Hidden parameter for testing
+    _test_mode: bool = False,
 ) -> Maybe[T]:
     """Prompt the user for input with validation.
 
@@ -44,51 +106,76 @@ def ask(
         ... )
 
     """
+    # Create a config object from the parameters
+    config = PromptConfig(
+        parser=parser,
+        validator=validator,
+        error_message=error_message,
+        default=default,
+        retry=retry,
+        _test_mode=_test_mode,
+    )
+
+    return _ask_with_config(prompt_text, config)
+
+
+def _ask_with_config(prompt_text: str, config: PromptConfig) -> Maybe[T]:
+    """Implement ask using a PromptConfig object."""
     # For testing the final return path
-    if _test_mode:
-        return Maybe.nothing(error_message or 'Maximum retry attempts reached')
+    if config._test_mode:  # noqa: SLF001
+        return Maybe.nothing(config.error_message or 'Maximum retry attempts reached')
 
-    # Set a simple default parser if none provided
-    if parser is None:
-        parser = lambda s: Maybe.just(s)  # noqa: E731
+    # Set default parser and validator if not provided
+    parser = config.parser or (lambda s: Maybe.just(s))
+    validator = config.validator or (lambda v: Maybe.just(v))
 
-    # Set a simple default validator if none provided
-    if validator is None:
-        validator = lambda v: Maybe.just(v)  # noqa: E731
+    # Calculate max retries
+    max_retries = config.retry if isinstance(config.retry, int) else float('inf') if config.retry else 0
 
-    max_retries = retry if isinstance(retry, int) else float('inf') if retry else 0
+    return _run_prompt_loop(prompt_text, parser, validator, config.default, max_retries, config.error_message)
+
+
+def _run_prompt_loop(  # noqa: PLR0913
+    prompt_text: str,
+    parser: Callable[[str], Maybe[T]],
+    validator: Callable[[T], Maybe[T]],
+    default: T | None,
+    max_retries: float,
+    error_message: str | None,
+) -> Maybe[T]:
+    """Run the prompt loop with retries."""
     attempt = 0
 
     while attempt <= max_retries:
-        # Build prompt text with default if available
-        display_prompt = prompt_text
-        if default is not None:
-            display_prompt = f'{prompt_text} [{default}]: '
-
         # Get user input
-        user_input = input(display_prompt)
+        user_input, use_default = _handle_user_input(prompt_text, default)
 
-        # Use default if input is empty and default is provided
-        if not user_input and default is not None:
+        # Use default if requested
+        if use_default:
             return Maybe.just(default)
 
-        # Parse and validate input
-        result = parser(user_input).bind(validator)
+        # Process the input
+        result = _process_input(user_input, parser, validator)
 
         if result.is_just():
             return result
 
         # Handle invalid input
         attempt += 1
-        remaining = max_retries - attempt if max_retries < float('inf') else None
-
         if attempt <= max_retries:
-            err_msg = error_message or result.error()
-            if remaining:
-                print(f'Error: {err_msg} ({remaining} attempt(s) remaining)')
-            else:
-                print(f'Error: {err_msg}')
+            _display_error(result.error(), error_message, max_retries, attempt)
         else:
             return result  # Return the failed result after max retries
 
     return Maybe.nothing(error_message or 'Maximum retry attempts reached')
+
+
+def _display_error(result_error: str, custom_error: str | None, max_retries: float, attempt: int) -> None:
+    """Display error message to the user."""
+    err_msg = custom_error or result_error
+    remaining = max_retries - attempt if max_retries < float('inf') else None
+
+    if remaining is not None:
+        print(f'Error: {err_msg} ({remaining} attempt(s) remaining)')
+    else:
+        print(f'Error: {err_msg}')

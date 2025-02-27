@@ -11,11 +11,11 @@ DOCS_DIR = Path(__file__).parent.parent / 'docs'
 BUILD_DIR = DOCS_DIR / '_build' / 'html'
 
 
-def build():
+def build() -> None:
     """Build the Sphinx documentation."""
     print('Building documentation...')
     os.chdir(DOCS_DIR)
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603
         [sys.executable, '-m', 'sphinx.cmd.build', '-b', 'html', '.', '_build/html'],
         check=False,
     )
@@ -24,7 +24,7 @@ def build():
     print(f'Documentation built successfully. Files in {BUILD_DIR}')
 
 
-def serve():
+def serve() -> None:
     """Serve the built documentation using Python's HTTP server."""
     if not BUILD_DIR.exists():
         print("Documentation hasn't been built yet. Building now...")
@@ -36,7 +36,7 @@ def serve():
     print('Press Ctrl+C to stop the server')
 
     # Run the HTTP server
-    subprocess.run([sys.executable, '-m', 'http.server'], check=False)
+    subprocess.run([sys.executable, '-m', 'http.server'], check=False)  # noqa: S603
 
 
 if __name__ == '__main__':
