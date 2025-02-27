@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from valid8r.core.maybe import Maybe
 
 

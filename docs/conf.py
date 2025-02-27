@@ -152,21 +152,23 @@ latex_elements = {
 }
 
 latex_documents = [
-    (master_doc, 'Valid8r.tex', 'Valid8r Documentation',
-     'Valid8r Contributors', 'manual'),
+    (master_doc, 'Valid8r.tex', 'Valid8r Documentation', 'Valid8r Contributors', 'manual'),
 ]
 
 # -- Options for manual page output ------------------------------------------
-man_pages = [
-    (master_doc, 'valid8r', 'Valid8r Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, 'valid8r', 'Valid8r Documentation', [author], 1)]
 
 # -- Options for Texinfo output ----------------------------------------------
 texinfo_documents = [
-    (master_doc, 'Valid8r', 'Valid8r Documentation',
-     author, 'Valid8r', 'Clean, flexible input validation for Python applications.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        'Valid8r',
+        'Valid8r Documentation',
+        author,
+        'Valid8r',
+        'Clean, flexible input validation for Python applications.',
+        'Miscellaneous',
+    ),
 ]
 
 # -- Options for todo extension ----------------------------------------------
@@ -174,5 +176,7 @@ todo_include_todos = True
 
 # Custom CSS file for minor styling adjustments
 html_static_path = ['_static']
+
+
 def setup(app):
     app.add_css_file('css/custom.css')

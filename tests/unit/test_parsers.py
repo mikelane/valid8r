@@ -517,7 +517,6 @@ class DescribeParsers:
         assert result.is_nothing()
         assert result.error() == 'Input must not be empty'
 
-
     def it_tests_enum_parsing_advanced_edge_cases(self):
         # Test with None as enum_class
         result = parse_enum('value', None)
@@ -542,7 +541,6 @@ class DescribeParsers:
         assert result.is_just()
         assert result.value() == date(2023, 1, 15)
 
-
     def it_tests_bool_parser_true_and_false_values(self):
         # Test true values
         for true_value in ['true', 't', 'yes', 'y', '1']:
@@ -555,7 +553,6 @@ class DescribeParsers:
             result = parse_bool(false_value)
             assert result.is_just()
             assert result.value() is False
-
 
     def it_tests_enum_edge_cases(self):
         # Test with None as enum_class (line 189)

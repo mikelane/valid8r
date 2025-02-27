@@ -7,7 +7,6 @@ from behave import (
     then,
     when,
 )
-
 from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import (
     parse_bool,

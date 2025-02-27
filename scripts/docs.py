@@ -1,4 +1,5 @@
 """Scripts for building and serving documentation."""
+
 from __future__ import annotations
 
 import os
