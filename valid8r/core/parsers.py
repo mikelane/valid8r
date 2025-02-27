@@ -57,8 +57,6 @@ def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
         return Maybe.just(value)
     except ValueError:
         return Maybe.nothing(error_message or 'Input must be a valid integer')
-    except OverflowError:
-        return Maybe.nothing(error_message or 'Value is too large')
 
 
 def parse_float(input_value: str, error_message: str | None = None) -> Maybe[float]:

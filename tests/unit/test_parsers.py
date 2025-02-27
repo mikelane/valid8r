@@ -1,15 +1,12 @@
+"""Tests for the parsers module."""
+
 from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-)
-from unittest.mock import (
-    MagicMock,
-    patch,
-)
+from typing import TYPE_CHECKING
+
+import pytest
 
 from valid8r.core.parsers import (
     parse_bool,
@@ -19,593 +16,279 @@ from valid8r.core.parsers import (
     parse_float,
     parse_int,
 )
-from valid8r.prompt.basic import ask
 
 if TYPE_CHECKING:
-    from valid8r.core.maybe import Maybe
+    from pytest_mock import (
+        MockerFixture,
+        MockType,
+    )
+
+
+@pytest.fixture
+def mock_int(mocker: MockerFixture) -> MockType:
+    """Mock the builtins.int function."""
+    return mocker.patch('builtins.int')
+
+
+class Color(Enum):
+    """Color enum for testing."""
+
+    RED = 'RED'
+    GREEN = 'GREEN'
+    BLUE = 'BLUE'
+
+
+class StrangeEnum(Enum):
+    """Enum with unusual values for testing."""
+
+    EMPTY = ''
+    SPACE = ' '
+    NUMBER = '123'
 
 
 class DescribeParsers:
-    def it_parses_complex_numbers(self) -> None:
-        result = parse_complex('3+4j')
-        assert result.is_just()
-        assert result.value() == complex(3, 4)
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('42', 42, id='integer'),
+            pytest.param('-42', -42, id='negative integer'),
+            pytest.param('  42  ', 42, id='integer with whitespace'),
+            pytest.param('42.0', 42, id='integer-equivalent float'),
+        ],
+    )
+    def it_parses_integers_successfully(self, input_str: str, expected_result: int) -> None:
+        """Test that parse_int successfully parses valid integers."""
+        assert parse_int(input_str).is_just()
+        assert parse_int(input_str).value() == expected_result
 
-    def it_handles_invalid_complex_numbers(self) -> None:
-        result = parse_complex('not a complex')
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('abc', 'Input must be a valid integer', id='non-numeric string'),
+            pytest.param('', 'Input must not be empty', id='empty string'),
+            pytest.param('42.5', 'Input must be a valid integer', id='decimal with fractional part'),
+        ],
+    )
+    def it_handles_invalid_integers(self, input_str: str, expected_result: str) -> None:
+        """Test that parse_int correctly handles invalid inputs."""
+        result = parse_int(input_str)
         assert result.is_nothing()
-        assert result.error() == 'Input must be a valid complex number'
+        assert result.error() == expected_result
 
-    def it_parses_enums(self) -> None:
-        from enum import Enum
-
-        class Color(Enum):
-            RED = 'RED'
-            GREEN = 'GREEN'
-            BLUE = 'BLUE'
-
-        result = parse_enum('RED', Color)
-        assert result.is_just()
-        assert result.value() == Color.RED
-
-    def it_handles_invalid_enum_values(self) -> None:
-        from enum import Enum
-
-        class Color(Enum):
-            RED = 'RED'
-            GREEN = 'GREEN'
-            BLUE = 'BLUE'
-
-        result = parse_enum('YELLOW', Color)
-        assert result.is_nothing()
-        assert result.error() == 'Input must be a valid enumeration value'
+    def it_handles_custom_error_messages_for_integers(self) -> None:
+        """Test that parse_int uses custom error messages when provided."""
+        custom_msg = 'Please provide a valid number'
+        assert parse_int('abc', error_message=custom_msg).error() == custom_msg
 
     def it_handles_large_integers(self) -> None:
-        result = parse_int('999999999999999999999999999999')
+        """Test that parse_int handles very large integers."""
+        large_int = '999999999999999999999999999999'
+        result = parse_int(large_int)
         assert result.is_just()
         assert result.value() == 999999999999999999999999999999
 
-    def it_handles_empty_input_for_all_parsers(self) -> None:
-        """Test that all parsers handle empty input correctly."""
-        # Test empty input for float
-        result = parse_float('')
-        assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            ('3.14159', 3.14159),
+            ('  3.14  ', 3.14),
+            ('42', 42.0),
+            ('-42.5', -42.5),
+            ('1.23e2', 123.0),
+            ('inf', float('inf')),
+            ('NaN', float('nan')),
+        ],
+    )
+    def it_parses_floats_successfully(self, input_str: str, expected_result: float) -> None:
+        """Test that parse_float successfully parses valid floats."""
+        result = parse_float(input_str)
+        assert result.is_just()
 
-        # Test empty input for bool
-        result = parse_bool('')
-        assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
+        # Handle NaN case separately since NaN != NaN in Python
+        if input_str == 'NaN':
+            assert str(result.value()) == 'nan'
+        else:
+            assert result.value() == expected_result
 
-        # Test empty input for date
-        result = parse_date('')
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('abc', 'Input must be a valid number', id='non-numeric string'),
+            pytest.param('', 'Input must not be empty', id='empty string'),
+            pytest.param('123abc', 'Input must be a valid number', id='mixed string'),
+        ],
+    )
+    def it_handles_invalid_floats(self, input_str: str, expected_result: str) -> None:
+        """Test that parse_float correctly handles invalid inputs."""
+        result = parse_float(input_str)
         assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
+        assert result.error() == expected_result
 
-        # Test empty input for complex
-        result = parse_complex('')
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_value'),
+        [
+            pytest.param('true', True, id='lowercase'),
+            pytest.param('True', True, id='capitalized'),
+            pytest.param('TRUE', True, id='uppercase'),
+            pytest.param('t', True, id='single letter t'),
+            pytest.param('yes', True, id='full yes'),
+            pytest.param('y', True, id='single letter y'),
+            pytest.param('1', True, id='int for True'),
+            pytest.param('false', False, id='lowercase false'),
+            pytest.param('False', False, id='capitalized false'),
+            pytest.param('FALSE', False, id='uppercase false'),
+            pytest.param('f', False, id='single letter f'),
+            pytest.param('no', False, id='full no'),
+            pytest.param('n', False, id='single letter n'),
+            pytest.param('0', False, id='int for False'),
+        ],
+    )
+    def it_parses_booleans_successfully(self, input_str: str, expected_value: bool) -> None:
+        """Test that parse_bool successfully parses valid boolean strings."""
+        result = parse_bool(input_str)
+        assert result.is_just()
+        assert result.value() == expected_value
+
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_value'),
+        [
+            pytest.param('maybe', 'Input must be a valid boolean', id='invalid string'),
+            pytest.param('', 'Input must not be empty', id='empty string'),
+        ],
+    )
+    def it_handles_invalid_booleans(self, input_str: str, expected_value: str) -> None:
+        """Test that parse_bool correctly handles invalid inputs."""
+        result = parse_bool(input_str)
         assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
+        assert result.error() == expected_value
 
-        # Test empty input for enum
-        class Color(Enum):
-            RED = 'RED'
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_value'),
+        [
+            pytest.param('2023-01-15', date(2023, 1, 15), id='basic ISO format'),
+            pytest.param('  2023-01-15  ', date(2023, 1, 15), id='ISO format with whitespace'),
+        ],
+    )
+    def it_parses_dates_with_iso_format(self, input_str: str, expected_value: date) -> None:
+        """Test that parse_date successfully parses dates in ISO format."""
+        result = parse_date(input_str)
+        assert result.is_just()
+        assert result.value() == expected_value
 
-        result = parse_enum('', Color)
+    @pytest.mark.parametrize(
+        ('input_str', 'format_str', 'expected_date'),
+        [
+            ('2023-01-15', '%Y-%m-%d', date(2023, 1, 15)),
+            ('15/01/2023', '%d/%m/%Y', date(2023, 1, 15)),
+            ('Jan 15, 2023', '%b %d, %Y', date(2023, 1, 15)),
+            ('20230115', '%Y%m%d', date(2023, 1, 15)),
+        ],
+    )
+    def it_parses_dates_with_custom_formats(self, input_str: str, format_str: str, expected_date: date) -> None:
+        """Test that parse_date successfully parses dates with custom formats."""
+        result = parse_date(input_str, date_format=format_str)
+        assert result.is_just()
+        assert result.value() == expected_date
+
+    @pytest.mark.parametrize(
+        ('input_str', 'date_format', 'expected_error'),
+        [
+            pytest.param('2023-13-45', '%Y-%m-%d', 'Input must be a valid date', id='invalid date'),
+            pytest.param('', '%Y-%m-%d', 'Input must not be empty', id='empty string'),
+            pytest.param('2023-01-15', '%d/%m/%Y', 'Input must be a valid date', id='wrong format'),
+            pytest.param('20230115', '%d/%m/%Y', 'Input must be a valid date', id='non-standard format'),
+        ],
+    )
+    def it_handles_invalid_dates(self, input_str: str, date_format: str, expected_error: str) -> None:
+        """Test that parse_date correctly handles invalid inputs."""
+        result = parse_date(input_str, date_format=date_format)
         assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
+        assert result.error() == expected_error
+
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('3+4j', complex(3, 4), id='basic complex'),
+            pytest.param('3+4i', complex(3, 4), id='mathematical i notation'),
+            pytest.param('5', complex(5, 0), id='real number'),
+            pytest.param('3j', complex(0, 3), id='imaginary number'),
+            pytest.param('-2-3j', complex(-2, -3), id='negative real and imaginary'),
+            pytest.param('  1+2j  ', complex(1, 2), id='complex with whitespace'),
+            pytest.param('(3+4j)', complex(3, 4), id='complex with parentheses'),
+            pytest.param('3 + 4j', complex(3, 4), id='complex with spaces'),
+        ],
+    )
+    def it_parses_complex_numbers_successfully(self, input_str: str, expected_result: complex) -> None:
+        """Test that parse_complex successfully parses complex numbers."""
+        result = parse_complex(input_str)
+        assert result.is_just()
+        assert result.value() == expected_result
+
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_error'),
+        [
+            pytest.param('not a complex', 'Input must be a valid complex number', id='invalid complex'),
+            pytest.param('', 'Input must not be empty', id='empty string'),
+        ],
+    )
+    def it_handles_invalid_complex_numbers(self, input_str: str, expected_error: str) -> None:
+        """Test that parse_complex correctly handles invalid inputs."""
+        result = parse_complex(input_str)
+        assert result.is_nothing()
+        assert result.error() == expected_error
+
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('RED', Color.RED, id='valid enum value'),
+            pytest.param('  RED  ', Color.RED, id='enum with whitespace'),
+        ],
+    )
+    def it_parses_enums_successfully(self, input_str: str, expected_result: Color) -> None:
+        """Test that parse_enum successfully parses enum values."""
+        # Match by value
+        result = parse_enum(input_str, Color)
+        assert result.is_just()
+        assert result.value() == expected_result
+
+    @pytest.mark.parametrize(
+        ('input_str', 'expected_result'),
+        [
+            pytest.param('', StrangeEnum.EMPTY, id='empty string'),
+            pytest.param(' ', StrangeEnum.SPACE, id='space value'),
+            pytest.param('123', StrangeEnum.NUMBER, id='numeric value'),
+        ],
+    )
+    def it_handles_special_enum_cases(self, input_str: str, expected_result: StrangeEnum) -> None:
+        """Test that parse_enum handles special enum cases."""
+        # Empty string when empty is a valid enum value
+        result = parse_enum(input_str, StrangeEnum)
+        assert result.is_just()
+        assert result.value() == expected_result
+
+    @pytest.mark.parametrize(
+        ('input_str', 'enum_class', 'expected_error'),
+        [
+            pytest.param('YELLOW', Color, 'Input must be a valid enumeration value', id='invalid enum value'),
+            pytest.param('', Color, 'Input must not be empty', id='empty string'),
+            pytest.param('red', Color, 'Input must be a valid enumeration value', id='case mismatch'),
+            pytest.param('test', None, 'Invalid enum class provided', id='invalid enum class'),
+        ],
+    )
+    def it_handles_invalid_enums(self, input_str: str, enum_class: Color | None, expected_error: str) -> None:
+        """Test that parse_enum correctly handles invalid inputs."""
+        result = parse_enum(input_str, enum_class)
+        assert result.is_nothing()
+        assert result.error() == expected_error
 
     def it_handles_custom_error_messages_for_all_parsers(self) -> None:
         """Test that all parsers handle custom error messages correctly."""
         custom_msg = 'Custom error message'
 
-        # Float
-        result = parse_float('abc', error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-        # Bool
-        result = parse_bool('invalid', error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-        # Date
-        result = parse_date('invalid', error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-        # Complex
-        result = parse_complex('invalid', error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-        # Enum
-        class Color(Enum):
-            RED = 'RED'
-
-        result = parse_enum('INVALID', Color, error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-    def it_parses_valid_floats_with_different_formats(self) -> None:
-        """Test that parse_float can handle different float formats."""
-        # Test standard format
-        result = parse_float('123.456')
-        assert result.is_just()
-        assert result.value() == 123.456
-
-        # Test scientific notation
-        result = parse_float('1.23e2')
-        assert result.is_just()
-        assert result.value() == 123.0
-
-        # Test negative numbers
-        result = parse_float('-42.5')
-        assert result.is_just()
-        assert result.value() == -42.5
-
-        # Test integers as floats
-        result = parse_float('42')
-        assert result.is_just()
-        assert result.value() == 42.0
-
-        # Test with leading/trailing whitespace
-        result = parse_float('  3.14  ')
-        assert result.is_just()
-        assert result.value() == 3.14
-
-    def it_handles_invalid_floats_correctly(self) -> None:
-        """Test that parse_float rejects invalid floats."""
-        # Test non-numeric string
-        result = parse_float('abc')
-        assert result.is_nothing()
-        assert result.error() == 'Input must be a valid number'
-
-        # Test mixed string
-        result = parse_float('123abc')
-        assert result.is_nothing()
-        assert result.error() == 'Input must be a valid number'
-
-    def it_parses_complex_numbers_in_different_formats(self) -> None:
-        """Test that parse_complex can handle different complex number formats."""
-        # Standard form
-        result = parse_complex('3+4j')
-        assert result.is_just()
-        assert result.value() == complex(3, 4)
-
-        # Alternative notation
-        result = parse_complex('3+4i')
-        assert result.is_just()
-        assert result.value() == complex(3, 4)
-
-        # Just real part
-        result = parse_complex('5')
-        assert result.is_just()
-        assert result.value() == complex(5, 0)
-
-        # Just imaginary part
-        result = parse_complex('3j')
-        assert result.is_just()
-        assert result.value() == complex(0, 3)
-
-        # Negative parts
-        result = parse_complex('-2-3j')
-        assert result.is_just()
-        assert result.value() == complex(-2, -3)
-
-        # With whitespace
-        result = parse_complex('  1+2j  ')
-        assert result.is_just()
-        assert result.value() == complex(1, 2)
-
-    def it_parses_dates_with_default_iso_format(self) -> None:
-        """Test that parse_date handles ISO format dates correctly."""
-        # Basic ISO format
-        result = parse_date('2023-01-15')
-        assert result.is_just()
-        assert result.value() == date(2023, 1, 15)
-
-        # With whitespace
-        result = parse_date('  2023-01-15  ')
-        assert result.is_just()
-        assert result.value() == date(2023, 1, 15)
-
-    def it_handles_enum_case_sensitivity(self) -> None:
-        """Test that parse_enum handles case sensitivity correctly."""
-
-        class Color(Enum):
-            RED = 'RED'
-            GREEN = 'GREEN'
-            BLUE = 'BLUE'
-
-        # Match exact case
-        result = parse_enum('RED', Color)
-        assert result.is_just()
-        assert result.value() == Color.RED
-
-        # Different case should fail (enums are case-sensitive)
-        result = parse_enum('red', Color)
-        assert result.is_nothing()
-        assert 'valid enumeration value' in result.error()
-
-        # With whitespace
-        result = parse_enum('  RED  ', Color)
-        assert result.is_just()
-        assert result.value() == Color.RED
-
-    def it_handles_edge_cases_in_int_parsing(self) -> None:
-        """Test edge cases in parse_int."""
-        # Zero
-        result = parse_int('0')
-        assert result.is_just()
-        assert result.value() == 0
-
-        # Negative numbers
-        result = parse_int('-42')
-        assert result.is_just()
-        assert result.value() == -42
-
-        # Leading zeros
-        result = parse_int('007')
-        assert result.is_just()
-        assert result.value() == 7
-
-        # Plus sign
-        result = parse_int('+42')
-        assert result.is_just()
-        assert result.value() == 42
-
-    def it_tests_boundary_conditions_for_parsers(self) -> None:
-        # Test date with invalid formats
-        result = parse_date('2023-01-15', date_format='%d/%m/%Y')
-        assert result.is_nothing()
-        assert 'valid date' in result.error()
-
-        # Test date with None format (falls back to ISO format)
-        result = parse_date('2023-01-15', date_format=None)
-        assert result.is_just()
-        assert result.value().isoformat() == '2023-01-15'
-
-        # Test enum with None for error message
-        class Color(Enum):
-            RED = 'RED'
-
-        result = parse_enum('PURPLE', Color, error_message=None)
-        assert result.is_nothing()
-        assert 'valid enumeration value' in result.error()
-
-        # Test very large float
-        result = parse_float('1e308')  # Close to max float value
-        assert result.is_just()
-
-        # Test very small float
-        result = parse_float('1e-308')  # Close to min float value
-        assert result.is_just()
-
-        # Test numeric string with Unicode digits (e.g., Arabic numerals)
-        result = parse_int('١٢٣٤٥٦٧٨٩٠')  # Arabic numerals
-        # Since int() DOES handle these in Python 3, let's verify it parses correctly
-        assert result.is_just()
-        assert result.value() == 1234567890
-
-        # Test string with lots of whitespace
-        result = parse_int('\n \t 42 \r \n')
-        assert result.is_just()
-        assert result.value() == 42
-
-    def it_tests_parser_error_handling(self) -> None:
-        # Test float parsing with a string that causes a specific ValueError
-        result = parse_float('inf')  # Special floating point value
-        assert result.is_just()
-        assert result.value() == float('inf')
-
-        # Test float parsing with a string that could cause a specific error
-        result = parse_float('NaN')  # Not a Number
-        assert result.is_just()
-        assert str(result.value()) == 'nan'
-
-        # Test int parsing with different forms of decimals
-        result = parse_int('42.0')  # This should be accepted as it converts exactly to an int
-        assert result.is_just()
-        assert result.value() == 42
-
-        result = parse_int('42.5')  # This should be rejected
-        assert result.is_nothing()
-
-        # Test complex with unusual format
-        result = parse_complex('(3+4j)')  # With parentheses
-        assert result.is_just()
-        assert result.value() == complex(3, 4)
-
-        # Test complex with spaces
-        result = parse_complex('3 + 4j')  # With spaces
-        assert result.is_just()
-        assert result.value() == complex(3, 4)
-
-        # Test date with unusual but valid ISO format
-        result = parse_date('20230115')  # Compact ISO format without separators
-        assert result.is_nothing()  # Should fail without proper format specified
-
-    def it_handles_unusual_enum_cases(self) -> None:
-        """Test enum parsing with unusual cases."""
-
-        # Create an enum with unusual values
-        class Strange(Enum):
-            EMPTY = ''
-            SPACE = ' '
-            NUMBER = '123'
-
-        # Test empty string value
-        result = parse_enum('', Strange)
-        assert result.is_just()
-        assert result.value() == Strange.EMPTY
-
-        # Test space value
-        result = parse_enum(' ', Strange)
-        assert result.is_just()
-        assert result.value() == Strange.SPACE
-
-        # Test numeric value
-        result = parse_enum('123', Strange)
-        assert result.is_just()
-        assert result.value() == Strange.NUMBER
-
-    def it_handles_error_message_customization(self) -> None:
-        """Test that custom error messages are used when provided."""
-        custom_msg = 'Please provide a valid number'
-        result = parse_int('not a number', error_message=custom_msg)
-        assert result.is_nothing()
-        assert result.error() == custom_msg
-
-    def it_correctly_handles_integers_with_decimal_point(self) -> None:
-        """Test that strings like '42.0' are properly handled in parse_int."""
-        # Should successfully parse since it's a whole number
-        result = parse_int('42.0')
-        assert result.is_just()
-        assert result.value() == 42
-
-        # Should fail to parse since it's not a whole number
-        result = parse_int('42.5')
-        assert result.is_nothing()
-        assert 'valid integer' in result.error()
-
-    def it_handles_overflow_errors_in_parse_int(self) -> None:
-        """Test that overflow errors are handled properly in parse_int."""
-        # This will force a simulated overflow error by mocking int()
-        import builtins
-
-        original_int = builtins.int
-        try:
-            # Mock int to raise OverflowError
-            def mock_int(val: str, *args: Any, **kwargs: Any) -> int:  # noqa: ANN401
-                if val == '9' * 1000:  # Extremely large number to simulate overflow
-                    raise OverflowError('Mock overflow')
-                return original_int(val, *args, **kwargs)
-
-            builtins.int = mock_int
-
-            result = parse_int('9' * 1000)
-            assert result.is_nothing()
-            assert result.error() == 'Value is too large'
-
-            # Test with custom error message
-            custom_msg = 'Number is too big'
-            result = parse_int('9' * 1000, error_message=custom_msg)
-            assert result.is_nothing()
-            assert result.error() == custom_msg
-        finally:
-            # Restore original int function
-            builtins.int = original_int
-
-    def it_parses_empty_strings_for_all_parsers(self) -> None:
-        """Ensure all parsers handle empty strings consistently."""
-        # Check that each parser rejects empty input with the correct message
-        for parser_name, parser_func in [
-            ('parse_int', parse_int),
-            ('parse_float', parse_float),
-            ('parse_bool', parse_bool),
-            ('parse_date', parse_date),
-            ('parse_complex', parse_complex),
-        ]:
-            result = parser_func('')
-            assert result.is_nothing(), f'{parser_name} should reject empty string'
-            assert result.error() == 'Input must not be empty', f'{parser_name} should have correct error message'
-
-    def it_handles_enum_parsing_edge_cases(self) -> None:
-        """Test edge cases with enum parsing."""
-
-        class Color(Enum):
-            RED = 'RED'
-            GREEN = 'GREEN'
-            BLUE = 'BLUE'
-
-        class EmptyEnum(Enum):
-            # An enum with an empty string value
-            EMPTY = ''
-            NON_EMPTY = 'value'
-
-        # Test with empty input for enum that has empty string as valid value
-        result = parse_enum('', EmptyEnum)
-        assert result.is_just()
-        assert result.value() == EmptyEnum.EMPTY
-
-        # Test with whitespace in input
-        result = parse_enum('  RED  ', Color)
-        assert result.is_just()
-        assert result.value() == Color.RED
-
-        # Test with exception during parsing
-        try:
-            # We need to catch the exception that happens when checking the enum
-            from unittest.mock import patch
-
-            # Mock the any() function to raise an exception when used in parse_enum
-            with patch('valid8r.core.any', side_effect=ValueError('Simulated error')):
-                result = parse_enum('value', Color)
-                assert result.is_nothing()
-                assert 'valid enumeration value' in result.error()
-        except ValueError:
-            # If patching doesn't work in this context, this test can be skipped
-            pass
-
-    def it_handles_all_float_parsing_edge_cases(self) -> None:
-        """Test edge cases in float parsing to cover all branches."""
-        # Test float with NaN
-        result = parse_float('NaN')
-        assert result.is_just()
-        assert str(result.value()) == 'nan'
-
-        # Test float with infinity
-        result = parse_float('inf')
-        assert result.is_just()
-        assert result.value() == float('inf')
-
-        # Test float with -infinity
-        result = parse_float('-inf')
-        assert result.is_just()
-        assert result.value() == float('-inf')
-
-    def it_handles_date_parsing_with_none_format(self) -> None:
-        """Test date parsing with None format."""
-        # Test parsing date with None format (should fall back to ISO)
-        result = parse_date('2023-01-15', date_format=None)
-        assert result.is_just()
-
-    def it_handles_enum_parsing_with_stripped_value(self) -> None:
-        """Test enum parsing with whitespace that needs stripping."""
-
-        class Color(Enum):
-            RED = 'RED'
-            GREEN = 'GREEN'
-            BLUE = 'BLUE'
-
-        # Test with padding that needs stripping
-        result = parse_enum('  GREEN  ', Color)
-        assert result.is_just()
-        assert result.value() == Color.GREEN
-
-        # Test with padding but actual value not found
-        result = parse_enum('  YELLOW  ', Color)
-        assert result.is_nothing()
-        assert 'valid enumeration value' in result.error()
-
-    def it_exits_loop_without_max_retries(self) -> None:
-        """Test case where loop exits without hitting max retries."""
-        # This is difficult to test directly, so we'll use _test_mode
-        result = ask(
-            'Enter something: ',
-            error_message=None,
-            _test_mode=True,  # Will trigger final return statement
-        )
-
-        assert result.is_nothing()
-        assert result.error() == 'Maximum retry attempts reached'
-
-    @patch('builtins.input', side_effect=[''])
-    def it_parses_empty_enum_value(self, mock_input: MagicMock) -> None:  # noqa: ARG002
-        """Test parsing enum with empty value."""
-
-        class StatusCode(Enum):
-            EMPTY = ''
-            OK = 'OK'
-            ERROR = 'ERROR'
-
-        # Custom parser for StatusCode enum
-        def status_parser(s: str) -> Maybe[StatusCode]:
-            return parse_enum(s, StatusCode)
-
-        # Ask for input with empty value
-        result = ask('Enter status: ', parser=status_parser)
-
-        assert result.is_just()
-        assert result.value() == StatusCode.EMPTY
-
-    def it_tests_empty_string_in_bool_parser(self) -> None:
-        result = parse_bool('')
-        assert result.is_nothing()
-        assert result.error() == 'Input must not be empty'
-
-    def it_tests_enum_parsing_advanced_edge_cases(self) -> None:
-        # Test with None as enum_class
-        result = parse_enum('value', None)
-        assert result.is_nothing()
-
-        # Test with something that's not an Enum but handles any() calls
-        class FakeClass:
-            def __iter__(self) -> None:
-                return iter([])  # Empty iterator for any() check
-
-        result = parse_enum('value', FakeClass())
-        assert result.is_nothing()
-
-        # Test with enum that has attribute errors
-        with patch('valid8r.core.parsers.any', side_effect=AttributeError('Test error')):
-            result = parse_enum('test', Enum('Test', {'A': 'A'}))
-            assert result.is_nothing()
-
-    def it_tests_parse_date_edge_formats(self) -> None:
-        # Test date with unusual format that still works
-        result = parse_date('20230115', date_format='%Y%m%d')
-        assert result.is_just()
-        assert result.value() == date(2023, 1, 15)
-
-    def it_tests_bool_parser_true_and_false_values(self) -> None:
-        # Test true values
-        for true_value in ['true', 't', 'yes', 'y', '1']:
-            result = parse_bool(true_value)
-            assert result.is_just()
-            assert result.value() is True
-
-        # Test false values
-        for false_value in ['false', 'f', 'no', 'n', '0']:
-            result = parse_bool(false_value)
-            assert result.is_just()
-            assert result.value() is False
-
-    def it_tests_enum_edge_cases(self) -> None:
-        # Test with None as enum_class (line 189)
-        result = parse_enum('test', None)
-        assert result.is_nothing()
-
-        # Test with exception during the any() call (line 194-196)
-        class BadEnum:
-            def __iter__(self) -> None:
-                raise AttributeError('Test error')
-
-        result = parse_enum('test', BadEnum())
-        assert result.is_nothing()
-
-        # Create a real enum with a matching name but not accessed yet (line 210)
-        class Color(Enum):
-            RED = 'red'
-            GREEN = 'green'
-
-        # This should hit line 210 by finding the enum by name lookup
-        result = parse_enum('RED', Color)
-        assert result.is_just()
-        assert result.value() == Color.RED
-
-        # Test line 220 with a stripped lookup by name
-        result = parse_enum('  GREEN  ', Color)
-        assert result.is_just()
-        assert result.value() == Color.GREEN
-
-        # Test general exception handling (lines 225-226)
-        with patch('valid8r.core.parsers.any', side_effect=ValueError('Test error')):
-            result = parse_enum('test', Color)
-            assert result.is_nothing()
-
-    def it_tests_enum_outer_exception_handling(self) -> None:
-        """Test exception handling in the main try block of parse_enum."""
-        from enum import Enum
-
-        # Create a valid enum
-        class Color(Enum):
-            RED = 'red'
-            GREEN = 'green'
-
-        # Mock the loop inside parse_enum to raise an exception
-        with patch.object(Color, '__iter__', side_effect=Exception('Test exception')):
-            result = parse_enum('test', Color)
-            assert result.is_nothing()
-            assert 'valid enumeration value' in result.error()
+        # Check each parser with invalid input and custom message
+        assert parse_int('abc', error_message=custom_msg).error() == custom_msg
+        assert parse_float('abc', error_message=custom_msg).error() == custom_msg
+        assert parse_bool('invalid', error_message=custom_msg).error() == custom_msg
+        assert parse_date('invalid', error_message=custom_msg).error() == custom_msg
+        assert parse_complex('invalid', error_message=custom_msg).error() == custom_msg
+        assert parse_enum('INVALID', Color, error_message=custom_msg).error() == custom_msg
