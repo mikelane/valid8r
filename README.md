@@ -34,6 +34,26 @@ age = prompt.ask(
 print(f"Your age is {age}")
 ```
 
+## Testing Support
+
+Valid8r includes testing utilities to help you verify your validation logic:
+
+```python
+from valid8r.testing import MockInputContext, assert_maybe_success
+
+# Test prompts with mock input
+with MockInputContext(["yes"]):
+    result = prompt.ask("Continue? ", parser=parsers.parse_bool)
+    assert result.is_success()
+    assert result.value_or(False) == True
+
+# Test validation functions
+result = validate_age(42)
+assert assert_maybe_success(result, 42)
+```
+
+For more information, see the [Testing with Valid8r](docs/user_guide/testing.rst) guide.
+
 ## Development
 
 This project uses Poetry for dependency management and Tox for testing.

@@ -10,6 +10,8 @@ from unittest.mock import (
     patch,
 )
 
+import pytest
+
 from valid8r.core.maybe import (
     Failure,
     Success,
@@ -41,7 +43,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 42
             case _:
-                assert False, 'Expected Success'
+                assert pytest.fail('Expected Success')
 
         # Validation fails
         result = parse_int('42').bind(lambda x: minimum(100)(x))
@@ -50,7 +52,7 @@ class DescribeValidatorIntegration:
             case Failure(error):
                 assert 'at least 100' in error
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
         # Parsing fails before validation
         result = parse_int('not a number').bind(lambda x: minimum(0)(x))
@@ -59,7 +61,7 @@ class DescribeValidatorIntegration:
             case Failure(error):
                 assert 'valid integer' in error
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
     def it_uses_operator_overloading_for_validators(self) -> None:
         """Test operator overloading for validators."""
@@ -77,7 +79,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 30
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
         # Test too young
         result = working_age(16)
@@ -85,7 +87,7 @@ class DescribeValidatorIntegration:
             case Failure(error):
                 assert 'Must be at least 18' in error
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
         # Test too old
         result = working_age(70)
@@ -93,7 +95,7 @@ class DescribeValidatorIntegration:
             case Failure(error):
                 assert 'Must be at most 65' in error
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
         # Combine with OR
         valid_number = is_even | is_adult
@@ -104,7 +106,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 4
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
         # Test passes second condition
         result = valid_number(19)
@@ -112,7 +114,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 19
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
         # Test fails both conditions
         result = valid_number(15)
@@ -120,7 +122,7 @@ class DescribeValidatorIntegration:
             case Failure(_):
                 pass  # Just verify it's a failure
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
     def it_works_with_complex_validation_chains(self) -> None:
         """Test complex validation chains."""
@@ -137,7 +139,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 42
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
         # Test valid number (in range and divisible by 5)
         result = valid_number(35)
@@ -145,7 +147,7 @@ class DescribeValidatorIntegration:
             case Success(value):
                 assert value == 35
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
         # Test invalid (outside range)
         result = valid_number(101)
@@ -153,7 +155,7 @@ class DescribeValidatorIntegration:
             case Failure(error):
                 assert 'between 1 and 100' in error
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
         # Test invalid (in range but not even or divisible by 5)
         result = valid_number(37)
@@ -161,7 +163,7 @@ class DescribeValidatorIntegration:
             case Failure(_):
                 pass  # Just verify it's a failure
             case _:
-                assert False, 'Expected Failure'
+                assert pytest.fail('Expected Failure')
 
 
 class DescribePromptIntegration:
@@ -182,7 +184,7 @@ class DescribePromptIntegration:
             case Success(value):
                 assert value == 42
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
     @patch('builtins.input', side_effect=['2023-02-31', '2023-02-15'])
     @patch('builtins.print')
@@ -205,7 +207,7 @@ class DescribePromptIntegration:
             case Success(value):
                 assert value == date(2023, 2, 15)
             case _:
-                assert False, 'Expected Success'
+                pytest.fail('Expected Success')
 
     @patch('builtins.input', return_value='RED')
     def it_works_with_custom_types(self, mock_input: MagicMock) -> None:  # noqa: ARG002
@@ -228,4 +230,4 @@ class DescribePromptIntegration:
             case Success(value):
                 assert value == Color.RED
             case _:
-                assert False, 'Expected Success'
+                assert pytest.fail('Expected Success')

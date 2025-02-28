@@ -59,7 +59,7 @@ Here's a simple example that validates a number:
            print(f"Error: {error}")
 
 Using Success and Failure Types
-------------------------------
+-------------------------------
 
 The Success and Failure types are at the heart of Valid8r. They represent a value that might exist (Success) or might not exist (Failure):
 
@@ -237,7 +237,8 @@ Now that you understand the basics, you can explore:
 * The :doc:`Success and Failure types </user_guide/maybe_monad>` in more detail
 * Available :doc:`parsers </user_guide/parsers>` for different data types
 * Built-in :doc:`validators </user_guide/validators>` and how to create custom ones
-* Advanced :doc:`prompting techniques </user_guide/prompting>`
+* Prompting :doc:`prompting techniques </user_guide/prompting>`
 * :doc:`Advanced usage patterns </user_guide/advanced_usage>`
+* :doc:`Testing utilities </user_guide/testing>`
 
 Or jump right to the :doc:`API reference </api/core>` for comprehensive documentation of all functions and classes.

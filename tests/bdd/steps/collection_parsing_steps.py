@@ -64,7 +64,7 @@ def step_parse_to_dict_with_separators(context: Context, input_str: str, pair_se
         key_parser=lambda s: Maybe.success(s),
         value_parser=parse_int,
         pair_separator=pair_sep,
-        key_value_separator=kv_sep
+        key_value_separator=kv_sep,
     )
 
 
@@ -90,15 +90,12 @@ def step_parse_to_list_with_min_length(context: Context, input_str: str, min_len
 def step_parse_to_dict_with_required_keys(context: Context, input_str: str, required_keys: str) -> None:
     pc = get_collection_parse_context(context)
     pc.result = parse_dict_with_validation(
-        input_str,
-        key_parser=lambda s: Maybe.success(s),
-        value_parser=parse_int,
-        required_keys=required_keys.split(',')
+        input_str, key_parser=lambda s: Maybe.success(s), value_parser=parse_int, required_keys=required_keys.split(',')
     )
 
 
 @given('I have registered a custom parser for IP addresses')
-def step_register_ip_address_parser(context: Context) -> None:
+def step_register_ip_address_parser(context: Context) -> None:  # noqa: ARG001
     # Define a custom parser for IP addresses
     def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
         try:
@@ -135,7 +132,7 @@ def step_parse_with_registry(context: Context, input_str: str, type_name: str) -
 
 
 @given('the parser registry has default parsers registered')
-def step_register_default_parsers(context: Context) -> None:
+def step_register_default_parsers(context: Context) -> None:  # noqa: ARG001
     ParserRegistry.register_defaults()
 
 

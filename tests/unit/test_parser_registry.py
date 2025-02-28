@@ -17,7 +17,7 @@ class Color(Enum):
 
 
 class DescribeParserRegistry:
-    def it_registers_and_retrieves_parsers(self):
+    def it_registers_and_retrieves_parsers(self) -> None:
         """Test that parsers can be registered and retrieved."""
 
         # Define a custom parser
@@ -40,9 +40,9 @@ class DescribeParserRegistry:
         assert str(result.value_or('TEST')) == '192.168.1.1'
 
         # Clean up
-        ParserRegistry._parsers.pop(ipaddress.IPv4Address, None)
+        ParserRegistry._parsers.pop(ipaddress.IPv4Address, None)  # noqa: SLF001
 
-    def it_parses_with_registered_parser(self):
+    def it_parses_with_registered_parser(self) -> None:
         """Test that ParserRegistry.parse uses the registered parser."""
 
         # Define a custom parser
@@ -61,9 +61,9 @@ class DescribeParserRegistry:
         assert str(result.value_or('TEST')) == '192.168.1.1'
 
         # Clean up
-        ParserRegistry._parsers.pop(ipaddress.IPv4Address, None)
+        ParserRegistry._parsers.pop(ipaddress.IPv4Address, None)  # noqa: SLF001
 
-    def it_returns_none_for_unknown_types(self):
+    def it_returns_none_for_unknown_types(self) -> None:
         """Test that get_parser returns None for unknown types."""
 
         class UnknownType:
@@ -72,7 +72,7 @@ class DescribeParserRegistry:
         parser = ParserRegistry.get_parser(UnknownType)
         assert parser is None
 
-    def it_fails_parsing_for_unknown_types(self):
+    def it_fails_parsing_for_unknown_types(self) -> None:
         """Test that parse fails for unknown types."""
 
         class UnknownType:
@@ -82,7 +82,7 @@ class DescribeParserRegistry:
         assert result.is_failure()
         assert 'No parser found for type' in result.value_or('TEST')
 
-    def it_supports_inheritance(self):
+    def it_supports_inheritance(self) -> None:
         """Test that parsers can be inherited from parent classes."""
 
         # Define parent and child classes
@@ -93,7 +93,7 @@ class DescribeParserRegistry:
             pass
 
         # Define and register a parser for the parent class
-        def parse_animal(input_value: str) -> Maybe[Animal]:
+        def parse_animal(input_value: str) -> Maybe[Animal]:  # noqa: ARG001
             return Maybe.success(Animal())
 
         ParserRegistry.register(Animal, parse_animal)
@@ -108,13 +108,13 @@ class DescribeParserRegistry:
         assert isinstance(result.value_or(None), Animal)
 
         # Clean up
-        ParserRegistry._parsers.pop(Animal, None)
+        ParserRegistry._parsers.pop(Animal, None)  # noqa: SLF001
 
-    def it_registers_default_parsers(self):
+    def it_registers_default_parsers(self) -> None:
         """Test that default parsers are registered for built-in types."""
         # Clear existing parsers
-        old_parsers = ParserRegistry._parsers.copy()
-        ParserRegistry._parsers.clear()
+        old_parsers = ParserRegistry._parsers.copy()  # noqa: SLF001
+        ParserRegistry._parsers.clear()  # noqa: SLF001
 
         # Register default parsers
         ParserRegistry.register_defaults()
@@ -135,9 +135,9 @@ class DescribeParserRegistry:
         assert result.value_or('TEST') == 123
 
         # Restore original parsers
-        ParserRegistry._parsers = old_parsers
+        ParserRegistry._parsers = old_parsers  # noqa: SLF001
 
-    def it_handles_custom_error_messages(self):
+    def it_handles_custom_error_messages(self) -> None:
         """Test that parse handles custom error messages."""
 
         class UnknownType:
@@ -148,11 +148,13 @@ class DescribeParserRegistry:
         assert result.is_failure()
         assert custom_msg == result.value_or('TEST')
 
-    def it_parses_with_type_specific_options(self):
+    def it_parses_with_type_specific_options(self) -> None:
         """Test parsing with type-specific options."""
 
         # Register a parser with options
-        def parse_int_with_options(input_value: str, *, min_value=None, max_value=None, **kwargs) -> Maybe[int]:
+        def parse_int_with_options(
+            input_value: str, *, min_value: int | None = None, max_value: int | None = None
+        ) -> Maybe[int]:
             result = parse_int(input_value)
             if result.is_failure():
                 return result
@@ -179,4 +181,4 @@ class DescribeParserRegistry:
         assert result.value_or('TEST') == 15
 
         # Clean up
-        ParserRegistry._parsers.pop(int, None)
+        ParserRegistry._parsers.pop(int, None)  # noqa: SLF001

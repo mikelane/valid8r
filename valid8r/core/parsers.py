@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import (
     date,
     datetime,
 )
 from typing import (
+    TYPE_CHECKING,
     Any,
+    ClassVar,
     TypeVar,
 )
 
 from valid8r.core.maybe import Maybe
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -68,11 +72,11 @@ def parse_bool(input_value: str, error_message: str | None = None) -> Maybe[bool
 
     # True values
     if input_lower in ('true', 't', 'yes', 'y', '1'):
-        return Maybe.success(True)
+        return Maybe.success(value=True)
 
     # False values
     if input_lower in ('false', 'f', 'no', 'n', '0'):
-        return Maybe.success(False)
+        return Maybe.success(value=False)
 
     return Maybe.failure(error_message or 'Input must be a valid boolean')
 
@@ -88,7 +92,7 @@ def parse_date(input_value: str, date_format: str | None = None, error_message: 
 
         if date_format:
             # Parse with the provided format
-            dt = datetime.strptime(input_value, date_format)
+            dt = datetime.strptime(input_value, date_format)  # noqa: DTZ007
             return Maybe.success(dt.date())
 
         # Try ISO format by default, but be more strict
@@ -135,7 +139,7 @@ def _check_enum_has_empty_value(enum_class: type) -> bool:
     """Check if an enum has an empty string as a value."""
     try:
         return any(member.value == '' for member in enum_class)
-    except Exception:
+    except (AttributeError, TypeError):
         return False
 
 
@@ -215,7 +219,9 @@ def parse_list(
 
     # Use default parser if none provided
     if element_parser is None:
-        element_parser = lambda s: Maybe.success(s.strip())
+
+        def element_parser(s: str) -> Maybe[str]:
+            return Maybe.success(s.strip())
 
     # Split the input string by the separator
     elements = input_value.split(separator)
@@ -233,7 +239,42 @@ def parse_list(
     return Maybe.success(parsed_elements)
 
 
-def parse_dict(
+def _parse_key_value_pair(  # noqa: PLR0913
+    pair: str,
+    index: int,
+    key_parser: Callable[[str], Maybe[K]],
+    value_parser: Callable[[str], Maybe[V]],
+    key_value_separator: str,
+    error_message: str | None = None,
+) -> tuple[bool, K | None, V | None, str | None]:
+    """Parse a single key-value pair.
+
+    Returns:
+        A tuple of (success, key, value, error_message)
+
+    """
+    if key_value_separator not in pair:
+        error = f"Invalid key-value pair '{pair}': missing separator '{key_value_separator}'"
+        return False, None, None, error_message or error
+
+    key_str, value_str = pair.split(key_value_separator, 1)
+
+    # Parse the key
+    key_result = key_parser(key_str.strip())
+    if key_result.is_failure():
+        error = f"Failed to parse key in pair {index + 1} '{pair}': {key_result.value_or('Parse error')}"
+        return False, None, None, error_message or error
+
+    # Parse the value
+    value_result = value_parser(value_str.strip())
+    if value_result.is_failure():
+        error = f"Failed to parse value in pair {index + 1} '{pair}': {value_result.value_or('Parse error')}"
+        return False, None, None, error_message or error
+
+    return True, key_result.value_or(None), value_result.value_or(None), None
+
+
+def parse_dict(  # noqa: PLR0913
     input_value: str,
     key_parser: Callable[[str], Maybe[K]] | None = None,
     value_parser: Callable[[str], Maybe[V]] | None = None,
@@ -259,41 +300,30 @@ def parse_dict(
         return Maybe.failure('Input must not be empty')
 
     # Use default parsers if none provided
+    def _default_parser(s: str) -> Maybe[str]:
+        """Parse a string by stripping whitespace."""
+        return Maybe.success(s.strip())
+
     if key_parser is None:
-        key_parser = lambda s: Maybe.success(s.strip())
+        key_parser = _default_parser
     if value_parser is None:
-        value_parser = lambda s: Maybe.success(s.strip())
+        value_parser = _default_parser
 
     # Split the input string by the pair separator
     pairs = input_value.split(pair_separator)
 
     # Parse each key-value pair
     parsed_dict = {}
+
     for i, pair in enumerate(pairs):
-        if key_value_separator not in pair:
-            if error_message:
-                return Maybe.failure(error_message)
-            return Maybe.failure(f"Invalid key-value pair '{pair}': missing separator '{key_value_separator}'")
+        success, key, value, err = _parse_key_value_pair(
+            pair, i, key_parser, value_parser, key_value_separator, error_message
+        )
 
-        key_str, value_str = pair.split(key_value_separator, 1)
+        if not success:
+            return Maybe.failure(err)
 
-        # Parse the key
-        key_result = key_parser(key_str.strip())
-        if key_result.is_failure():
-            if error_message:
-                return Maybe.failure(error_message)
-            return Maybe.failure(f"Failed to parse key in pair {i + 1} '{pair}': {key_result.value_or('Parse error')}")
-
-        # Parse the value
-        value_result = value_parser(value_str.strip())
-        if value_result.is_failure():
-            if error_message:
-                return Maybe.failure(error_message)
-            return Maybe.failure(
-                f"Failed to parse value in pair {i + 1} '{pair}': {value_result.value_or('Parse error')}"
-            )
-
-        parsed_dict[key_result.value_or(None)] = value_result.value_or(None)
+        parsed_dict[key] = value
 
     return Maybe.success(parsed_dict)
 
@@ -362,7 +392,7 @@ def parse_int_with_validation(
     return Maybe.success(value)
 
 
-def parse_list_with_validation(
+def parse_list_with_validation(  # noqa: PLR0913
     input_value: str,
     element_parser: Callable[[str], Maybe[T]] | None = None,
     separator: str = ',',
@@ -400,7 +430,7 @@ def parse_list_with_validation(
     return Maybe.success(parsed_list)
 
 
-def parse_dict_with_validation(
+def parse_dict_with_validation(  # noqa: PLR0913
     input_value: str,
     key_parser: Callable[[str], Maybe[K]] | None = None,
     value_parser: Callable[[str], Maybe[V]] | None = None,
@@ -468,7 +498,7 @@ class ParserRegistry:
 
     """
 
-    _parsers: dict[type, Callable] = {}
+    _parsers: ClassVar[type, Callable] = {}
 
     @classmethod
     def register(cls, type_: type, parser: Callable) -> None:
@@ -507,7 +537,7 @@ class ParserRegistry:
         return None
 
     @classmethod
-    def parse(cls, input_value: str, type_: type, error_message: str | None = None, **kwargs) -> Maybe[Any]:
+    def parse(cls, input_value: str, type_: type, error_message: str | None = None, **kwargs: Any) -> Maybe[T]:  # noqa: ANN401
         """Parse a string to a specific type using the registered parser.
 
         Args:

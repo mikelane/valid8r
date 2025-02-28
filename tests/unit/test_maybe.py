@@ -67,7 +67,7 @@ class DescribeMaybe:
             pytest.param(2, lambda x: Maybe.success(x * 2), 4, id='double'),
             pytest.param('hello', lambda x: Maybe.success(x + ' world'), 'hello world', id='string concat'),
             pytest.param(5, lambda x: Maybe.success(x**2), 25, id='square'),
-            pytest.param([1, 2], lambda x: Maybe.success(x + [3]), [1, 2, 3], id='append to list'),
+            pytest.param([1, 2], lambda x: Maybe.success(x + [3]), [1, 2, 3], id='append to list'),  # noqa: RUF005
         ],
     )
     def it_bind_success_applies_function(
@@ -134,6 +134,7 @@ class DescribeMaybe:
 
     def it_demonstrates_pattern_matching_with_complex_conditions(self) -> None:
         """Test pattern matching with complex conditions."""
+
         def describe_value(maybe_val: Maybe[int]) -> str:
             match maybe_val:
                 case Success(val) if val > 100:

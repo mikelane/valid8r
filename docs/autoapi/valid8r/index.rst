@@ -17,6 +17,7 @@ Submodules
 
    /autoapi/valid8r/core/index
    /autoapi/valid8r/prompt/index
+   /autoapi/valid8r/testing/index
 
 
 Attributes

@@ -253,7 +253,7 @@ Enum Parser
 
 
 Collection Type Parsing
-----------------------
+-----------------------
 
 Valid8r supports parsing strings into collection types like lists and dictionaries:
 
@@ -454,7 +454,7 @@ When deciding between handling errors in parser functions versus validation logi
 
 
 Parsing with Validation
-----------------------
+-----------------------
 
 Valid8r provides parser functions with built-in validation:
 
