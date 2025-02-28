@@ -222,6 +222,163 @@ Type parsing functions that convert strings to various data types.
           case Failure(error):
               print(f"Error: {error}")
 
+.. py:function:: valid8r.core.parsers.parse_list(input_value, element_parser=None, separator=',', error_message=None)
+
+   Parse a string to a list using the specified element parser and separator.
+
+   :param input_value: String input to parse
+   :param element_parser: A function that parses individual elements
+   :param separator: The string that separates elements
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed list or an error message
+
+   Example with pattern matching:
+
+   .. code-block:: python
+
+      from valid8r.core.parsers import parse_list, parse_int
+      from valid8r.core.maybe import Success, Failure
+
+      result = parse_list("1,2,3", element_parser=parse_int)
+      match result:
+          case Success(value):
+              print(f"Parsed list: {value}")  # Parsed list: [1, 2, 3]
+          case Failure(error):
+              print(f"Error: {error}")
+
+.. py:function:: valid8r.core.parsers.parse_dict(input_value, key_parser=None, value_parser=None, pair_separator=',', key_value_separator=':', error_message=None)
+
+   Parse a string to a dictionary using the specified parsers and separators.
+
+   :param input_value: String input to parse
+   :param key_parser: A function that parses keys
+   :param value_parser: A function that parses values
+   :param pair_separator: The string that separates key-value pairs
+   :param key_value_separator: The string that separates keys from values
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed dictionary or an error message
+
+   Example with pattern matching:
+
+   .. code-block:: python
+
+      from valid8r.core.parsers import parse_dict, parse_int
+      from valid8r.core.maybe import Success, Failure
+
+      result = parse_dict("name:John,age:30", value_parser=parse_int)
+      match result:
+          case Success(value):
+              print(f"Parsed dict: {value}")  # Parsed dict: {'name': 'John', 'age': 30}
+          case Failure(error):
+              print(f"Error: {error}")
+
+.. py:function:: valid8r.core.parsers.parse_set(input_value, element_parser=None, separator=',', error_message=None)
+
+   Parse a string to a set using the specified element parser and separator.
+
+   :param input_value: String input to parse
+   :param element_parser: A function that parses individual elements
+   :param separator: The string that separates elements
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed set or an error message
+
+   Example with pattern matching:
+
+   .. code-block:: python
+
+      from valid8r.core.parsers import parse_set, parse_int
+      from valid8r.core.maybe import Success, Failure
+
+      result = parse_set("1,2,3,2,1", element_parser=parse_int)
+      match result:
+          case Success(value):
+              print(f"Parsed set: {value}")  # Parsed set: {1, 2, 3}
+          case Failure(error):
+              print(f"Error: {error}")
+
+.. py:function:: valid8r.core.parsers.parse_int_with_validation(input_value, min_value=None, max_value=None, error_message=None)
+
+   Parse a string to an integer with validation.
+
+   :param input_value: String input to parse
+   :param min_value: Minimum allowed value (inclusive)
+   :param max_value: Maximum allowed value (inclusive)
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed integer or an error message
+
+   Example with pattern matching:
+
+   .. code-block:: python
+
+      from valid8r.core.parsers import parse_int_with_validation
+      from valid8r.core.maybe import Success, Failure
+
+      result = parse_int_with_validation("42", min_value=0, max_value=100)
+      match result:
+          case Success(value):
+              print(f"Valid integer: {value}")  # Valid integer: 42
+          case Failure(error):
+              print(f"Error: {error}")
+
+.. py:function:: valid8r.core.parsers.parse_list_with_validation(input_value, element_parser=None, separator=',', min_length=None, max_length=None, error_message=None)
+
+   Parse a string to a list with validation.
+
+   :param input_value: String input to parse
+   :param element_parser: A function that parses individual elements
+   :param separator: The string that separates elements
+   :param min_length: Minimum allowed list length
+   :param max_length: Maximum allowed list length
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed list or an error message
+
+.. py:function:: valid8r.core.parsers.parse_dict_with_validation(input_value, key_parser=None, value_parser=None, pair_separator=',', key_value_separator=':', required_keys=None, error_message=None)
+
+   Parse a string to a dictionary with validation.
+
+   :param input_value: String input to parse
+   :param key_parser: A function that parses keys
+   :param value_parser: A function that parses values
+   :param pair_separator: The string that separates key-value pairs
+   :param key_value_separator: The string that separates keys from values
+   :param required_keys: List of keys that must be present
+   :param error_message: Custom error message for parsing failures
+   :return: A Maybe containing the parsed dictionary or an error message
+
+.. py:class:: valid8r.core.parsers.ParserRegistry
+
+   Registry for parser functions. This class provides a way to register custom parsers for specific types.
+
+   .. py:classmethod:: register(type_, parser)
+
+      Register a parser for a specific type.
+
+      :param type_: The type to register the parser for
+      :param parser: The parser function
+
+   .. py:classmethod:: get_parser(type_)
+
+      Get a parser for a specific type.
+
+      :param type_: The type to get a parser for
+      :return: The parser function or None if not found
+
+   .. py:classmethod:: parse(input_value, type_, error_message=None, **kwargs)
+
+      Parse a string to a specific type using the registered parser.
+
+      :param input_value: The string to parse
+      :param type_: The target type
+      :param error_message: Custom error message for parsing failures
+      :param kwargs: Additional arguments to pass to the parser
+      :return: A Maybe containing the parsed value or an error message
+
+   .. py:classmethod:: register_defaults()
+
+      Register default parsers for built-in types.
+
+      This registers parsers for common types such as int, float, bool, complex, date, str, list, dict, and set.
+
 Validators
 ----------
 

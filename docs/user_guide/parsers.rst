@@ -251,6 +251,91 @@ Enum Parser
        case Failure(error):
            print(error)  # "Input must be a valid enumeration value"
 
+
+Collection Type Parsing
+----------------------
+
+Valid8r supports parsing strings into collection types like lists and dictionaries:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   # Parse a string to a list of integers
+   result = parsers.parse_list("1,2,3", element_parser=parsers.parse_int)
+   match result:
+       case Success(value):
+           print(f"Parsed list: {value}")  # Parsed list: [1, 2, 3]
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse with custom separator
+   result = parsers.parse_list("1|2|3", element_parser=parsers.parse_int, separator="|")
+   match result:
+       case Success(value):
+           print(f"Parsed list: {value}")  # Parsed list: [1, 2, 3]
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse a string to a dictionary
+   result = parsers.parse_dict("name:John,age:30",
+                               value_parser=parsers.parse_int)
+   match result:
+       case Success(value):
+           print(f"Parsed dict: {value}")  # Parsed dict: {'name': 'John', 'age': 30}
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse a set (removes duplicates)
+   result = parsers.parse_set("1,2,3,2,1", element_parser=parsers.parse_int)
+   match result:
+       case Success(value):
+           print(f"Parsed set: {value}")  # Parsed set: {1, 2, 3}
+       case Failure(error):
+           print(f"Error: {error}")
+
+
+Parser Registry
+---------------
+
+For more advanced use cases, Valid8r provides a ParserRegistry system that allows you to register custom parsers for specific types:
+
+.. code-block:: python
+
+   from valid8r.core.parsers import ParserRegistry
+   from valid8r.core.maybe import Maybe, Success, Failure
+   import ipaddress
+
+   # Define a custom parser for IP addresses
+   def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
+       try:
+           return Maybe.success(ipaddress.IPv4Address(input_value))
+       except ValueError:
+           return Maybe.failure("Invalid IP address")
+
+   # Register the parser
+   ParserRegistry.register(ipaddress.IPv4Address, parse_ip_address)
+
+   # Parse a string to an IP address
+   result = ParserRegistry.parse("192.168.1.1", ipaddress.IPv4Address)
+   match result:
+       case Success(value):
+           print(f"Parsed IP: {value}")  # Parsed IP: 192.168.1.1
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Register default parsers for built-in types
+   ParserRegistry.register_defaults()
+
+   # Parse with type-specific options
+   result = ParserRegistry.parse("42", int, min_value=0, max_value=100)
+   match result:
+       case Success(value):
+           print(f"Parsed int: {value}")  # Parsed int: 42
+       case Failure(error):
+           print(f"Error: {error}")
+
 Error Handling
 --------------
 
@@ -366,6 +451,50 @@ When deciding between handling errors in parser functions versus validation logi
            print("This won't happen")
        case Failure(error):
            print(error)  # "Value must be an integer"
+
+
+Parsing with Validation
+----------------------
+
+Valid8r provides parser functions with built-in validation:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   # Parse an integer with validation
+   result = parsers.parse_int_with_validation("42", min_value=0, max_value=100)
+   match result:
+       case Success(value):
+           print(f"Valid integer: {value}")  # Valid integer: 42
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse a list with length validation
+   result = parsers.parse_list_with_validation(
+       "1,2,3,4,5",
+       element_parser=parsers.parse_int,
+       min_length=3,
+       max_length=10
+   )
+   match result:
+       case Success(value):
+           print(f"Valid list: {value}")  # Valid list: [1, 2, 3, 4, 5]
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse a dictionary with required keys
+   result = parsers.parse_dict_with_validation(
+       "name:John,age:30,city:New York",
+       value_parser=parsers.parse_int,
+       required_keys=["name", "age"]
+   )
+   match result:
+       case Success(value):
+           print(f"Valid dict: {value}")  # Valid dict: {'name': 'John', 'age': 30, 'city': 'New York'}
+       case Failure(error):
+           print(f"Error: {error}")
 
 Parser Limitations and Edge Cases
 ---------------------------------
