@@ -70,7 +70,7 @@ def _process_input(user_input: str, parser: Callable[[str], Maybe[T]], validator
         case Failure(_):
             return result
 
-    return result  # This line is unreachable but keeps type checkers happy
+    return result  # This line is unreachable but keeps type checkers happy  pragma: no cover
 
 
 def ask(  # noqa: PLR0913

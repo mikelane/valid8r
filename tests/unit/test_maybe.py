@@ -153,3 +153,166 @@ class DescribeMaybe:
         assert describe_value(Maybe.success(7)) == 'Odd success'
         assert describe_value(Maybe.failure('Invalid input')) == 'Invalid input error'
         assert describe_value(Maybe.failure('Something went wrong')) == 'Other error: Something went wrong'
+
+    def it_handles_failure_with_empty_error(self) -> None:
+        """Test that Failure handles empty error messages."""
+        # Create a Failure with an empty error message
+        empty_failure = Failure('')
+
+        # Check behavior
+        assert empty_failure.is_failure()
+        assert not empty_failure.is_success()
+
+        # Check value_or with Failure that has empty error
+        default_value = 'default'
+        assert empty_failure.value_or(default_value) == default_value
+
+        # Check string representation
+        assert str(empty_failure) == 'Failure()'
+
+    def it_converts_to_string_properly(self) -> None:
+        """Test the string representation of Maybe objects."""
+        # Test Success
+        success = Success(42)
+        assert str(success) == 'Success(42)'
+
+        # Test complex Success
+        complex_success = Success([1, 2, 3])
+        assert str(complex_success) == 'Success([1, 2, 3])'
+
+        # Test Failure
+        failure = Failure('Error message')
+        assert str(failure) == 'Failure(Error message)'
+
+    def it_maps_success_values(self) -> None:
+        """Test the map method on Success."""
+        # Map int to string
+        success = Success(42)
+        mapped = success.map(lambda x: str(x))
+
+        assert mapped.is_success()
+        assert mapped.value_or('') == '42'
+        assert isinstance(mapped.value_or(''), str)
+
+        # Map with more complex function
+        mapped = success.map(lambda x: [x, x * 2, x * 3])
+
+        assert mapped.is_success()
+        assert mapped.value_or([]) == [42, 84, 126]
+
+    def it_maps_failure_values(self) -> None:
+        """Test the map method on Failure."""
+        # Map should do nothing on Failure
+        failure = Failure('Original error')
+        mapped = failure.map(lambda x: str(x))
+
+        assert mapped.is_failure()
+        assert mapped.value_or('default') == 'Original error'
+
+        # Map with more complex function
+        mapped = failure.map(lambda x: [x, x * 2, x * 3])
+
+        assert mapped.is_failure()
+        assert mapped.value_or([]) == 'Original error'
+
+    def it_handles_bind_with_functions_returning_success(self) -> None:
+        """Test bind with functions that return Success."""
+        # Create initial Success
+        initial = Success(5)
+
+        # Define some transformations
+        def double(x: int) -> Maybe[int]:
+            return Success(x * 2)
+
+        def add_10(x: int) -> Maybe[int]:
+            return Success(x + 10)
+
+        # Chain transformations
+        result = initial.bind(double).bind(add_10)
+
+        assert result.is_success()
+        assert result.value_or(0) == 20  # (5*2)+10 = 20
+
+    def it_handles_bind_with_functions_returning_failure(self) -> None:
+        """Test bind with functions that return Failure."""
+        # Create initial Success
+        initial = Success(5)
+
+        # Define a transformation that fails
+        def fail_if_even(x: int) -> Maybe[int]:
+            if x % 2 == 0:
+                return Failure('Number cannot be even')
+            return Success(x)
+
+        # Test with odd number (should succeed)
+        result = initial.bind(fail_if_even)
+        assert result.is_success()
+        assert result.value_or(0) == 5
+
+        # Test with even number (should fail)
+        result = Success(4).bind(fail_if_even)
+        assert result.is_failure()
+        assert result.value_or('') == 'Number cannot be even'
+
+    def it_allows_type_change_in_bind_and_map(self) -> None:
+        """Test that bind and map allow changing the type of the value."""
+        # Initial value of type int
+        initial = Success(42)
+
+        # Change to string with bind
+        str_result = initial.bind(lambda x: Success(str(x)))
+        assert str_result.is_success()
+        assert str_result.value_or('') == '42'
+        assert isinstance(str_result.value_or(''), str)
+
+        # Change to list with map
+        list_result = initial.map(lambda x: [x])
+        assert list_result.is_success()
+        assert list_result.value_or([]) == [42]
+        assert isinstance(list_result.value_or([]), list)
+
+        # Change to complex nested structure
+        complex_result = initial.map(lambda x: {'value': x, 'metadata': {'is_answer': x == 42}})
+        assert complex_result.is_success()
+        value = complex_result.value_or({})
+        assert value['value'] == 42
+        assert value['metadata']['is_answer'] is True
+
+    def it_supports_pattern_matching(self) -> None:
+        """Test that Success and Failure support pattern matching."""
+        # Test Success matching
+        success = Success(42)
+
+        match success:
+            case Success(42):
+                matched_exactly = True
+            case Success(value):
+                matched_exactly = False
+            case _:
+                pytest.fail('Should have matched Success')
+
+        assert matched_exactly
+
+        # Test Failure matching
+        failure = Failure('Error')
+
+        match failure:
+            case Failure('Error'):
+                matched_exactly = True
+            case Failure(msg):
+                matched_exactly = False
+            case _:
+                pytest.fail('Should have matched Failure')
+
+        assert matched_exactly
+
+        # Test with variable extraction
+        match Success({'name': 'Alice', 'age': 30}):
+            case Success({'name': name, 'age': age}):
+                extracted_name = name
+                extracted_age = age
+            case _:
+                pytest.fail('Should have matched Success with dict')
+
+        assert extracted_name == 'Alice'
+        assert extracted_age == 30

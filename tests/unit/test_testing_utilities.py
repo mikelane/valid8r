@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import builtins
+
+import pytest
+
 from valid8r.core.maybe import Maybe
 from valid8r.core.validators import (
     maximum,
@@ -9,13 +13,15 @@ from valid8r.core.validators import (
 )
 from valid8r.prompt.basic import ask
 from valid8r.testing import (
-    MockInputContext,
     assert_maybe_failure,
     assert_maybe_success,
-    configure_mock_input,
     generate_random_inputs,
     generate_test_cases,
     test_validator_composition,
+)
+from valid8r.testing.mock_input import (
+    MockInputContext,
+    configure_mock_input,
 )
 
 
@@ -128,3 +134,148 @@ class DescribeTestingUtilities:
 
             assert result.is_failure()
             assert 'must be at least 0' in result.value_or('FAIL')
+
+    def it_raises_index_error_when_no_inputs_available(self) -> None:
+        """Test that mock_input raises IndexError when no more inputs are available."""
+        # Store original input function
+        original_input = builtins.input
+
+        try:
+            # Configure with empty inputs list
+            configure_mock_input([])
+
+            # Should raise IndexError
+            with pytest.raises(IndexError, match='No more mock inputs available'):
+                builtins.input('Prompt: ')
+
+            # Configure with one input, then use it up
+            configure_mock_input(['test'])
+            assert builtins.input('Prompt: ') == 'test'
+
+            # Next call should raise IndexError
+            with pytest.raises(IndexError, match='No more mock inputs available'):
+                builtins.input('Prompt: ')
+        finally:
+            # Restore original input
+            builtins.input = original_input
+
+    def it_properly_restores_input_function_after_context_exit(self) -> None:
+        """Test that MockInputContext properly restores the input function after exiting."""
+        # Store original input function
+        original_input = builtins.input
+
+        # Use the context manager
+        with MockInputContext(['mocked']):
+            # Inside context, input should be mocked
+            assert builtins.input('Prompt: ') == 'mocked'
+
+            # Input function should be different
+            assert builtins.input != original_input
+
+        # After context exit, input should be restored
+        assert builtins.input == original_input
+
+        # Input function should work normally
+        # We can't easily test this without actually getting user input,
+        # but we can check it's the original function
+        assert builtins.input is original_input
+
+    def it_handles_exceptions_in_context(self) -> None:
+        """Test that MockInputContext restores input even when exceptions occur."""
+        # Store original input function
+        original_input = builtins.input
+
+        try:
+            # Use context manager and raise exception inside
+            with pytest.raises(ValueError):
+                with MockInputContext(['test']):
+                    assert builtins.input('Prompt: ') == 'test'
+                    raise ValueError('Test exception')
+
+            # Should have restored input function despite exception
+            assert builtins.input == original_input
+        finally:
+            # Make sure we restore the original input
+            builtins.input = original_input
+
+    def it_makes_a_copy_of_the_inputs_list(self) -> None:
+        """Test that MockInputContext and configure_mock_input make a copy of the inputs list."""
+        # Create a list that we'll modify after configuration
+        inputs = ['first', 'second']
+
+        # Store original input function
+        original_input = builtins.input
+
+        try:
+            # Configure mock input with our list
+            configure_mock_input(inputs)
+
+            # Modify the original list
+            inputs.clear()
+            inputs.append('modified')
+
+            # Mock input should still have the original values
+            assert builtins.input('Prompt: ') == 'first'
+            assert builtins.input('Prompt: ') == 'second'
+
+            # Test context manager also copies the list
+            inputs = ['contextA', 'contextB']
+
+            with MockInputContext(inputs):
+                # Modify original list
+                inputs.clear()
+
+                # Input should still have original values
+                assert builtins.input('Prompt: ') == 'contextA'
+                assert builtins.input('Prompt: ') == 'contextB'
+        finally:
+            # Restore original input
+            builtins.input = original_input
+
+    def it_handles_input_prompt_parameter(self) -> None:
+        """Test that the mock input function handles the prompt parameter.
+
+        This tests the behavior where the prompt parameter exists but is ignored.
+        """
+        # Store original input function
+        original_input = builtins.input
+
+        try:
+            # Configure mock input
+            configure_mock_input(['test response'])
+
+            # The mock input should ignore the prompt parameter
+            # but we'll pass one anyway to test the coverage
+            result = builtins.input('This prompt will be ignored: ')
+
+            # Verify behavior
+            assert result == 'test response'
+
+            # Try with a different prompt to make sure it's truly ignored
+            with pytest.raises(IndexError):  # No more inputs left
+                builtins.input('A different prompt: ')
+
+        finally:
+            # Restore original input
+            builtins.input = original_input
+
+    def it_displays_prompt_for_context_manager(self, mocker) -> None:
+        """Test that the context manager ignores the prompt but accepts it."""
+        # Create a spy to check if the prompt was displayed
+        stdout_spy = mocker.MagicMock()
+        mocker.patch('builtins.print', stdout_spy)
+
+        # Store original functions
+        original_input = builtins.input
+
+        try:
+            with MockInputContext(['test response']):
+                result = input('Prompt that will be ignored: ')
+                assert result == 'test response'
+
+                # The prompt shouldn't be printed
+                stdout_spy.assert_not_called()
+
+        finally:
+            # Restore original functions
+            builtins.input = original_input

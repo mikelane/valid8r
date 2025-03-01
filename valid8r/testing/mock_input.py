@@ -14,7 +14,7 @@ _original_input = builtins.input
 
 
 @contextmanager
-def MockInputContext(inputs: list[str]) -> Iterator[None]:  # noqa: N802
+def MockInputContext(inputs: list[str] | None = None) -> Iterator[None]:  # noqa: N802
     """Context manager for mocking user input.
 
     Args:
@@ -29,7 +29,7 @@ def MockInputContext(inputs: list[str]) -> Iterator[None]:  # noqa: N802
         ...     number = input("Enter number: ")  # returns "42"
 
     """
-    input_values = list(inputs)  # Create a copy to avoid modifying the original
+    input_values = [] if inputs is None else list(inputs)
 
     def mock_input(prompt: str = '') -> str:  # noqa: ARG001
         """Mock implementation of input function.
