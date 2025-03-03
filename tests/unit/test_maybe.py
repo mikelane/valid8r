@@ -286,7 +286,7 @@ class DescribeMaybe:
         match success:
             case Success(42):
                 matched_exactly = True
-            case Success(value):
+            case Success(_):
                 matched_exactly = False
             case _:
                 pytest.fail('Should have matched Success')
@@ -299,7 +299,7 @@ class DescribeMaybe:
         match failure:
             case Failure('Error'):
                 matched_exactly = True
-            case Failure(msg):
+            case Failure(_):
                 matched_exactly = False
             case _:
                 pytest.fail('Should have matched Failure')

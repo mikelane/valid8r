@@ -2,25 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import (
     date,
     datetime,
 )
+from enum import Enum
+from functools import wraps
 from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
+    ParamSpec,
     TypeVar,
+    cast,
+    overload,
 )
 
-from valid8r.core.maybe import Maybe
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
 
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
+P = ParamSpec('P')
+E = TypeVar('E', bound=Enum)
 
 ISO_DATE_LENGTH = 10
 
@@ -30,13 +36,10 @@ def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
-    # Remove any whitespace
     cleaned_input = input_value.strip()
 
     try:
-        # Check if the string represents a float
         if '.' in cleaned_input:
-            # Convert to float first to check if it's an integer value
             float_val = float(cleaned_input)
             if float_val.is_integer():
                 # It's a whole number like 42.0
@@ -135,34 +138,29 @@ def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[c
         return Maybe.failure(error_message or 'Input must be a valid complex number')
 
 
-def _check_enum_has_empty_value(enum_class: type) -> bool:
+def _check_enum_has_empty_value(enum_class: type[Enum]) -> bool:
     """Check if an enum has an empty string as a value."""
-    try:
-        return any(member.value == '' for member in enum_class)
-    except (AttributeError, TypeError):
-        return False
+    return any(member.value == '' for member in enum_class.__members__.values())
 
 
-def _find_enum_by_value(enum_class: type, value: str) -> T | None:
+def _find_enum_by_value(enum_class: type[Enum], value: str) -> Enum | None:
     """Find an enum member by its value."""
-    for member in enum_class:
+    for member in enum_class.__members__.values():
         if member.value == value:
             return member
     return None
 
 
-def _find_enum_by_name(enum_class: type, value: str) -> T | None:
+def _find_enum_by_name(enum_class: type[E], value: str) -> E | None:
     """Find an enum member by its name."""
     try:
-        return enum_class[value]
+        return enum_class[value]  # type: ignore[no-any-return]
     except KeyError:
         return None
 
 
-def parse_enum(input_value: str, enum_class: type, error_message: str | None = None) -> Maybe[object]:
+def parse_enum(input_value: str, enum_class: type[E], error_message: str | None = None) -> Maybe[object]:
     """Parse a string to an enum value."""
-    from enum import Enum
-
     if not isinstance(enum_class, type) or not issubclass(enum_class, Enum):
         return Maybe.failure(error_message or 'Invalid enum class provided')
 
@@ -177,21 +175,19 @@ def parse_enum(input_value: str, enum_class: type, error_message: str | None = N
     if member is not None:
         return Maybe.success(member)
 
-    # Try enum name lookup
     member = _find_enum_by_name(enum_class, input_value)
     if member is not None:
         return Maybe.success(member)
 
-    # Try with stripped value if different
     input_stripped = input_value.strip()
     if input_stripped != input_value:
         member = _find_enum_by_value(enum_class, input_stripped)
         if member is not None:
             return Maybe.success(member)
 
-        member = _find_enum_by_name(enum_class, input_stripped)
-        if member is not None:
-            return Maybe.success(member)
+    for name in enum_class.__members__:
+        if name.lower() == input_value.lower():
+            return Maybe.success(enum_class[name])
 
     return Maybe.failure(error_message or 'Input must be a valid enumeration value')
 
@@ -217,24 +213,22 @@ def parse_list(
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
-    # Use default parser if none provided
-    if element_parser is None:
+    def default_parser(s: str) -> Maybe[T]:
+        return Maybe.success(s.strip())  # type: ignore[arg-type]
 
-        def element_parser(s: str) -> Maybe[str]:
-            return Maybe.success(s.strip())
+    parser = element_parser if element_parser is not None else default_parser
 
-    # Split the input string by the separator
     elements = input_value.split(separator)
 
-    # Parse each element
-    parsed_elements = []
-    for i, element in enumerate(elements):
-        result = element_parser(element.strip())
-        if result.is_failure():
-            if error_message:
+    parsed_elements: list[T] = []
+    for i, element in enumerate(elements, start=1):
+        match parser(element.strip()):
+            case Success(value) if value is not None:
+                parsed_elements.append(value)
+            case Failure() if error_message:
                 return Maybe.failure(error_message)
-            return Maybe.failure(f"Failed to parse element {i + 1} '{element}': {result.value_or('Parse error')}")
-        parsed_elements.append(result.value_or(None))
+            case Failure(result):
+                return Maybe.failure(f"Failed to parse element {i} '{element}': {result}")
 
     return Maybe.success(parsed_elements)
 
@@ -242,8 +236,8 @@ def parse_list(
 def _parse_key_value_pair(  # noqa: PLR0913
     pair: str,
     index: int,
-    key_parser: Callable[[str], Maybe[K]],
-    value_parser: Callable[[str], Maybe[V]],
+    key_parser: Callable[[str], Maybe[K]],  # K can be None
+    value_parser: Callable[[str], Maybe[V]],  # V can be None
     key_value_separator: str,
     error_message: str | None = None,
 ) -> tuple[bool, K | None, V | None, str | None]:
@@ -282,48 +276,38 @@ def parse_dict(  # noqa: PLR0913
     key_value_separator: str = ':',
     error_message: str | None = None,
 ) -> Maybe[dict[K, V]]:
-    """Parse a string to a dictionary using the specified parsers and separators.
-
-    Args:
-        input_value: The string to parse
-        key_parser: A function that parses keys
-        value_parser: A function that parses values
-        pair_separator: The string that separates key-value pairs
-        key_value_separator: The string that separates keys from values
-        error_message: Custom error message for parsing failures
-
-    Returns:
-        A Maybe containing the parsed dictionary or an error message
-
-    """
+    """Parse a string to a dictionary using the specified parsers and separators."""
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
-    # Use default parsers if none provided
-    def _default_parser(s: str) -> Maybe[str]:
+    def _default_parser(s: str) -> Maybe[str | None]:
         """Parse a string by stripping whitespace."""
         return Maybe.success(s.strip())
 
-    if key_parser is None:
-        key_parser = _default_parser
-    if value_parser is None:
-        value_parser = _default_parser
+    actual_key_parser: Callable[[str], Maybe[K | None]] = cast(
+        Callable[[str], Maybe[K | None]], key_parser if key_parser is not None else _default_parser
+    )
+
+    actual_value_parser: Callable[[str], Maybe[V | None]] = cast(
+        Callable[[str], Maybe[V | None]], value_parser if value_parser is not None else _default_parser
+    )
 
     # Split the input string by the pair separator
     pairs = input_value.split(pair_separator)
 
     # Parse each key-value pair
-    parsed_dict = {}
+    parsed_dict: dict[K, V] = {}
 
     for i, pair in enumerate(pairs):
         success, key, value, err = _parse_key_value_pair(
-            pair, i, key_parser, value_parser, key_value_separator, error_message
+            pair, i, actual_key_parser, actual_value_parser, key_value_separator, error_message
         )
 
         if not success:
-            return Maybe.failure(err)
+            return Maybe.failure(err or 'Failed to parse key-value pair')
 
-        parsed_dict[key] = value
+        if key is not None and value is not None:
+            parsed_dict[key] = value
 
     return Maybe.success(parsed_dict)
 
@@ -331,7 +315,7 @@ def parse_dict(  # noqa: PLR0913
 def parse_set(
     input_value: str,
     element_parser: Callable[[str], Maybe[T]] | None = None,
-    separator: str = ',',
+    separator: str | None = None,
     error_message: str | None = None,
 ) -> Maybe[set[T]]:
     """Parse a string to a set using the specified element parser and separator.
@@ -346,13 +330,15 @@ def parse_set(
         A Maybe containing the parsed set or an error message
 
     """
+    if separator is None:
+        separator = ','
     # Use the list parser and convert to set
     result = parse_list(input_value, element_parser, separator, error_message)
     if result.is_failure():
-        return result
+        return Maybe.failure('Parse error')
 
     # Convert to set (removes duplicates)
-    return Maybe.success(set(result.value_or([])))
+    return Maybe.success(set(result.value_or(set())))
 
 
 # Type-specific validation parsers
@@ -469,105 +455,118 @@ def parse_dict_with_validation(  # noqa: PLR0913
     return Maybe.success(parsed_dict)
 
 
-# Parser Registry for custom parser registration
+def create_parser(convert_func: Callable[[str], T], error_message: str | None = None) -> Callable[[str], Maybe[T]]:
+    """Create a parser function from a conversion function.
 
+    This factory takes a function that converts strings to values and wraps it
+    in error handling logic to return Maybe instances.
 
-class ParserRegistry:
-    """Registry for parser functions.
+    Args:
+        convert_func: A function that converts strings to values of type T
+        error_message: Optional custom error message for failures
 
-    This class provides a way to register custom parsers for specific types
-    and retrieve them later. It also provides a convenient way to parse strings
-    to specific types using registered parsers.
+    Returns:
+        A parser function that returns Maybe[T]
 
-    Examples:
-        >>> # Register a custom parser for IP addresses
-        >>> def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
-        ...     try:
-        ...         return Maybe.success(ipaddress.IPv4Address(input_value))
-        ...     except ValueError:
-        ...         return Maybe.failure("Invalid IP address")
-        ...
-        >>> ParserRegistry.register(ipaddress.IPv4Address, parse_ip_address)
-        ...
-        >>> # Parse a string to an IP address
-        >>> result = ParserRegistry.parse("192.168.1.1", ipaddress.IPv4Address)
+    Example:
+        >>> from decimal import Decimal
+        >>> parse_decimal = create_parser(Decimal, "Invalid decimal format")
+        >>> result = parse_decimal("3.14")
         >>> result.is_success()
         True
-        >>> str(result.value_or(None))
-        '192.168.1.1'
 
     """
 
-    _parsers: ClassVar[type, Callable] = {}
+    def parser(input_value: str) -> Maybe[T]:
+        if not input_value:
+            return Failure('Input must not be empty')
 
-    @classmethod
-    def register(cls, type_: type, parser: Callable) -> None:
-        """Register a parser for a specific type.
+        try:
+            return Success(convert_func(input_value.strip()))
+        except Exception as e:  # noqa: BLE001
+            return Failure(error_message or f'Invalid {convert_func.__name__} format: {e}')
 
-        Args:
-            type_: The type to register the parser for
-            parser: The parser function
+    return parser
 
-        """
-        cls._parsers[type_] = parser
 
-    @classmethod
-    def get_parser(cls, type_: type) -> Callable | None:
-        """Get a parser for a specific type.
+@overload
+def make_parser(func: Callable[[str], T]) -> Callable[[str], Maybe[T]]: ...
 
-        This method first looks for a direct match with the specified type.
-        If no direct match is found, it looks for a match with a parent class.
 
-        Args:
-            type_: The type to get a parser for
+@overload
+def make_parser() -> Callable[[Callable[[str], T]], Callable[[str], Maybe[T]]]: ...
 
-        Returns:
-            The parser function or None if not found
 
-        """
-        # Check for direct match
-        if type_ in cls._parsers:
-            return cls._parsers[type_]
+def make_parser(
+    func: Callable[[str], T] | None = None,
+) -> Callable[[str], Maybe[T]] | Callable[[Callable[[str], T]], Callable[[str], Maybe[T]]]:
+    """Create a parser function from a conversion function with a decorator.
 
-        # Check for parent class match (inheritance)
-        for registered_type, parser in cls._parsers.items():
-            if isinstance(registered_type, type) and issubclass(type_, registered_type):
-                return parser
+    Example:
+        @make_parser
+        def parse_decimal(s: str) -> Decimal:
+            return Decimal(s)
 
-        return None
+        # Or with parentheses
+        @make_parser()
+        def parse_decimal(s: str) -> Decimal:
+            return Decimal(s)
 
-    @classmethod
-    def parse(cls, input_value: str, type_: type, error_message: str | None = None, **kwargs: Any) -> Maybe[T]:  # noqa: ANN401
-        """Parse a string to a specific type using the registered parser.
+        result = parse_decimal("123.45")  # Returns Maybe[Decimal]
 
-        Args:
-            input_value: The string to parse
-            type_: The target type
-            error_message: Custom error message for parsing failures
-            **kwargs: Additional arguments to pass to the parser
+    """
 
-        Returns:
-            A Maybe containing the parsed value or an error message
+    def decorator(f: Callable[[str], T]) -> Callable[[str], Maybe[T]]:
+        @wraps(f)
+        def wrapper(input_value: str) -> Maybe[T]:
+            if not input_value:
+                return Maybe.failure('Input must not be empty')
+            try:
+                return Maybe.success(f(input_value.strip()))
+            except Exception as e:  # noqa: BLE001
+                return Maybe.failure(str(e) or f'Invalid format for {f.__name__}')
 
-        """
-        parser = cls.get_parser(type_)
-        if parser is None:
-            return Maybe.failure(error_message or f'No parser found for type {type_.__name__}')
+        return wrapper
 
-        return parser(input_value, **kwargs)
+    # Handle both @create_parser and @create_parser() syntax
+    if func is None:
+        return decorator
+    return decorator(func)
 
-    @classmethod
-    def register_defaults(cls) -> None:
-        """Register default parsers for built-in types."""
-        # Register parsers for basic types
-        cls.register(int, parse_int)
-        cls.register(float, parse_float)
-        cls.register(bool, parse_bool)
-        cls.register(complex, parse_complex)
-        cls.register(date, parse_date)
-        cls.register(str, lambda s: Maybe.success(s))
 
-        # Register parsers for collection types
-        cls.register(list, parse_list)
-        cls.register(dict, parse_dict)
-        cls.register(set, parse_set)
+def validated_parser(
+    convert_func: Callable[[str], T], validator: Callable[[T], Maybe[T]], error_message: str | None = None
+) -> Callable[[str], Maybe[T]]:
+    """Create a parser with a built-in validator.
+
+    This combines parsing and validation in a single function.
+
+    Args:
+        convert_func: A function that converts strings to values of type T
+        validator: A validator function that validates the parsed value
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        A parser function that returns Maybe[T]
+
+    Example:
+        >>> from decimal import Decimal
+        >>> from valid8r.core.validators import minimum, maximum
+        >>> # Create a parser for positive decimals
+        >>> valid_range = lambda x: minimum(0)(x).bind(lambda y: maximum(100)(y))
+        >>> parse_percent = validated_parser(Decimal, valid_range)
+        >>> result = parse_percent("42.5")
+        >>> result.is_success()
+        True
+
+    """
+    parse = create_parser(convert_func, error_message)
+
+    def parser(input_value: str) -> Maybe[T]:
+        # First parse the input
+        result = parse(input_value)
+
+        # If parsing succeeded, validate the result
+        return result.bind(validator)
+
+    return parser

@@ -165,8 +165,10 @@ class DescribePrompt:
 
     def it_handles_infinite_retries(self) -> None:
         """Test _run_prompt_loop with infinite retries (float('inf'))."""
+
         # Create a mock parser that always fails
-        parser = lambda s: Maybe.failure('Always fails')
+        def parser(_: str) -> Maybe[str]:
+            return Maybe.failure('Always fails')
 
         # Create mock for input function that returns a few values then raises StopIteration
         mock_handle_input = MagicMock(
@@ -181,26 +183,29 @@ class DescribePrompt:
         with (
             patch('valid8r.prompt.basic._handle_user_input', mock_handle_input),
             patch('valid8r.prompt.basic._display_error'),
+            pytest.raises(StopIteration),
         ):
-            # Should loop until StopIteration
-            with pytest.raises(StopIteration):
-                _run_prompt_loop(
-                    'Enter value: ',
-                    parser,
-                    lambda x: Maybe.success(x),  # Simple validator
-                    default=None,
-                    max_retries=float('inf'),
-                    error_message=None,
-                )
+            _run_prompt_loop(
+                'Enter value: ',
+                parser,
+                lambda x: Maybe.success(x),  # Simple validator
+                default=None,
+                max_retries=float('inf'),
+                error_message=None,
+            )
 
         # Check that we called the input handler multiple times
         assert mock_handle_input.call_count == 3
 
     def it_uses_custom_validators(self) -> None:
         """Test ask with custom validators."""
+
         # Create a parser and validator that always succeed
-        parser = lambda s: Maybe.success(int(s))
-        validator = lambda x: Maybe.success(x)
+        def parser(s: str) -> Maybe[int]:
+            return Maybe.success(int(s))
+
+        def validator(x: int) -> Maybe[int]:
+            return Maybe.success(x)
 
         # Mock the input function
         with patch('builtins.input', return_value='42'):
@@ -215,7 +220,8 @@ class DescribePrompt:
         assert result.value_or(0) == 42
 
         # Create a validator that fails for even numbers
-        fail_even = lambda x: Maybe.failure('Cannot be even') if x % 2 == 0 else Maybe.success(x)
+        def fail_even(x: int) -> Maybe[str]:
+            return Maybe.failure('Cannot be even') if x % 2 == 0 else Maybe.success(x)
 
         # Try with an even number (should fail)
         with patch('builtins.input', return_value='42'):
@@ -243,9 +249,13 @@ class DescribePrompt:
 
     def it_tests_process_input_with_validation_failure(self) -> None:
         """Test _process_input where the parser succeeds but the validator fails."""
+
         # Parser succeeds, validator fails
-        parser = lambda s: Maybe.success(int(s))
-        validator = lambda x: Maybe.failure('Validation error')
+        def parser(s: str) -> Maybe[int]:
+            return Maybe.success(int(s))
+
+        def validator(_: None) -> Maybe[str]:
+            return Maybe.failure('Validation error')
 
         result = _process_input('42', parser, validator)
 
@@ -304,46 +314,3 @@ class DescribePrompt:
             args = mock_print.call_args[0][0]
             assert 'Error: Custom error' in args
             assert 'Original error' not in args
-
-    def it_attempts_to_reach_unreachable_return(self) -> None:
-        """Test that tries to reach the unreachable return in _process_input.
-
-        This test is unlikely to actually cover the unreachable line, as it's only
-        there to satisfy type checkers and isn't meant to be executed.
-        """
-
-        # Create a mock parser that returns a Maybe that's neither Success nor Failure
-        # (This is impossible in normal execution, but we're trying to trick the function)
-        class FakeMaybe(Maybe[str]):
-            def is_success(self) -> bool:
-                return False
-
-            def is_failure(self) -> bool:
-                return False
-
-            def bind(self, f):
-                return self
-
-            def map(self, f):
-                return self
-
-            def value_or(self, default):
-                return 'fake'
-
-        fake_maybe = FakeMaybe()
-
-        # Create mock parser and validator
-        mock_parser = MagicMock(return_value=fake_maybe)
-        mock_validator = MagicMock()
-
-        # Patch pattern matching behavior to avoid matching Success or Failure
-        # (This is a desperate attempt, but again, we're trying to reach unreachable code)
-        with patch('valid8r.prompt.basic.Success', side_effect=Exception('No matching')), \
-                patch('valid8r.prompt.basic.Failure', side_effect=Exception('No matching')):
-
-            try:
-                # This should error out
-                result = _process_input('test', mock_parser, mock_validator)
-            except Exception:
-                # The test is expected to fail, but at least we tried
-                pass

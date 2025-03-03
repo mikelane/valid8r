@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 class DescribeGeneratorsModule:
     def it_returns_none_when_no_numeric_value_in_closure(self) -> None:
         """Test that _extract_numeric_value_from_closure returns None when no numeric value is found."""
+
         # Create a closure with non-numeric values
         def create_closure_with_string() -> list[CellType]:
             string_value = 'test'
@@ -39,7 +40,7 @@ class DescribeGeneratorsModule:
             def inner_func() -> str:
                 return string_value
 
-            return inner_func.__closure__  # type: ignore
+            return inner_func.__closure__
 
         closure = create_closure_with_string()
         result = _extract_numeric_value_from_closure(closure)
@@ -71,6 +72,7 @@ class DescribeGeneratorsModule:
 
     def it_identifies_validator_without_closure(self) -> None:
         """Test that _identify_validator_type handles validators without a closure."""
+
         # Create a validator without a closure
         def validator_func(x: int) -> Maybe[int]:
             return Maybe.success(x)
@@ -106,6 +108,7 @@ class DescribeGeneratorsModule:
 
     def it_extracts_two_numeric_values(self) -> None:
         """Test that _extract_two_numeric_values extracts two numeric values from a closure."""
+
         def create_closure_with_two_numbers() -> list[CellType]:
             first_value = 10
             second_value = 20
@@ -113,7 +116,7 @@ class DescribeGeneratorsModule:
             def inner_func() -> tuple[int, int]:
                 return first_value, second_value
 
-            return inner_func.__closure__  # type: ignore
+            return inner_func.__closure__
 
         closure = create_closure_with_two_numbers()
         first, second = _extract_two_numeric_values(closure)
@@ -123,13 +126,14 @@ class DescribeGeneratorsModule:
 
     def it_handles_not_enough_values_in_extract_two_numeric_values(self) -> None:
         """Test that _extract_two_numeric_values handles cases with fewer than 2 numeric values."""
+
         def create_closure_with_one_number() -> list[CellType]:
             first_value = 10
 
             def inner_func() -> int:
                 return first_value
 
-            return inner_func.__closure__  # type: ignore
+            return inner_func.__closure__
 
         closure = create_closure_with_one_number()
         first, second = _extract_two_numeric_values(closure)
@@ -173,24 +177,26 @@ class DescribeGeneratorsModule:
         # Mock generate_test_cases to return our known test cases
         mock_test_cases = {
             'valid': [42],  # The only value that will pass
-            'invalid': [43, 44, 45]
+            'invalid': [43, 44, 45],
         }
 
-        with mock.patch('valid8r.testing.generators.generate_test_cases', return_value=mock_test_cases):
-            # Mock random.randint to return values that will always fail validation
-            with mock.patch('random.randint', return_value=43):
-                # This ensures all randomly generated values will fail
-                # Force the generator to use our mock test cases for valid values
-                inputs = generate_random_inputs(specific_validator, count=5)
+        with (
+            mock.patch('valid8r.testing.generators.generate_test_cases', return_value=mock_test_cases),
+            mock.patch('random.randint', return_value=43),
+        ):
+            # This ensures all randomly generated values will fail
+            # Force the generator to use our mock test cases for valid values
+            inputs = generate_random_inputs(specific_validator, count=5)
 
-                # Now we should have at least one valid case (42) in the inputs
-                assert any(specific_validator(x).is_success() for x in inputs), 'No valid inputs were added'
+            # Now we should have at least one valid case (42) in the inputs
+            assert any(specific_validator(x).is_success() for x in inputs), 'No valid inputs were added'
 
-                # Verify the specific value was added
-                assert 42 in inputs
+            # Verify the specific value was added
+            assert 42 in inputs
 
     def it_adds_specific_cases_when_random_inputs_lack_invalid_cases(self) -> None:
         """Test that generate_random_inputs adds invalid cases when they're missing."""
+
         # Create a validator that fails only for a specific value
         def rigged_validator(x: int) -> Maybe[int]:
             if x == -9999:
@@ -202,24 +208,26 @@ class DescribeGeneratorsModule:
         # Mock generate_test_cases to return our known test cases
         mock_test_cases = {
             'valid': [10, 20, 30],
-            'invalid': [-9999]  # The only value that will fail
+            'invalid': [-9999],  # The only value that will fail
         }
 
-        with mock.patch('valid8r.testing.generators.generate_test_cases', return_value=mock_test_cases):
-            # Mock random.randint to return values that will always pass validation
-            with mock.patch('random.randint', return_value=100):
-                # This ensures all randomly generated values will pass
-                # Force the generator to use our mock test cases for invalid values
-                inputs = generate_random_inputs(rigged, count=5)
+        with (
+            mock.patch('valid8r.testing.generators.generate_test_cases', return_value=mock_test_cases),
+            mock.patch('random.randint', return_value=100),
+        ):
+            # This ensures all randomly generated values will pass
+            # Force the generator to use our mock test cases for invalid values
+            inputs = generate_random_inputs(rigged, count=5)
 
-                # Now we should have at least one invalid case (-9999) in the inputs
-                assert any(rigged(x).is_failure() for x in inputs), 'No invalid inputs were added'
+            # Now we should have at least one invalid case (-9999) in the inputs
+            assert any(rigged(x).is_failure() for x in inputs), 'No invalid inputs were added'
 
-                # Verify the specific value was added
-                assert -9999 in inputs
+            # Verify the specific value was added
+            assert -9999 in inputs
 
     def it_returns_false_when_valid_case_fails_in_test_validator_composition(self) -> None:
         """Test that test_validator_composition returns False when a valid case fails."""
+
         # Create a validator with inconsistent behavior
         class InconsistentValidator(Validator[int]):
             def __init__(self) -> None:
@@ -240,6 +248,7 @@ class DescribeGeneratorsModule:
 
     def it_returns_false_when_invalid_case_succeeds_in_test_validator_composition(self) -> None:
         """Test that test_validator_composition returns False when an invalid case succeeds."""
+
         # Create a validator that incorrectly accepts negative values
         def always_succeed(value: int) -> Maybe[int]:
             return Maybe.success(value)
@@ -249,7 +258,7 @@ class DescribeGeneratorsModule:
         # Mock generate_test_cases to return our controlled test data
         mock_test_cases = {
             'valid': [0, 10, 20],
-            'invalid': [-10, -20]  # These should fail but won't with our broken validator
+            'invalid': [-10, -20],  # These should fail but won't with our broken validator
         }
 
         # Use proper patching to ensure the function under test uses our mock

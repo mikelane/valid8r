@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -23,6 +24,9 @@ from valid8r.testing.mock_input import (
     MockInputContext,
     configure_mock_input,
 )
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 
 class DescribeTestingUtilities:
@@ -187,10 +191,9 @@ class DescribeTestingUtilities:
 
         try:
             # Use context manager and raise exception inside
-            with pytest.raises(ValueError):
-                with MockInputContext(['test']):
-                    assert builtins.input('Prompt: ') == 'test'
-                    raise ValueError('Test exception')
+            with pytest.raises(ValueError, match='Test exception'), MockInputContext(['test']):  # noqa: PT012
+                assert builtins.input('Prompt: ') == 'test'
+                raise ValueError('Test exception')
 
             # Should have restored input function despite exception
             assert builtins.input == original_input
@@ -259,7 +262,7 @@ class DescribeTestingUtilities:
             # Restore original input
             builtins.input = original_input
 
-    def it_displays_prompt_for_context_manager(self, mocker) -> None:
+    def it_displays_prompt_for_context_manager(self, mocker: MockerFixture) -> None:
         """Test that the context manager ignores the prompt but accepts it."""
         # Create a spy to check if the prompt was displayed
         stdout_spy = mocker.MagicMock()
@@ -279,3 +282,9 @@ class DescribeTestingUtilities:
         finally:
             # Restore original functions
             builtins.input = original_input
+
+    def it_raises_index_error_with_empty_inputs_in_context(self) -> None:
+        """Test that MockInputContext raises IndexError when inputs list is empty."""
+        # Create a context with an empty list of inputs
+        with MockInputContext([]), pytest.raises(IndexError, match='No more mock inputs available'):
+            input('This should raise an error')

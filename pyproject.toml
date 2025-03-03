@@ -26,12 +26,12 @@ livereload = "^2.7.1"
 mypy = "^1.15.0"
 
 [tool.poetry.group.lint.dependencies]
-isort = "^6.0.0"
-ruff = "^0.9.7"
+isort = "^6.0.1"
+ruff = "^0.9.9"
 
 [tool.poetry.group.docs.dependencies]
 myst-parser = "^4.0.1"
-sphinx = "^8.2.1"
+sphinx = "^8.2.3"
 sphinx-autoapi = "^3.6.0"
 sphinx-autodoc-typehints = "^3.1.0"
 sphinx-copybutton = "^0.5.2"
@@ -41,7 +41,7 @@ sphinx-rtd-theme = "^3.0.2"
 [tool.poetry.group.test.dependencies]
 behave = "^1.2.6"
 coverage = "^7.6.12"
-pytest = "^8.3.4"
+pytest = "^8.3.5"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-sugar = "^1.0.0"
@@ -123,6 +123,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "D102", # Don't require method docstrings in tests
     "D103", # Don't require function docstrings in tests
     "D104", # Don't require init docstrings in tests
+    "PGH003", # Allow tests to casually ignore mypy complaints about incorrect types
     "PLR0913", # Allow tests to have as many arguments as we want
 ]
 "tests/bdd/steps/*" = [

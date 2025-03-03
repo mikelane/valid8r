@@ -7,9 +7,11 @@ that either contains the validated value or an error message.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import (
     TYPE_CHECKING,
     Generic,
+    Protocol,
     TypeVar,
 )
 
@@ -18,8 +20,19 @@ from valid8r.core.maybe import Maybe
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+
+class Numeric(Protocol):  # noqa: D101
+    def __le__(self, other: Numeric) -> bool: ...  # noqa: D105
+    def __lt__(self, other: Numeric) -> bool: ...  # noqa: D105
+    def __ge__(self, other: Numeric) -> bool: ...  # noqa: D105
+    def __gt__(self, other: Numeric) -> bool: ...  # noqa: D105
+    def __eq__(self, other: object) -> bool: ...  # noqa: D105
+    def __ne__(self, other: object) -> bool: ...  # noqa: D105
+
+
 T = TypeVar('T')
 U = TypeVar('U')
+N = TypeVar('N', bound=[Numeric | Decimal])
 
 
 class Validator(Generic[T]):
@@ -86,7 +99,7 @@ class Validator(Generic[T]):
         return Validator(lambda value: not_validator(self.func, 'Negated validation failed')(value))
 
 
-def minimum(min_value: T, error_message: str | None = None) -> Validator[T]:
+def minimum(min_value: N, error_message: str | None = None) -> Validator[N]:
     """Create a validator that ensures a value is at least the minimum.
 
     Args:
@@ -98,7 +111,7 @@ def minimum(min_value: T, error_message: str | None = None) -> Validator[T]:
 
     """
 
-    def validator(value: T) -> Maybe[T]:
+    def validator(value: N) -> Maybe[N]:
         if value >= min_value:
             return Maybe.success(value)
         return Maybe.failure(error_message or f'Value must be at least {min_value}')
@@ -106,7 +119,7 @@ def minimum(min_value: T, error_message: str | None = None) -> Validator[T]:
     return Validator(validator)
 
 
-def maximum(max_value: T, error_message: str | None = None) -> Validator[T]:
+def maximum(max_value: N, error_message: str | None = None) -> Validator[N]:
     """Create a validator that ensures a value is at most the maximum.
 
     Args:
@@ -118,7 +131,7 @@ def maximum(max_value: T, error_message: str | None = None) -> Validator[T]:
 
     """
 
-    def validator(value: T) -> Maybe[T]:
+    def validator(value: N) -> Maybe[N]:
         if value <= max_value:
             return Maybe.success(value)
         return Maybe.failure(error_message or f'Value must be at most {max_value}')
@@ -126,7 +139,7 @@ def maximum(max_value: T, error_message: str | None = None) -> Validator[T]:
     return Validator(validator)
 
 
-def between(min_value: T, max_value: T, error_message: str | None = None) -> Validator[T]:
+def between(min_value: N, max_value: N, error_message: str | None = None) -> Validator[N]:
     """Create a validator that ensures a value is between minimum and maximum (inclusive).
 
     Args:
@@ -139,7 +152,7 @@ def between(min_value: T, max_value: T, error_message: str | None = None) -> Val
 
     """
 
-    def validator(value: T) -> Maybe[T]:
+    def validator(value: N) -> Maybe[N]:
         if min_value <= value <= max_value:
             return Maybe.success(value)
         return Maybe.failure(error_message or f'Value must be between {min_value} and {max_value}')
