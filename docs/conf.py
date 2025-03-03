@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import sys
-from datetime import (
+from datetime import (  # type: ignore[attr-defined]  #datetime.UTC is totally a thing, c'mon mypy.
     UTC,
     datetime,
 )
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# Import the package to get the version
 import valid8r
 
 if TYPE_CHECKING:

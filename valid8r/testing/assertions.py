@@ -34,7 +34,7 @@ def assert_maybe_success(result: Maybe[T], expected_value: Any) -> bool:  # noqa
     """
     match result:
         case Success(value):
-            return value == expected_value
+            return bool(value == expected_value)
         case _:
             return False
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from behave import (
+from behave import (  # type: ignore[import-untyped]
     given,
     then,
     when,

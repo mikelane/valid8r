@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-import ipaddress
 import json
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+)
 
+import pytest
 from behave import (  # type: ignore[import-untyped]
-    given,
     then,
     when,
 )
 
-from valid8r.core.maybe import Maybe
+from tests.bdd.steps import get_custom_context
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
 from valid8r.core.parsers import (
-    create_parser,
     parse_dict,
     parse_dict_with_validation,
     parse_int,
@@ -24,41 +29,27 @@ if TYPE_CHECKING:
     from behave.runner import Context  # type: ignore[import-untyped]
 
 
-# Context to store results between steps
-class CollectionParseContext:
-    def __init__(self) -> None:
-        """Initialize the context."""
-        self.result = None
-
-
-# Make sure context has a collection_parse_context
-def get_collection_parse_context(context: Context) -> CollectionParseContext:
-    if not hasattr(context, 'collection_parse_context'):
-        context.collection_parse_context = CollectionParseContext()
-    return context.collection_parse_context
-
-
 @when('I parse "{input_str}" to a list of integers')
 def step_parse_to_list_of_integers(context: Context, input_str: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_list(input_str, element_parser=parse_int)
 
 
 @when('I parse "{input_str}" to a list of integers with separator "{separator}"')
 def step_parse_to_list_with_separator(context: Context, input_str: str, separator: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_list(input_str, element_parser=parse_int, separator=separator)
 
 
 @when('I parse "{input_str}" to a dictionary with string keys and integer values')
 def step_parse_to_dict_with_int_values(context: Context, input_str: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_dict(input_str, key_parser=lambda s: Maybe.success(s), value_parser=parse_int)
 
 
 @when('I parse "{input_str}" to a dictionary with pair separator "{pair_sep}" and key-value separator "{kv_sep}"')
 def step_parse_to_dict_with_separators(context: Context, input_str: str, pair_sep: str, kv_sep: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_dict(
         input_str,
         key_parser=lambda s: Maybe.success(s),
@@ -70,111 +61,63 @@ def step_parse_to_dict_with_separators(context: Context, input_str: str, pair_se
 
 @when('I parse "{input_str}" to a dictionary')
 def step_parse_to_dict(context: Context, input_str: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_dict(input_str)
 
 
 @when('I parse "{input_str}" to a dictionary with integer values')
 def step_parse_to_dict_with_int_values_only(context: Context, input_str: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_dict(input_str, value_parser=parse_int)
 
 
 @when('I parse "{input_str}" to a list with minimum length {min_length:d}')
 def step_parse_to_list_with_min_length(context: Context, input_str: str, min_length: int) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_list_with_validation(input_str, element_parser=parse_int, min_length=min_length)
 
 
 @when('I parse "{input_str}" to a dictionary with required keys "{required_keys}"')
 def step_parse_to_dict_with_required_keys(context: Context, input_str: str, required_keys: str) -> None:
-    pc = get_collection_parse_context(context)
+    pc = get_custom_context(context)
     pc.result = parse_dict_with_validation(
         input_str, key_parser=lambda s: Maybe.success(s), value_parser=parse_int, required_keys=required_keys.split(',')
     )
 
 
-@given('I have registered a custom parser for IP addresses')
-def step_register_ip_address_parser(context: Context) -> None:
-    pc = get_collection_parse_context(context)
-
-    @create_parser
-    def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
-        try:
-            return Maybe.success(ipaddress.IPv4Address(input_value))
-        except ValueError:
-            return Maybe.failure('Invalid IP address')
-
-    # Register the parser with the instance
-    pc.parser_registry.register(ipaddress.IPv4Address, parse_ip_address)
-
-
-@when('I parse "{input_str}" using the registry with type "{type_name}"')
-def step_parse_with_registry(context: Context, input_str: str, type_name: str) -> None:
-    pc = get_collection_parse_context(context)
-
-    # Map type names to actual types
-    type_map = {
-        'int': int,
-        'float': float,
-        'bool': bool,
-        'str': str,
-        'list': list,
-        'dict': dict,
-        'set': set,
-        'IPv4Address': ipaddress.IPv4Address,
-    }
-
-    if type_name not in type_map:
-        pc.result = Maybe.failure(f'Unknown type: {type_name}')
-        return
-
-    target_type = type_map[type_name]
-    pc.result = pc.parser_registry.parse(input_str, target_type)
-
-
 @then('the result should be a successful Maybe with list value {expected_list}')
 def step_result_is_success_with_list_value(context: Context, expected_list: str) -> None:
-    pc = get_collection_parse_context(context)
-    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
-
-    # Parse the expected list from string (using json.loads)
-    expected = json.loads(expected_list)
-    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
+    pc = get_custom_context(context)
+    match pc.result:
+        case Success(result):
+            expected = json.loads(expected_list)
+            assert result == expected, f'Expected {expected} but got {result}'
+        case Failure(error):
+            pytest.fail(f'Expected success but got failure: {error}')
+        case _:
+            pytest.fail('Unexpected result type')
 
 
 @then('the result should be a successful Maybe with dictionary value {expected_dict}')
 def step_result_is_success_with_dict_value(context: Context, expected_dict: str) -> None:
-    pc = get_collection_parse_context(context)
-    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
-
-    # Parse the expected dict from string (using json.loads)
-    expected = json.loads(expected_dict)
-    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
+    pc = get_custom_context(context)
+    match pc.result:
+        case Success(result):
+            expected = json.loads(expected_dict)
+            assert result == expected, f'Expected {expected} but got {result}'
+        case Failure(error):
+            pytest.fail(f'Expected success but got failure: {error}')
+        case _:
+            pytest.fail('Unexpected result type')
 
 
 @then('the result should be a failure Maybe with error containing "{expected_error}"')
 def step_result_is_failure_with_error_containing(context: Context, expected_error: str) -> None:
-    pc = get_collection_parse_context(context)
-    assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'
-    assert expected_error in pc.result.value_or('TEST'), (
-        f"Expected error containing '{expected_error}' but got '{pc.result.value_or('TEST')}'"
-    )
-
-
-@then('the result should be a successful Maybe with IP value "{expected}"')
-def step_result_is_success_with_ip_value(context: Context, expected: str) -> None:
-    pc = get_collection_parse_context(context)
-    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
-
-    value = pc.result.value_or('TEST')
-    # Convert value to string for comparison
-    str_value = str(value)
-    assert str_value == expected, f'Expected {expected} but got {str_value}'
-
-
-@then('the result should be a successful Maybe with integer value {expected:d}')
-def step_result_is_success_with_registry_int_value(context: Context, expected: int) -> None:
-    pc = get_collection_parse_context(context)
-    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
-    assert pc.result.value_or('TEST') == expected, f'Expected {expected} but got {pc.result.value_or("TEST")}'
+    pc = get_custom_context(context)
+    match pc.result:
+        case Success(result):
+            pytest.fail(f'Expected failure but got success: {result}')
+        case Failure(error):
+            assert error == expected_error, f'Expected "{expected_error}" but got "{error}"'
+        case _:
+            pytest.fail('Unexpected result type')

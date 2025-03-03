@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Generic,
     TypeVar,
 )
 
@@ -25,7 +26,7 @@ T = TypeVar('T')
 
 
 @dataclass
-class PromptConfig:
+class PromptConfig(Generic[T]):
     """Configuration for the ask function."""
 
     parser: Callable[[str], Maybe[T]] | None = None
@@ -154,8 +155,9 @@ def _run_prompt_loop(  # noqa: PLR0913
 
         # Use default if requested
         if use_default:
+            if default is None:
+                return Maybe.failure('No default value provided')
             return Maybe.success(default)
-
         # Process the input
         result = _process_input(user_input, parser, validator)
 

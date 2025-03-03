@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from behave.model import (
+    from behave.model import (  # type: ignore[import-untyped]
         Feature,
         Scenario,
     )
-    from behave.runner import Context
+    from behave.runner import Context  # type: ignore[import-untyped]
 
 
 def before_all(context: Context) -> None:

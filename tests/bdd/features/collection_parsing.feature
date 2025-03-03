@@ -16,7 +16,7 @@ Feature: Collection Type Parsing
 
   Scenario: Parse string to list with invalid element
     When I parse "1,a,3" to a list of integers
-    Then the result should be a failure Maybe with error containing "Failed to parse element"
+    Then the result should be a failure Maybe with error containing "Failed to parse element 2 'a': Input must be a valid integer"
 
   Scenario: Successfully parse string to dictionary
     When I parse "a:1,b:2,c:3" to a dictionary with string keys and integer values
@@ -28,11 +28,11 @@ Feature: Collection Type Parsing
 
   Scenario: Parse string to dictionary with invalid key-value pair
     When I parse "a:1,b2,c:3" to a dictionary
-    Then the result should be a failure Maybe with error containing "Invalid key-value pair"
+    Then the result should be a failure Maybe with error containing "Invalid key-value pair 'b2': missing separator ':'"
 
   Scenario: Parse string to dictionary with invalid value
     When I parse "a:1,b:x,c:3" to a dictionary with integer values
-    Then the result should be a failure Maybe with error containing "Failed to parse value"
+    Then the result should be a failure Maybe with error containing "Failed to parse value in pair 2 'b:x': Input must be a valid integer"
 
   Scenario: Parse list with length validation
     When I parse "1,2,3" to a list with minimum length 5
@@ -40,4 +40,4 @@ Feature: Collection Type Parsing
 
   Scenario: Parse dictionary with required keys
     When I parse "a:1,b:2" to a dictionary with required keys "a,b,c"
-    Then the result should be a failure Maybe with error containing "Missing required keys"
+    Then the result should be a failure Maybe with error containing "Missing required keys: c"

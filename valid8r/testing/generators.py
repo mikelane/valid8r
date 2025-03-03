@@ -9,6 +9,8 @@ from typing import (
     TypeVar,
 )
 
+from valid8r.core.maybe import Success
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from types import CellType
@@ -159,8 +161,8 @@ def generate_test_cases(validator: Validator[T]) -> dict[str, list[Any]]:
     validator_type, param1, param2 = _identify_validator_type(validator)
 
     # Generate test cases based on validator type
-    valid_cases = []
-    invalid_cases = []
+    valid_cases: list = []
+    invalid_cases: list = []
 
     if validator_type == 'minimum' and param1 is not None:
         valid_cases, invalid_cases = _generate_minimum_validator_cases(param1)
@@ -193,7 +195,7 @@ def generate_test_cases(validator: Validator[T]) -> dict[str, list[Any]]:
 
 def generate_random_inputs(
     validator: Validator[T], count: int = 20, range_min: int = -100, range_max: int = 100
-) -> list[int]:
+) -> list[T]:
     """Generate random inputs that include both valid and invalid cases.
 
     Args:
@@ -211,7 +213,7 @@ def generate_random_inputs(
         10
 
     """
-    inputs = []
+    inputs: list[Any] = []
 
     # Try to make sure we get both valid and invalid cases
     for _ in range(count):
@@ -224,10 +226,11 @@ def generate_random_inputs(
 
     for input_val in inputs:
         result = validator(input_val)
-        if result.is_success():
-            has_valid = True
-        else:
-            has_invalid = True
+        match result:
+            case Success(_):
+                has_valid = True
+            case _:
+                has_invalid = True
 
         if has_valid and has_invalid:
             break
