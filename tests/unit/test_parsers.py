@@ -699,7 +699,7 @@ class DescribeParsers:
         """Test that the decorator returns a failure if the parser raises an error."""
 
         @make_parser
-        def decimal_parser(s: str) -> Decimal:
+        def decimal_parser(s: str) -> Decimal:  # noqa: ARG001
             raise ValueError('Invalid input')
 
         match decimal_parser('123.45'):
