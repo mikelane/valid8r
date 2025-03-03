@@ -31,7 +31,7 @@ def MockInputContext(inputs: list[str] | None = None) -> Iterator[None]:  # noqa
     """
     input_values = [] if inputs is None else list(inputs)
 
-    def mock_input(prompt: str = '') -> str:  # noqa: ARG001
+    def mock_input(prompt: object = '') -> str:  # noqa: ARG001
         """Mock implementation of input function.
 
         Args:
@@ -76,7 +76,7 @@ def configure_mock_input(inputs: list[str]) -> None:
     """
     input_values = list(inputs)  # Create a copy
 
-    def mock_input(prompt: str = '') -> str:  # noqa: ARG001
+    def mock_input(prompt: object = '') -> str:  # noqa: ARG001
         if not input_values:
             raise IndexError('No more mock inputs available')
         return input_values.pop(0)
