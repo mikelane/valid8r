@@ -104,3 +104,23 @@ Feature: Clean Type Parsing
     Given I have defined an enum "Color" with values "RED,GREEN,BLUE"
     When I parse "RED" to the Color enum type
     Then the result should be a successful Maybe with the RED enum value
+
+  Scenario: Parse custom type using create_parser
+    Given I have created a custom parser for "IPAddress" type using create_parser
+    When I parse "192.168.1.1" using the custom parser
+    Then the result should be a successful Maybe with the parsed IP address
+
+  Scenario: Create parser using make_parser decorator
+  Given I have defined a parser using the make_parser decorator for "Decimal" values
+  When I parse "123.45" using the decorated parser
+  Then the result should be a successful Maybe with decimal value 123.45
+
+Scenario: Handle errors with make_parser decorator
+  Given I have defined a parser using the make_parser decorator for "Decimal" values
+  When I parse "not-a-decimal" using the decorated parser
+  Then the result should be a failure Maybe with error "Invalid format for parse_decimal, error: [<class 'decimal.ConversionSyntax'>]"
+
+Scenario: Parse empty string with decorated parser
+  Given I have defined a parser using the make_parser decorator for "Decimal" values
+  When I parse "" using the decorated parser
+  Then the result should be a failure Maybe with error "Input must not be empty"

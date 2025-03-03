@@ -4,7 +4,7 @@ import ipaddress
 import json
 from typing import TYPE_CHECKING
 
-from behave import (
+from behave import (  # type: ignore[import-untyped]
     given,
     then,
     when,
@@ -12,7 +12,7 @@ from behave import (
 
 from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import (
-    ParserRegistry,
+    create_parser,
     parse_dict,
     parse_dict_with_validation,
     parse_int,
@@ -21,7 +21,7 @@ from valid8r.core.parsers import (
 )
 
 if TYPE_CHECKING:
-    from behave.runner import Context
+    from behave.runner import Context  # type: ignore[import-untyped]
 
 
 # Context to store results between steps
@@ -95,16 +95,18 @@ def step_parse_to_dict_with_required_keys(context: Context, input_str: str, requ
 
 
 @given('I have registered a custom parser for IP addresses')
-def step_register_ip_address_parser(context: Context) -> None:  # noqa: ARG001
-    # Define a custom parser for IP addresses
+def step_register_ip_address_parser(context: Context) -> None:
+    pc = get_collection_parse_context(context)
+
+    @create_parser
     def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
         try:
             return Maybe.success(ipaddress.IPv4Address(input_value))
         except ValueError:
             return Maybe.failure('Invalid IP address')
 
-    # Register the parser
-    ParserRegistry.register(ipaddress.IPv4Address, parse_ip_address)
+    # Register the parser with the instance
+    pc.parser_registry.register(ipaddress.IPv4Address, parse_ip_address)
 
 
 @when('I parse "{input_str}" using the registry with type "{type_name}"')
@@ -128,12 +130,7 @@ def step_parse_with_registry(context: Context, input_str: str, type_name: str) -
         return
 
     target_type = type_map[type_name]
-    pc.result = ParserRegistry.parse(input_str, target_type)
-
-
-@given('the parser registry has default parsers registered')
-def step_register_default_parsers(context: Context) -> None:  # noqa: ARG001
-    ParserRegistry.register_defaults()
+    pc.result = pc.parser_registry.parse(input_str, target_type)
 
 
 @then('the result should be a successful Maybe with list value {expected_list}')

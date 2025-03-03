@@ -524,7 +524,7 @@ def make_parser(
             try:
                 return Maybe.success(f(input_value.strip()))
             except Exception as e:  # noqa: BLE001
-                return Maybe.failure(str(e) or f'Invalid format for {f.__name__}')
+                return Maybe.failure(f'Invalid format for {f.__name__}, error: {e}')
 
         return wrapper
 

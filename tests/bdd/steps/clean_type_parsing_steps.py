@@ -1,16 +1,28 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING
+from decimal import Decimal
+from ipaddress import ip_address
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
 
+import pytest
 from behave import (
     given,
     then,
     when,
 )
 
-from valid8r.core.maybe import Maybe
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
 from valid8r.core.parsers import (
+    create_parser,
+    make_parser,
     parse_bool,
     parse_complex,
     parse_date,
@@ -21,24 +33,23 @@ from valid8r.core.parsers import (
 
 if TYPE_CHECKING:
     import numbers
+    from collections.abc import Callable
 
-    from behave.runner import Context
+    from behave.runner import Context  # type: ignore[import-untyped]
 
 
-# Context to store results between steps
 class ParseContext:
     def __init__(self) -> None:
         """Initialize the context."""
         self.result = None
-        self.custom_parser = None
+        self.custom_parser: Callable[..., Any] | None = None
         self.custom_enum = None
 
 
-# Make sure context has a parse_context
 def get_parse_context(context: Context) -> ParseContext:
     if not hasattr(context, 'parse_context'):
         context.parse_context = ParseContext()
-    return context.parse_context
+    return getattr(context, 'parse_context', ParseContext())
 
 
 @given('the input validation module is available')
@@ -178,13 +189,55 @@ def step_result_is_success_with_enum_value(context: Context) -> None:
 @then('the result should be a failure Maybe with error "{expected_error}"')
 def step_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     pc = get_parse_context(context)
-    assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'
-    assert pc.result.value_or('TEST') == expected_error, (
-        f"Expected error '{expected_error}' but got '{pc.result.value_or('TEST')}'"
-    )
+    match pc.result:
+        case Success(value):
+            pytest.fail(f'Expected failure but got success: {value}')
+        case Failure(error):
+            assert error == expected_error
 
 
 @when('I parse "" to integer type')
 def step_parse_empty_to_integer(context: Context) -> None:
     pc = get_parse_context(context)
     pc.result = parse_int('')
+
+
+@given('I have created a custom parser for "IPAddress" type using create_parser')
+def step_have_custom_parser_using_create_parser(context: Context) -> None:
+    pc = get_parse_context(context)
+    pc.custom_parser = create_parser(ip_address, error_message='Invalid IP address format')
+
+
+@given('I have defined a parser using the make_parser decorator for "Decimal" values')
+def step_have_parser_using_make_parser_decorator(context: Context) -> None:
+    pc = get_parse_context(context)
+
+    @make_parser
+    def parse_decimal(s: str) -> Decimal:
+        return Decimal(s)
+
+    pc.custom_parser = parse_decimal
+
+
+@when('I parse "{input_str}" using the decorated parser')
+def step_parse_with_decorated_parser(context: Context, input_str: str) -> None:
+    pc = get_parse_context(context)
+    pc.result = pc.custom_parser(input_str)
+
+
+@when('I parse "" using the decorated parser')
+def step_parse_empty_with_decorated_parser(context: Context) -> None:
+    pc = get_parse_context(context)
+    pc.result = pc.custom_parser('')
+
+
+@then('the result should be a successful Maybe with decimal value {expected}')
+def step_result_is_success_with_decimal_value(context: Context, expected: str) -> None:
+    pc = get_parse_context(context)
+    assert pc.result.is_success(), f'Expected success but got failure: {pc.result}'
+
+    # Convert the expected string to Decimal for comparison
+    expected_decimal = Decimal(expected)
+    assert pc.result.value_or('TEST') == expected_decimal, (
+        f'Expected {expected_decimal} but got {pc.result.value_or("TEST")}'
+    )

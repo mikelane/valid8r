@@ -41,13 +41,3 @@ Feature: Collection Type Parsing
   Scenario: Parse dictionary with required keys
     When I parse "a:1,b:2" to a dictionary with required keys "a,b,c"
     Then the result should be a failure Maybe with error containing "Missing required keys"
-
-  Scenario: Register custom parser
-    Given I have registered a custom parser for IP addresses
-    When I parse "192.168.1.1" using the registry with type "IPv4Address"
-    Then the result should be a successful Maybe with IP value "192.168.1.1"
-
-  Scenario: Parse using registered default parsers
-    Given the parser registry has default parsers registered
-    When I parse "123" using the registry with type "int"
-    Then the result should be a successful Maybe with integer value 123
