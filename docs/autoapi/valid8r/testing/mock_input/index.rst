@@ -21,7 +21,7 @@ Functions
 Module Contents
 ---------------
 
-.. py:function:: MockInputContext(inputs)
+.. py:function:: MockInputContext(inputs = None)
 
    Context manager for mocking user input.
 

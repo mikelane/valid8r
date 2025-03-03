@@ -20,6 +20,7 @@ Attributes
 
    valid8r.core.validators.T
    valid8r.core.validators.U
+   valid8r.core.validators.N
 
 
 Classes
@@ -27,6 +28,7 @@ Classes
 
 .. autoapisummary::
 
+   valid8r.core.validators.Numeric
    valid8r.core.validators.Validator
 
 
@@ -45,9 +47,66 @@ Functions
 Module Contents
 ---------------
 
+.. py:class:: Numeric
+
+   Bases: :py:obj:`Protocol`
+
+
+   Base class for protocol classes.
+
+   Protocol classes are defined as::
+
+       class Proto(Protocol):
+           def meth(self) -> int:
+               ...
+
+   Such classes are primarily used with static type checkers that recognize
+   structural subtyping (static duck-typing).
+
+   For example::
+
+       class C:
+           def meth(self) -> int:
+               return 0
+
+       def func(x: Proto) -> int:
+           return x.meth()
+
+       func(C())  # Passes static type check
+
+   See PEP 544 for details. Protocol classes decorated with
+   @typing.runtime_checkable act as simple-minded runtime protocols that check
+   only the presence of given attributes, ignoring their type signatures.
+   Protocol classes can be generic, they are defined as::
+
+       class GenProto[T](Protocol):
+           def meth(self) -> T:
+               ...
+
+
+   .. py:method:: __le__(other)
+
+
+   .. py:method:: __lt__(other)
+
+
+   .. py:method:: __ge__(other)
+
+
+   .. py:method:: __gt__(other)
+
+
+   .. py:method:: __eq__(other)
+
+
+   .. py:method:: __ne__(other)
+
+
 .. py:data:: T
 
 .. py:data:: U
+
+.. py:data:: N
 
 .. py:class:: Validator(func)
 

@@ -15,6 +15,11 @@ Attributes
 .. autoapisummary::
 
    valid8r.testing.generators.T
+   valid8r.testing.generators.OFFSET_SMALL
+   valid8r.testing.generators.OFFSET_MEDIUM
+   valid8r.testing.generators.OFFSET_LARGE
+   valid8r.testing.generators.OFFSET_XLARGE
+   valid8r.testing.generators.MULTIPLIER_FAR
 
 
 Functions
@@ -31,6 +36,26 @@ Module Contents
 ---------------
 
 .. py:data:: T
+
+.. py:data:: OFFSET_SMALL
+   :value: 1
+
+
+.. py:data:: OFFSET_MEDIUM
+   :value: 5
+
+
+.. py:data:: OFFSET_LARGE
+   :value: 10
+
+
+.. py:data:: OFFSET_XLARGE
+   :value: 100
+
+
+.. py:data:: MULTIPLIER_FAR
+   :value: 2
+
 
 .. py:function:: generate_test_cases(validator)
 

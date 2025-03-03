@@ -4,7 +4,7 @@ Core API Reference
 This section provides detailed documentation for the core components of Valid8r, including the Maybe monad, parsers, validators, and combinators.
 
 Maybe Monad
-------------
+-----------
 
 .. py:class:: valid8r.core.maybe.Maybe
 
@@ -80,7 +80,7 @@ Maybe Monad
 Parsers
 -------
 
-Type parsing functions that convert strings to various data types.
+Type parsing functions that convert strings to various data types. These functions follow a consistent pattern: they take a string input and return a ``Maybe`` object containing either the successfully parsed value or an error message.
 
 .. py:function:: valid8r.core.parsers.parse_int(input_value, error_message=None)
 
@@ -339,45 +339,60 @@ Type parsing functions that convert strings to various data types.
    :param input_value: String input to parse
    :param key_parser: A function that parses keys
    :param value_parser: A function that parses values
-   :param pair_separator: The string that separates key-value pairs
+:param pair_separator: The string that separates key-value pairs
    :param key_value_separator: The string that separates keys from values
    :param required_keys: List of keys that must be present
    :param error_message: Custom error message for parsing failures
    :return: A Maybe containing the parsed dictionary or an error message
 
-.. py:class:: valid8r.core.parsers.ParserRegistry
+Custom Parser Creation
+^^^^^^^^^^^^^^^^^^^^^^
 
-   Registry for parser functions. This class provides a way to register custom parsers for specific types.
+.. py:function:: valid8r.core.parsers.create_parser(convert_func, error_message=None)
 
-   .. py:classmethod:: register(type_, parser)
+   Create a parser function from a conversion function.
 
-      Register a parser for a specific type.
+   :param convert_func: A function that converts strings to values
+   :param error_message: Optional custom error message
+   :return: A parser function that returns a Maybe
 
-      :param type_: The type to register the parser for
-      :param parser: The parser function
+.. py:function:: valid8r.core.parsers.make_parser(func=None)
 
-   .. py:classmethod:: get_parser(type_)
+   Decorator that creates a parser function from a conversion function.
 
-      Get a parser for a specific type.
+   :param func: A function that converts strings to values
+   :return: A decorated function that returns a Maybe
 
-      :param type_: The type to get a parser for
-      :return: The parser function or None if not found
+.. py:function:: valid8r.core.parsers.validated_parser(convert_func, validator, error_message=None)
 
-   .. py:classmethod:: parse(input_value, type_, error_message=None, **kwargs)
+   Create a parser with validation built in.
 
-      Parse a string to a specific type using the registered parser.
+   :param convert_func: A function that converts strings to values
+   :param validator: A function that validates the parsed value
+   :param error_message: Optional custom error message
+   :return: A parser function that combines parsing and validation
 
-      :param input_value: The string to parse
-      :param type_: The target type
-      :param error_message: Custom error message for parsing failures
-      :param kwargs: Additional arguments to pass to the parser
-      :return: A Maybe containing the parsed value or an error message
+   Example:
 
-   .. py:classmethod:: register_defaults()
+   .. code-block:: python
 
-      Register default parsers for built-in types.
+      from valid8r.core.parsers import validated_parser
+      from valid8r.core.validators import minimum
+      from decimal import Decimal
 
-      This registers parsers for common types such as int, float, bool, complex, date, str, list, dict, and set.
+      # Create a parser that only accepts positive decimals
+      positive_decimal = validated_parser(
+          Decimal,  # Convert function
+          lambda x: minimum(Decimal('0'))(x),  # Validator function
+          "Not a valid positive decimal"  # Error message
+      )
+
+      result = positive_decimal("42.5")
+      match result:
+          case Success(value):
+              print(f"Valid decimal: {value}")
+          case Failure(error):
+              print(f"Error: {error}")
 
 Validators
 ----------
@@ -639,7 +654,7 @@ Pattern Matching with Success and Failure
 The Success and Failure classes in Valid8r are designed to work with Python's pattern matching feature (introduced in Python 3.10). This enables concise and readable handling of validation results.
 
 Basic Pattern Matching
-~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -654,8 +669,8 @@ Basic Pattern Matching
        case Failure(error):
            print(f"Error: {error}")
 
-Nested Pattern Matching
-~~~~~~~~~~~~~~~~~~~~~~~
+Pattern Matching with Conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -678,8 +693,8 @@ Nested Pattern Matching
            case Failure(error):
                return f"Validation error: {error}"
 
-Combined Results Pattern Matching
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Matching Multiple Results
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -699,86 +714,3 @@ Combined Results Pattern Matching
                return f"Invalid x-coordinate: {error}"
            case (_, Failure(error)):
                return f"Invalid y-coordinate: {error}"
-
-Usage Examples
---------------
-
-Here are some examples of using the core API:
-
-.. code-block:: python
-
-   from valid8r import Maybe, parsers, validators
-   from valid8r.core.maybe import Success, Failure
-
-   # Using the Maybe monad with pattern matching
-   result = Maybe.success(42)
-   match result:
-       case Success(value):
-           print(f"Success: {value}")  # Success: 42
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Chaining with bind
-   result = (
-       Maybe.success(42)
-       .bind(lambda x: Maybe.success(x * 2))
-       .bind(lambda x: Maybe.success(x + 10))
-   )
-   match result:
-       case Success(value):
-           print(f"Result: {value}")  # Result: 94
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Using parsers with pattern matching
-   result = parsers.parse_int("42")
-   match result:
-       case Success(value):
-           print(f"Parsed: {value}")  # Parsed: 42
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Using validators with pattern matching
-   is_positive = validators.minimum(0)
-   result = is_positive(42)
-   match result:
-       case Success(value):
-           print(f"Valid: {value}")  # Valid: 42
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Combining validators
-   valid_age = validators.minimum(0) & validators.maximum(120)
-   result = valid_age(42)
-   match result:
-       case Success(value):
-           print(f"Valid age: {value}")  # Valid age: 42
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Parser and validator together
-   result = parsers.parse_int("42").bind(lambda x: valid_age(x))
-   match result:
-       case Success(value):
-           print(f"Valid age: {value}")  # Valid age: 42
-       case Failure(error):
-           print(f"Error: {error}")
-
-   # Complex validation pipeline
-   def validate_user_input(input_str):
-       return (
-           parsers.parse_int(input_str)
-           .bind(lambda x: validators.minimum(1)(x))
-           .bind(lambda x: validators.maximum(100)(x))
-           .bind(lambda x: validators.predicate(
-               lambda v: v % 2 == 0,
-               "Number must be even"
-           )(x))
-       )
-
-   result = validate_user_input("42")
-   match result:
-       case Success(value):
-           print(f"Valid input: {value}")  # Valid input: 42
-       case Failure(error):
-           print(f"Invalid input: {error}")

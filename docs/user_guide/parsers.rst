@@ -251,7 +251,6 @@ Enum Parser
        case Failure(error):
            print(error)  # "Input must be a valid enumeration value"
 
-
 Collection Type Parsing
 -----------------------
 
@@ -295,15 +294,19 @@ Valid8r supports parsing strings into collection types like lists and dictionari
        case Failure(error):
            print(f"Error: {error}")
 
+Creating Custom Parsers
+------------------------
 
-Parser Registry
----------------
+Valid8r offers two approaches for creating custom parsers:
 
-For more advanced use cases, Valid8r provides a ParserRegistry system that allows you to register custom parsers for specific types:
+Using the ``create_parser`` Function
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``create_parser`` function allows you to create a parser from any function that converts a string to another type:
 
 .. code-block:: python
 
-   from valid8r.core.parsers import ParserRegistry
+   from valid8r.core.parsers import create_parser
    from valid8r.core.maybe import Maybe, Success, Failure
    import ipaddress
 
@@ -314,27 +317,85 @@ For more advanced use cases, Valid8r provides a ParserRegistry system that allow
        except ValueError:
            return Maybe.failure("Invalid IP address")
 
-   # Register the parser
-   ParserRegistry.register(ipaddress.IPv4Address, parse_ip_address)
+   # Or more simply with create_parser
+   ip_parser = create_parser(ipaddress.IPv4Address, "Invalid IP address")
 
    # Parse a string to an IP address
-   result = ParserRegistry.parse("192.168.1.1", ipaddress.IPv4Address)
+   result = ip_parser("192.168.1.1")
    match result:
        case Success(value):
            print(f"Parsed IP: {value}")  # Parsed IP: 192.168.1.1
        case Failure(error):
            print(f"Error: {error}")
 
-   # Register default parsers for built-in types
-   ParserRegistry.register_defaults()
+Using the ``make_parser`` Decorator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   # Parse with type-specific options
-   result = ParserRegistry.parse("42", int, min_value=0, max_value=100)
+The ``make_parser`` decorator converts a function into a parser:
+
+.. code-block:: python
+
+   from valid8r.core.parsers import make_parser
+   from decimal import Decimal
+
+   # Create a parser using the decorator
+   @make_parser
+   def parse_decimal(s: str) -> Decimal:
+       return Decimal(s)
+
+   # Parse with custom error message
+   @make_parser
+   def parse_percentage(s: str) -> float:
+       value = float(s.strip('%')) / 100
+       return value
+
+   # Use the parsers
+   result = parse_decimal("42.5")
    match result:
        case Success(value):
-           print(f"Parsed int: {value}")  # Parsed int: 42
+           print(f"Parsed decimal: {value}")  # Parsed decimal: 42.5
        case Failure(error):
            print(f"Error: {error}")
+
+   result = parse_percentage("75%")
+   match result:
+       case Success(value):
+           print(f"Parsed percentage: {value}")  # Parsed percentage: 0.75
+       case Failure(error):
+           print(f"Error: {error}")
+
+Validated Parsers
+----------------
+
+For cases where you want to combine parsing and validation in a single step:
+
+.. code-block:: python
+
+   from valid8r.core.parsers import validated_parser
+   from valid8r.core.validators import minimum, maximum
+   from decimal import Decimal
+
+   # Create a parser that only accepts positive numbers
+   positive_decimal = validated_parser(
+       Decimal,  # Convert function
+       lambda x: minimum(Decimal('0'))(x),  # Validator function
+       "Not a valid positive decimal"  # Error message
+   )
+
+   # Use the validated parser
+   result = positive_decimal("42.5")  # Valid
+   match result:
+       case Success(value):
+           print(f"Valid positive decimal: {value}")  # Valid positive decimal: 42.5
+       case Failure(error):
+           print(f"Error: {error}")
+
+   result = positive_decimal("-10.5")  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(f"Error: {error}")  # Error: Value must be at least 0
 
 Error Handling
 --------------
@@ -451,7 +512,6 @@ When deciding between handling errors in parser functions versus validation logi
            print("This won't happen")
        case Failure(error):
            print(error)  # "Value must be an integer"
-
 
 Parsing with Validation
 -----------------------

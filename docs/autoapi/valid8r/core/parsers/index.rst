@@ -17,15 +17,9 @@ Attributes
    valid8r.core.parsers.T
    valid8r.core.parsers.K
    valid8r.core.parsers.V
+   valid8r.core.parsers.P
+   valid8r.core.parsers.E
    valid8r.core.parsers.ISO_DATE_LENGTH
-
-
-Classes
--------
-
-.. autoapisummary::
-
-   valid8r.core.parsers.ParserRegistry
 
 
 Functions
@@ -45,6 +39,9 @@ Functions
    valid8r.core.parsers.parse_int_with_validation
    valid8r.core.parsers.parse_list_with_validation
    valid8r.core.parsers.parse_dict_with_validation
+   valid8r.core.parsers.create_parser
+   valid8r.core.parsers.make_parser
+   valid8r.core.parsers.validated_parser
 
 
 Module Contents
@@ -55,6 +52,10 @@ Module Contents
 .. py:data:: K
 
 .. py:data:: V
+
+.. py:data:: P
+
+.. py:data:: E
 
 .. py:data:: ISO_DATE_LENGTH
    :value: 10
@@ -106,17 +107,8 @@ Module Contents
 
    Parse a string to a dictionary using the specified parsers and separators.
 
-   :param input_value: The string to parse
-   :param key_parser: A function that parses keys
-   :param value_parser: A function that parses values
-   :param pair_separator: The string that separates key-value pairs
-   :param key_value_separator: The string that separates keys from values
-   :param error_message: Custom error message for parsing failures
 
-   :returns: A Maybe containing the parsed dictionary or an error message
-
-
-.. py:function:: parse_set(input_value, element_parser = None, separator = ',', error_message = None)
+.. py:function:: parse_set(input_value, element_parser = None, separator = None, error_message = None)
 
    Parse a string to a set using the specified element parser and separator.
 
@@ -169,79 +161,67 @@ Module Contents
    :returns: A Maybe containing the parsed dictionary or an error message
 
 
-.. py:class:: ParserRegistry
+.. py:function:: create_parser(convert_func, error_message = None)
 
-   Registry for parser functions.
+   Create a parser function from a conversion function.
 
-   This class provides a way to register custom parsers for specific types
-   and retrieve them later. It also provides a convenient way to parse strings
-   to specific types using registered parsers.
+   This factory takes a function that converts strings to values and wraps it
+   in error handling logic to return Maybe instances.
 
-   .. admonition:: Examples
+   :param convert_func: A function that converts strings to values of type T
+   :param error_message: Optional custom error message for failures
 
-      >>> # Register a custom parser for IP addresses
-      >>> def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
-      ...     try:
-      ...         return Maybe.success(ipaddress.IPv4Address(input_value))
-      ...     except ValueError:
-      ...         return Maybe.failure("Invalid IP address")
-      ...
-      >>> ParserRegistry.register(ipaddress.IPv4Address, parse_ip_address)
-      ...
-      >>> # Parse a string to an IP address
-      >>> result = ParserRegistry.parse("192.168.1.1", ipaddress.IPv4Address)
+   :returns: A parser function that returns Maybe[T]
+
+   .. admonition:: Example
+
+      >>> from decimal import Decimal
+      >>> parse_decimal = create_parser(Decimal, "Invalid decimal format")
+      >>> result = parse_decimal("3.14")
       >>> result.is_success()
       True
-      >>> str(result.value_or(None))
-      '192.168.1.1'
 
 
-   .. py:method:: register(type_, parser)
-      :classmethod:
+.. py:function:: make_parser(func: collections.abc.Callable[[str], T]) -> collections.abc.Callable[[str], valid8r.core.maybe.Maybe[T]]
+                 make_parser() -> collections.abc.Callable[[collections.abc.Callable[[str], T]], collections.abc.Callable[[str], valid8r.core.maybe.Maybe[T]]]
+
+   Create a parser function from a conversion function with a decorator.
+
+   .. admonition:: Example
+
+      @make_parser
+      def parse_decimal(s: str) -> Decimal:
+          return Decimal(s)
+      
+      # Or with parentheses
+      @make_parser()
+      def parse_decimal(s: str) -> Decimal:
+          return Decimal(s)
+      
+      result = parse_decimal("123.45")  # Returns Maybe[Decimal]
 
 
-      Register a parser for a specific type.
+.. py:function:: validated_parser(convert_func, validator, error_message = None)
 
-      :param type_: The type to register the parser for
-      :param parser: The parser function
+   Create a parser with a built-in validator.
 
+   This combines parsing and validation in a single function.
 
+   :param convert_func: A function that converts strings to values of type T
+   :param validator: A validator function that validates the parsed value
+   :param error_message: Optional custom error message for parsing failures
 
-   .. py:method:: get_parser(type_)
-      :classmethod:
+   :returns: A parser function that returns Maybe[T]
 
+   .. admonition:: Example
 
-      Get a parser for a specific type.
-
-      This method first looks for a direct match with the specified type.
-      If no direct match is found, it looks for a match with a parent class.
-
-      :param type_: The type to get a parser for
-
-      :returns: The parser function or None if not found
-
-
-
-   .. py:method:: parse(input_value, type_, error_message = None, **kwargs)
-      :classmethod:
-
-
-      Parse a string to a specific type using the registered parser.
-
-      :param input_value: The string to parse
-      :param type_: The target type
-      :param error_message: Custom error message for parsing failures
-      :param \*\*kwargs: Additional arguments to pass to the parser
-
-      :returns: A Maybe containing the parsed value or an error message
-
-
-
-   .. py:method:: register_defaults()
-      :classmethod:
-
-
-      Register default parsers for built-in types.
-
+      >>> from decimal import Decimal
+      >>> from valid8r.core.validators import minimum, maximum
+      >>> # Create a parser for positive decimals
+      >>> valid_range = lambda x: minimum(0)(x).bind(lambda y: maximum(100)(y))
+      >>> parse_percent = validated_parser(Decimal, valid_range)
+      >>> result = parse_percent("42.5")
+      >>> result.is_success()
+      True
 
 

@@ -122,7 +122,7 @@ Package Contents
       >>> test_validator_composition(is_valid_age)  # Returns True
 
 
-.. py:function:: MockInputContext(inputs)
+.. py:function:: MockInputContext(inputs = None)
 
    Context manager for mocking user input.
 
