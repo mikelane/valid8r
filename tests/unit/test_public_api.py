@@ -1,27 +1,26 @@
 from __future__ import annotations
 
 
-def test_import_core_modules_from_top_level() -> None:
-    # Feature: Public API re-exports
-    # Scenario: Import core modules from top-level
-    from valid8r import parsers, validators, prompt
+class DescribePublicApi:
+    def it_imports_core_modules_from_top_level(self) -> None:
+        # Feature: Public API re-exports
+        # Scenario: Import core modules from top-level
+        from valid8r import parsers, validators, prompt
 
-    assert parsers is not None
-    assert validators is not None
-    assert prompt is not None
+        assert parsers is not None
+        assert validators is not None
+        assert prompt is not None
 
+    def it_imports_maybe_from_top_level(self) -> None:
+        # Scenario: Import Maybe types from top-level
+        from valid8r import Maybe
+        from valid8r.core.maybe import Maybe as CoreMaybe
 
-def test_import_maybe_from_top_level() -> None:
-    # Scenario: Import Maybe types from top-level
-    from valid8r import Maybe
-    from valid8r.core.maybe import Maybe as CoreMaybe
+        assert Maybe is CoreMaybe
 
-    assert Maybe is CoreMaybe
+    def it_exposes_prompt_ask_at_top_level(self) -> None:
+        # Scenario: Top-level ask function
+        from valid8r import prompt
 
-
-def test_top_level_prompt_ask_callable() -> None:
-    # Scenario: Top-level ask function
-    from valid8r import prompt
-
-    assert hasattr(prompt, 'ask')
-    assert callable(prompt.ask)
+        assert hasattr(prompt, 'ask')
+        assert callable(prompt.ask)
