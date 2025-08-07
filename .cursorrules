@@ -1,0 +1,24 @@
+# Cursor Project Rules
+
+[available_instructions]
+pytest_naming: |
+  Use pytest discovery configuration from `pyproject.toml`:
+  - test paths: `tests`
+  - test files: `it_*.py`, `test_*.py`
+  - test classes: `Describe[A-Z]*`
+  - test functions: `it_*`
+  Follow existing tests that use classes like `DescribeSomething` with methods named `it_*`.
+
+public_api_reexports: |
+  `valid8r` top-level must re-export:
+  - modules: `parsers`, `validators`, `combinators`, and `prompt` (with `ask` exposed in `valid8r.prompt`).
+  - types: `Maybe` from `valid8r.core.maybe`.
+  Maintain backward compatibility for deep imports.
+
+run_tests_locally: |
+  In constrained environments without pytest installed, use a Python smoke test importing:
+  `from valid8r import parsers, validators, prompt, Maybe` and assert `prompt.ask` is callable.
+
+[default]
+- When adding tests, ensure names match the `Describe*` / `it_*` style so they are discovered.
+- Avoid changing unrelated formatting; match repo code style and ruff rules.
