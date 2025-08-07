@@ -132,7 +132,7 @@ class Failure(Maybe[T]):
         """
         return Failure(self.error)
 
-    def value_or(self, default: U) -> U:
+    def value_or(self, default: U) -> U | str:
         """Safely get the value or a default."""
         if self.error:
             return self.error

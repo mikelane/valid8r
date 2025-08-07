@@ -32,7 +32,7 @@ class Numeric(Protocol):  # noqa: D101
 
 T = TypeVar('T')
 U = TypeVar('U')
-N = TypeVar('N', bound=[Numeric | Decimal])
+N = TypeVar('N', bound=Numeric | Decimal)
 
 
 class Validator(Generic[T]):
