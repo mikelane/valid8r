@@ -37,6 +37,10 @@ ENV/
 # Testing
 .pytest_cache/
 
+# Mutation testing
+mutants/
+.mutmut-cache/
+
 # Documentation
 docs/_build/
 docs/api/_build/
