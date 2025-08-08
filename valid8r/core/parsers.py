@@ -21,6 +21,7 @@ from valid8r.core.maybe import (
     Maybe,
     Success,
 )
+from decimal import Decimal, InvalidOperation
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -136,6 +137,26 @@ def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[c
         return Maybe.success(value)
     except ValueError:
         return Maybe.failure(error_message or 'Input must be a valid complex number')
+
+
+def parse_decimal(input_value: str, error_message: str | None = None) -> Maybe[Decimal]:
+    """Parse a string to a Decimal.
+
+    Args:
+        input_value: String representation of a decimal number
+        error_message: Optional custom error message
+
+    Returns:
+        Maybe[Decimal]: Success with Decimal value or Failure with an error message
+    """
+    if not input_value:
+        return Maybe.failure('Input must not be empty')
+
+    try:
+        value = Decimal(input_value.strip())
+        return Maybe.success(value)
+    except (InvalidOperation, ValueError):
+        return Maybe.failure(error_message or 'Input must be a valid number')
 
 
 def _check_enum_has_empty_value(enum_class: type[Enum]) -> bool:
