@@ -18,16 +18,12 @@ pip install valid8r
 ## Quick Start
 
 ```python
-from valid8r import (
-    parsers,
-    prompt,
-    validators, 
-)
+from valid8r import parsers, validators, prompt
 
 # Simple validation
 age = prompt.ask(
     "Enter your age: ",
-    parser=parsers.int_parser,
+    parser=parsers.parse_int,
     validator=validators.minimum(0) & validators.maximum(120)
 )
 
