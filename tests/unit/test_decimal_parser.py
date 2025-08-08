@@ -6,7 +6,7 @@ import pytest
 
 from valid8r.core.maybe import Failure, Maybe, Success
 from valid8r.core.parsers import parse_decimal
-from valid8r.core.validators import minimum
+from valid8r.core.validators import maximum, minimum, between
 
 
 class DescribeDecimalParser:
@@ -46,3 +46,36 @@ class DescribeDecimalParser:
                 pytest.fail(f"Unexpected success: {value}")
             case Failure(error):
                 assert "at least 0" in error
+
+    def it_validates_maximum_with_decimal_values(self) -> None:
+        validator = maximum(Decimal("10"))
+        # Passes below and at max
+        for value in (Decimal("9.99"), Decimal("10")):
+            match validator(value):
+                case Success(v):
+                    assert v == value
+                case Failure(error):
+                    pytest.fail(f"Unexpected failure: {error}")
+        # Fails above max
+        match validator(Decimal("10.01")):
+            case Success(v):
+                pytest.fail(f"Unexpected success: {v}")
+            case Failure(error):
+                assert "at most 10" in error
+
+    def it_validates_between_with_decimal_values(self) -> None:
+        validator = between(Decimal("-1.5"), Decimal("2.5"))
+        # Passes inside and on boundaries
+        for value in (Decimal("0"), Decimal("-1.5"), Decimal("2.5")):
+            match validator(value):
+                case Success(v):
+                    assert v == value
+                case Failure(error):
+                    pytest.fail(f"Unexpected failure: {error}")
+        # Fails outside range
+        for value in (Decimal("-1.51"), Decimal("2.51")):
+            match validator(value):
+                case Success(v):
+                    pytest.fail(f"Unexpected success: {v}")
+                case Failure(error):
+                    assert "between -1.5 and 2.5" in error
