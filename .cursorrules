@@ -1,24 +1,325 @@
-# Cursor Project Rules
+# .cursorrules
+# Goal: Make Cursor an excellent software engineering companion. Combine general, language-agnostic engineering rules
+# with repo-specific testing/style guidance already in use.
+
+Cursor Project Rules
 
 [available_instructions]
-pytest_naming: |
-  Use pytest discovery configuration from `pyproject.toml`:
-  - test paths: `tests`
-  - test files: `it_*.py`, `test_*.py`
-  - test classes: `Describe[A-Z]*`
-  - test functions: `it_*`
-  Follow existing tests that use classes like `DescribeSomething` with methods named `it_*`.
 
-public_api_reexports: |
-  `valid8r` top-level must re-export:
-  - modules: `parsers`, `validators`, `combinators`, and `prompt` (with `ask` exposed in `valid8r.prompt`).
-  - types: `Maybe` from `valid8r.core.maybe`.
+# ---------- Language-agnostic AI operating rules ----------
+ai_alignment:
+  # Clarify the ask and fit the context
+  • Restate the task, inputs, outputs, constraints, and success criteria before writing code.
+  • Detect and follow the project’s stack, runtime, CI, testing style, and naming/layout conventions.
+  • Surface tradeoffs: propose a primary approach and at least one viable alternative with pros/cons.
+
+ai_small_steps:
+  # Keep changes tiny and reversible
+  • Prefer minimal, incremental diffs gated by tests; one responsibility per change.
+  • Use feature flags/toggles or adapters for risky changes.
+  • Avoid speculative generality; implement the smallest thing that could possibly work.
+
+ai_correct_first:
+  # Make it work before making it fast/fancy
+  • Provide runnable examples and tests that demonstrate behavior.
+  • Specify behavior via public surfaces; avoid coupling tests to internals.
+  • Cover golden path, edge cases, and failure modes.
+
+ai_readability:
+  # Clear beats clever
+  • Favor descriptive names, short functions, cohesive modules.
+  • Remove duplication; maintain a single source of truth.
+  • Isolate complex logic behind simple interfaces.
+
+ai_design_for_change:
+  # Stable boundaries, evolvable internals
+  • Program to interfaces/abstractions; hide implementation details.
+  • Validate at the edges; keep core logic working on trusted data.
+  • For legacy code, prefer strangler patterns and incremental replacement over rewrites.
+
+ai_refactoring:
+  # Improve safely with a net
+  • Refactor only with passing tests; preserve behavior.
+  • Apply the scout rule: leave touched code cleaner.
+  • For perf-sensitive areas, capture before/after metrics.
+
+ai_security_reliability:
+  # Non-optional requirements
+  • Enforce least privilege for code, data, secrets, and CI.
+  • Validate and sanitize all inputs (type/range/format); fail closed with secure defaults.
+  • Add observability at service/module boundaries: structured logs, key metrics, trace points.
+
+ai_performance:
+  # Pragmatic optimization
+  • Make it work, then measure; optimize only with evidence.
+  • Prefer simpler algorithms until data proves otherwise.
+  • Call out expected time/space/IO complexity and resource budgets.
+
+ai_dependency_hygiene:
+  # Keep the supply chain tidy
+  • Prefer standard libraries and fewer dependencies when reasonable.
+  • Track versions, licenses, and security advisories; pin/lock where appropriate.
+  • Wrap third-party libraries behind thin, swappable adapters.
+
+ai_docs:
+  # Documentation that earns its keep
+  • Update API/module docs when behavior or surfaces change; describe behavior, inputs, outputs, invariants.
+  • Prefer runnable examples to prose where possible.
+  • Delete or update stale docs; stale docs are bugs.
+
+ai_vcs_etiquette:
+  # Version control best practices
+  • Make atomic commits with messages that explain “why” before “what.”
+  • Ensure tests/linters/static analysis pass locally before opening a PR/MR.
+  • PR/MR descriptions should include context, decisions, risks, and validation notes.
+
+ai_collaboration:
+  # Human-friendly by default
+  • Ask clarifying questions when requirements are ambiguous; do not guess silently.
+  • Offer 2–3 options with consequences when tradeoffs exist.
+  • Match the project’s code style, directory layout, and tooling.
+
+ai_ethics_guardrails:
+  # Do the right thing
+  • Respect licenses; verify compatibility before suggesting code.
+  • Attribute significant ideas/snippets that are not original.
+  • Never expose secrets or PII in code, logs, examples, or test data.
+
+ai_definition_of_done:
+  # Quality bar for AI-produced changes
+  • Task restated; constraints and acceptance criteria confirmed.
+  • Approach and alternatives documented (in PR/MR or design note).
+  • Code compiles/runs cleanly; linting/formatting/static analysis are clean.
+  • Tests exist, pass locally, and demonstrate behavior and edge cases.
+  • Security, error handling, and observability addressed where relevant.
+  • Public surfaces documented; docs/doctests updated.
+
+ai_escalation:
+  # Know when to pause and propose a design
+  • Conflicting requirements or missing success criteria.
+  • Meaningful risk of data loss/security exposure without a rollback plan.
+  • Changes imply architectural shifts; produce a short design note first.
+
+ai_operating_sequence:
+  # Step-by-step workflow for Cursor
+  1. Confirm: restate task/constraints/acceptance criteria; ask blocking questions.
+  2. Plan: outline a tiny increment that delivers user value; note tradeoffs.
+  3. Propose: show tests first, then implementation; keep diff small.
+  4. Validate: enumerate edge cases, security checks, and perf notes.
+  5. Refine: simplify names/structure; remove duplication.
+  6. Deliver: provide patch + tests + concise PR description with rationale and follow-ups.
+  7. Iterate: accept feedback; repeat in small steps.
+
+# ---------- Existing repo-specific testing/style guidance ----------
+pytest_naming:
+  Use pytest discovery configuration from pyproject.toml:
+    • test paths: tests
+    • test files: it_*.py, test_*.py
+    • test classes: Describe[A-Z]*
+    • test functions: it_*
+  When creating new tests:
+    • Mirror src/valid8r/... structure under tests/....
+    • Use classes like DescribeThing with methods it_describes_behavior.
+    • Prefer @pytest.mark.parametrize (see parametrization_policy).
+    • For async code, mark tests with @pytest.mark.asyncio.
+
+testing_principles:
+  Adopt Software Engineering at Google testing practices:
+    • Test behavior, not implementation (assert on public surface; avoid peeking at internals/private state).
+    • Small and hermetic: no network, no real filesystem (use tmp_path), no time dependence (inject a clock or freeze time).
+    • Deterministic: seed randomness; avoid sleeps and flakiness; keep timeouts tight.
+    • DAMP not DRY in tests: prioritize clarity over reuse; duplication in tests is fine when it improves readability.
+    • One concept per test: each test should fail for a single understandable reason.
+    • Clear names as specification: DescribeFoo.it_rejects_empty_input style; prefer long, descriptive names.
+    • Use fakes over mocks when possible; prefer dependency injection to make seams explicit.
+    • Don’t assert on log messages unless the log is a defined behavior.
+    • Coverage is a byproduct, not the goal; prioritize risk and critical paths.
+    • Keep fixtures simple and local; avoid deep fixture hierarchies that obscure intent.
+
+fixtures_and_mocks:
+  • Prefer pytest fixtures for setup; avoid xUnit setup/teardown.
+  • Use MagicMock/AsyncMock sparingly; favor fakes/simple test doubles.
+  • For static data, use pytest_lambda.static_fixture.
+  • Use monkeypatch for env vars and module-level patching.
+  • Isolate global state; reset or inject dependencies per test.
+
+io_and_time_isolation:
+  • Use tmp_path/tmp_path_factory for any filesystem work.
+  • For time, inject a clock callable or use freezegun.freeze_time in tests.
+
+parametrization_policy:
+  Prefer parametrized tests. Use indirect parametrization when constructing objects/fixtures is non-trivial or when parameters map to fixtures.
+
+  Direct example:
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            pytest.param("42", 42, id="pos-42"),
+            pytest.param("0", 0, id="zero"),
+            pytest.param("-1", -1, id="neg-1"),
+        ],
+    )
+    def it_parses_integers(raw, expected):
+        assert parsers.int(raw) == expected
+
+  Indirect example:
+
+    @pytest.fixture
+    def user(request):
+        return User(name=request.param["name"], role=request.param["role"])
+
+    @pytest.mark.parametrize(
+        "user,allowed",
+        [
+            pytest.param({"name": "alice", "role": "admin"}, True, id="admin-allowed"),
+            pytest.param({"name": "bob", "role": "viewer"}, False, id="viewer-denied"),
+        ],
+        indirect=["user"],
+    )
+    def it_checks_access(user, allowed):
+        assert can_access(user) is allowed
+
+  IDs:
+    Provide excellent, human-readable ids for each case:
+      • Short, kebab-case descriptions of behavior (e.g., empty-input, admin-allowed, viewer-denied).
+      • Include critical parameter hints when useful (e.g., neg-1, boundary-0, unicode-snowman).
+      • Avoid opaque numeric-only ids.
+
+public_api_reexports:
+  valid8r top-level must re-export:
+    • modules: parsers, validators, combinators, and prompt (with ask exposed in valid8r.prompt).
+    • types: Maybe from valid8r.core.maybe.
   Maintain backward compatibility for deep imports.
+  When changing exports:
+    • Update __all__ in valid8r/__init__.py and valid8r/prompt/__init__.py.
+    • Update public API tests (see public_api_test_template).
+    • Public API code should have high-quality docstrings and doctests (see public_api_docs).
 
-run_tests_locally: |
-  In constrained environments without pytest installed, use a Python smoke test importing:
-  `from valid8r import parsers, validators, prompt, Maybe` and assert `prompt.ask` is callable.
+  Mini __init__.py export pattern:
 
+    # valid8r/__init__.py
+    from __future__ import annotations
+
+    from . import parsers, validators, combinators, prompt
+    from .core.maybe import Maybe
+
+    __all__ = [
+        "parsers",
+        "validators",
+        "combinators",
+        "prompt",
+        "Maybe",
+    ]
+
+    # valid8r/prompt/__init__.py
+    from __future__ import annotations
+
+    from .ask import ask
+
+    __all__ = ["ask"]
+
+  Tiny indirect parametrized test using the public API:
+
+    import pytest
+    from valid8r import prompt
+
+    @pytest.fixture
+    def question(request):
+        # Imagine 'ask' uses this question text internally
+        return request.param
+
+    @pytest.mark.parametrize(
+        "question,expected_callable",
+        [
+            pytest.param("What is your name?", True, id="simple-question"),
+            pytest.param("Choose an option: [a/b]", True, id="multiple-choice"),
+        ],
+        indirect=["question"],
+    )
+    def it_exposes_prompt_ask_as_callable(question, expected_callable):
+        # Public API behavior: 'ask' must always be callable
+        assert callable(prompt.ask) is expected_callable
+
+public_api_test_template:
+  Create/maintain tests/it_public_api.py:
+
+    import importlib
+
+    def it_exposes_expected_symbols():
+        v = importlib.import_module("valid8r")
+        assert hasattr(v, "parsers")
+        assert hasattr(v, "validators")
+        assert hasattr(v, "combinators")
+        from valid8r import prompt, Maybe  # noqa: F401
+        assert callable(prompt.ask)
+
+    def it_preserves_deep_imports_for_backcompat():
+        assert importlib.import_module("valid8r.core.maybe").Maybe is not None
+
+public_api_docs:
+  Public API must include detailed docstrings with realistic doctests (serve as examples and executable checks).
+    • Write WHY in comments/docstrings; code should explain WHAT via names/types.
+    • Example:
+
+      def parse_positive_int(text: str) -> int:
+          """
+          Parse a string into a positive integer.
+
+          Accepts optional leading/trailing whitespace and '+' sign.
+          Raises ValueError for non-integer or non-positive values.
+
+          Examples:
+              >>> parse_positive_int("  +7 ")
+              7
+              >>> parse_positive_int("0")
+              Traceback (most recent call last):
+              ...
+              ValueError: expected a positive integer
+          """
+          ...
+
+    • Keep doctests fast and hermetic; avoid I/O and network.
+
+comment_policy:
+  Keep comments minimal. Only explain WHY something is done if it is non-obvious or encodes a business rule.
+    • Do not narrate obvious steps.
+    • Public API is the exception: include rich docstrings + doctests.
+
+typing_and_style:
+  • All new/changed Python must be fully type-annotated.
+  • Code must pass mypy (repo config) and ruff (repo rules).
+  • Avoid unrelated reformatting; only change lines necessary for the task.
+
+run_tests_locally:
+  In constrained environments without pytest installed, create smoke_test.py:
+
+    from valid8r import parsers, validators, prompt, Maybe
+    assert callable(prompt.ask)
+    print("ok")
+
+  Make it runnable with: python smoke_test.py
+
+ci_expectations:
+  • Follow TDD: write a failing test, write the minimum code to pass, then refactor both.
+  • Unit tests should be fast (<1s each where practical); mark slower ones @pytest.mark.slow.
+  • Tests are hermetic by default; mark any external integrations as @pytest.mark.integration.
+
+# ---------- Defaults applied to all requests ----------
 [default]
-- When adding tests, ensure names match the `Describe*` / `it_*` style so they are discovered.
-- Avoid changing unrelated formatting; match repo code style and ruff rules.
+  # Operating mode summary (language-agnostic)
+  • Apply ai_operating_sequence; keep changes small and reversible.
+  • Follow ai_alignment, ai_correct_first, ai_readability, ai_design_for_change.
+  • Enforce ai_security_reliability, ai_performance, ai_dependency_hygiene.
+  • Honor ai_vcs_etiquette, ai_docs, ai_collaboration, ai_ethics_guardrails.
+  • Meet ai_definition_of_done; use ai_escalation when needed.
+
+  # Repo-specific testing/style
+  • Use Describe*/it_* names that read like a spec; mirror src under tests.
+  • Apply Google testing principles: behavior-based, small, hermetic, deterministic, DAMP.
+  • Prefer parametrization; use indirect parametrization for non-trivial setup; use pytest.param with excellent ids.
+  • Keep comments minimal (WHY only). Public API gets rich docstrings + doctests.
+  • Prefer fixtures + (Async)MagicMock (sparingly) + pytest_lambda.static_fixture.
+  • Use tmp_path, monkeypatch, and frozen/injected time for isolation.
+  • Maintain public API exports and back-compat; keep public API tests and docs in sync.
+  • Match repo style (ruff) and types (mypy); avoid drive-by reformatting.
