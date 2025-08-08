@@ -21,13 +21,13 @@ pip install valid8r
 from valid8r import (
     parsers,
     prompt,
-    validators, 
+    validators,
 )
 
 # Simple validation
 age = prompt.ask(
     "Enter your age: ",
-    parser=parsers.int_parser,
+    parser=parsers.parse_int,
     validator=validators.minimum(0) & validators.maximum(120)
 )
 
@@ -39,7 +39,10 @@ print(f"Your age is {age}")
 Valid8r includes testing utilities to help you verify your validation logic:
 
 ```python
-from valid8r.testing import MockInputContext, assert_maybe_success
+from valid8r.testing import (
+    MockInputContext,
+    assert_maybe_success,
+)
 
 # Test prompts with mock input
 with MockInputContext(["yes"]):
