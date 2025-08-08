@@ -18,11 +18,21 @@ pip install valid8r
 ## Quick Start
 
 ```python
+<<<<<<< Updated upstream
 from valid8r import (
     parsers,
     prompt,
     validators,
 )
+||||||| Stash base
+from valid8r import (
+    parsers,
+    prompt,
+    validators, 
+)
+=======
+from valid8r import parsers, prompt, validators
+>>>>>>> Stashed changes
 
 # Simple validation
 age = prompt.ask(
