@@ -32,6 +32,13 @@ class DescribeDecimalParser:
             case Failure(error):
                 assert "valid number" in error.casefold()
 
+    def it_rejects_empty_input(self) -> None:
+        match parse_decimal(""):
+            case Success(value):
+                pytest.fail(f"Unexpected success: {value}")
+            case Failure(error):
+                assert error == "Input must not be empty"
+
     def it_works_with_numeric_validators(self) -> None:
         validator = minimum(Decimal("0"))
         # Valid case
