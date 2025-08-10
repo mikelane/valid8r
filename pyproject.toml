@@ -2,7 +2,7 @@
 name = "valid8r"
 version = "0.1.0"
 description = "Clean, flexible input validation for Python applications"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Mike Lane <mikelane@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/mikelane/valid8r"
@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 packages = [{include = "valid8r"}]
+include = [{ path = "valid8r/py.typed", format = "wheel" }]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
