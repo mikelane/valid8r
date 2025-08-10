@@ -1,9 +1,9 @@
 Welcome to Valid8r's documentation!
 ===================================
 
-.. image:: https://img.shields.io/badge/Python-3.10%2B-blue
+.. image:: https://img.shields.io/badge/Python-3.11%2B-blue
    :target: https://www.python.org/downloads/
-   :alt: Python 3.10+
+   :alt: Python 3.11+
 
 .. image:: https://img.shields.io/github/license/mikelane/valid8r
    :target: https://github.com/mikelane/valid8r/blob/main/LICENSE
@@ -15,7 +15,7 @@ Key Features
 ------------
 
 * **Clean Type Parsing**: Parse strings to various Python types with robust error handling
-* **Pattern Matching Support**: Use Python 3.10+ pattern matching for elegant error handling
+* **Pattern Matching Support**: Use Python 3.11+ pattern matching for elegant error handling
 * **Flexible Validation**: Chain validators and create custom validation rules
 * **Functional Approach**: Use Success and Failure types instead of exceptions for error handling
 * **Input Prompting**: Prompt users for input with built-in validation
@@ -69,7 +69,7 @@ Alternatively, if you use Poetry:
 Validation with Pattern Matching
 --------------------------------
 
-Valid8r is designed to work seamlessly with Python 3.10+ pattern matching, enabling elegant and readable validation code:
+Valid8r is designed to work seamlessly with Python 3.11+ pattern matching, enabling elegant and readable validation code:
 
 .. code-block:: python
 
@@ -144,7 +144,7 @@ Valid8r offers several advantages over traditional validation approaches:
 
 1. **No exceptions for control flow**: Instead of raising and catching exceptions, Valid8r uses Success and Failure types to represent validation results.
 
-2. **Elegant pattern matching**: With Python 3.10+, you can use pattern matching to handle validation results in a clear and concise way.
+2. **Elegant pattern matching**: With Python 3.11+, you can use pattern matching to handle validation results in a clear and concise way.
 
 3. **Composable validators**: Build complex validation rules by combining simple validators with logical operators.
 
