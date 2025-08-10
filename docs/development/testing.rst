@@ -65,7 +65,8 @@ You can run tests using Poetry or tox:
    poetry run tox
 
    # Run tests for a specific Python version
-   poetry run tox -e py311
+   poetry run tox -e py313  # primary dev version
+   poetry run tox -e py311  # minimum supported
 
    # Run only BDD tests with tox
    poetry run tox -e bdd

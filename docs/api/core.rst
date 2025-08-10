@@ -61,7 +61,7 @@ Maybe Monad
 
    A concrete implementation of Maybe representing a successful computation.
 
-   This class supports pattern matching in Python 3.10+.
+   This class supports pattern matching in Python 3.11+.
 
    .. py:attribute:: value
 
@@ -71,7 +71,7 @@ Maybe Monad
 
    A concrete implementation of Maybe representing a failed computation.
 
-   This class supports pattern matching in Python 3.10+.
+   This class supports pattern matching in Python 3.11+.
 
    .. py:attribute:: error
 
@@ -651,7 +651,7 @@ Functions for combining validators.
 Pattern Matching with Success and Failure
 -----------------------------------------
 
-The Success and Failure classes in Valid8r are designed to work with Python's pattern matching feature (introduced in Python 3.10). This enables concise and readable handling of validation results.
+The Success and Failure classes in Valid8r are designed to work with Python's pattern matching feature (introduced in Python 3.11). This enables concise and readable handling of validation results.
 
 Basic Pattern Matching
 ^^^^^^^^^^^^^^^^^^^^^^
