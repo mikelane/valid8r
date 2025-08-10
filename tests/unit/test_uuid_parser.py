@@ -18,21 +18,21 @@ def make_uuid(version: int) -> str:
     return f'{seg1}-{seg2}-{seg3}-{seg4}-{seg5}'
 
 
-@pytest.mark.parametrize('v', [1, 3, 4, 5, 7])
-def test_parse_valid_uuid_versions(v: int) -> None:
-    u = make_uuid(v)
-    match parse_uuid(u, version=v):
-        case Success(value):
-            assert isinstance(value, UUID)
-            assert value.version == v
-        case Failure(error):  # pragma: no cover - easier debug
-            pytest.fail(f'Unexpected failure: {error}')
+class DescribeUuidParsing:
+    @pytest.mark.parametrize('v', [1, 3, 4, 5, 7])
+    def it_parses_valid_uuid_versions(self, v: int) -> None:
+        u = make_uuid(v)
+        match parse_uuid(u, version=v):
+            case Success(value):
+                assert isinstance(value, UUID)
+                assert value.version == v
+            case Failure(error):  # pragma: no cover - easier debug
+                pytest.fail(f'Unexpected failure: {error}')
 
-
-def test_reject_wrong_version_when_strict() -> None:
-    v1 = make_uuid(1)
-    match parse_uuid(v1, version=4, strict=True):
-        case Success(value):
-            pytest.fail(f'Unexpected success: {value}')
-        case Failure(error):
-            assert 'expected v4' in error and 'got v1' in error
+    def it_rejects_wrong_version_when_strict(self) -> None:
+        v1 = make_uuid(1)
+        match parse_uuid(v1, version=4, strict=True):
+            case Success(value):
+                pytest.fail(f'Unexpected success: {value}')
+            case Failure(error):
+                assert 'expected v4' in error and 'got v1' in error
