@@ -4,7 +4,7 @@ Getting Started
 Installation
 ------------
 
-Valid8r requires Python 3.11 or higher. You can install it using pip:
+Valid8r requires Python 3.13 or higher. You can install it using pip:
 
 .. code-block:: bash
 

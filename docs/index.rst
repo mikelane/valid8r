@@ -1,9 +1,9 @@
 Welcome to Valid8r's documentation!
 ===================================
 
-.. image:: https://img.shields.io/badge/Python-3.11%2B-blue
+.. image:: https://img.shields.io/badge/Python-3.13%2B-blue
    :target: https://www.python.org/downloads/
-   :alt: Python 3.11+
+   :alt: Python 3.13+
 
 .. image:: https://img.shields.io/github/license/mikelane/valid8r
    :target: https://github.com/mikelane/valid8r/blob/main/LICENSE
