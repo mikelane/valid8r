@@ -22,6 +22,8 @@ from valid8r.core.maybe import (
     Success,
 )
 from decimal import Decimal, InvalidOperation
+import re
+from uuid import UUID
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -30,6 +32,9 @@ P = ParamSpec('P')
 E = TypeVar('E', bound=Enum)
 
 ISO_DATE_LENGTH = 10
+UUID_REGEX = re.compile(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-([13457])[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+)
 
 
 def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
@@ -591,3 +596,42 @@ def validated_parser(
         return result.bind(validator)
 
     return parser
+
+
+def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Maybe[UUID]:
+    """Parse a string to a UUID.
+
+    Supports RFC 4122 UUID versions 1, 3, 4, 5, and 7. When ``version`` is provided,
+    validates the parsed UUID version. In ``strict`` mode (default), a mismatch
+    yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
+
+    Args:
+        text: The UUID string in canonical 8-4-4-4-12 form.
+        version: Optional expected UUID version to validate against.
+        strict: Whether to enforce the expected version when provided.
+
+    Returns:
+        Maybe[UUID]: Success with a UUID object or Failure with an error message.
+    """
+    if not text:
+        return Maybe.failure('Input must not be empty')
+
+    s = text.strip()
+
+    match_obj = UUID_REGEX.match(s)
+    if not match_obj:
+        return Maybe.failure('Input must be a valid UUID')
+
+    parsed_version = int(match_obj.group(1))
+
+    if version is not None:
+        supported_versions = {1, 3, 4, 5, 7}
+        if version not in supported_versions:
+            return Maybe.failure(f'Unsupported UUID version: v{version}')
+        if strict and version != parsed_version:
+            return Maybe.failure(f'UUID version mismatch: expected v{version}, got v{parsed_version}')
+
+    try:
+        return Maybe.success(UUID(s))
+    except Exception:  # noqa: BLE001
+        return Maybe.failure('Input must be a valid UUID')
