@@ -22,6 +22,7 @@ from valid8r.core.maybe import (
     Success,
 )
 from decimal import Decimal, InvalidOperation
+from uuid import UUID
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -363,6 +364,34 @@ def parse_set(
 
 
 # Type-specific validation parsers
+
+
+def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Maybe[UUID]:
+    """Parse a string into a UUID with optional version validation.
+
+    Args:
+        text: The input string to parse as a UUID.
+        version: Optional UUID version to validate against (1-8).
+        strict: When True, require the parsed UUID to match the provided version.
+
+    Returns:
+        Maybe[UUID]: Success with the parsed UUID, or Failure with an error message.
+    """
+    if not text:
+        return Maybe.failure('Input must not be empty')
+
+    if version is not None and (version < 1 or version > 8):
+        return Maybe.failure('UUID version must be between 1 and 8')
+
+    try:
+        parsed = UUID(text.strip())
+    except (ValueError, AttributeError, TypeError):
+        return Maybe.failure('Input must be a valid UUID')
+
+    if strict and version is not None and parsed.version != version:
+        return Maybe.failure(f'UUID version mismatch: expected {version}, got {parsed.version}')
+
+    return Maybe.success(parsed)
 
 
 def parse_int_with_validation(
