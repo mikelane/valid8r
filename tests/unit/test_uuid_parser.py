@@ -36,3 +36,11 @@ class DescribeUuidParsing:
                 pytest.fail(f'Unexpected success: {value}')
             case Failure(error):
                 assert 'expected v4' in error and 'got v1' in error
+
+    def it_rejects_v4_when_expect_v7_strict(self) -> None:
+        v4 = make_uuid(4)
+        match parse_uuid(v4, version=7, strict=True):
+            case Success(value):
+                pytest.fail(f'Unexpected success: {value}')
+            case Failure(error):
+                assert 'expected v7' in error and 'got v4' in error
