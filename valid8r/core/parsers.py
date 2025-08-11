@@ -632,6 +632,19 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
             return Maybe.failure(f'UUID version mismatch: expected v{version}, got v{parsed_version}')
 
     try:
-        return Maybe.success(UUID(s))
+        parsed = UUID(s)
+        # Additional structural validation for UUIDv7: first 48 bits are Unix timestamp (ms)
+        if strict and parsed_version == 7:
+            # Extract first 48 bits (12 hex chars) as milliseconds since Unix epoch
+            hex_no_dashes = s.replace('-', '')
+            ts_ms = int(hex_no_dashes[:12], 16)
+            if ts_ms < 0:
+                return Maybe.failure('UUID v7 timestamp must be non-negative')
+            # Accept timestamps from epoch up to a reasonable future window (10 years)
+            now_ms = int(datetime.now().timestamp() * 1000)
+            ten_years_ms = 10 * 365 * 24 * 60 * 60 * 1000
+            if ts_ms > now_ms + ten_years_ms:
+                return Maybe.failure('UUID v7 timestamp is implausibly far in the future')
+        return Maybe.success(parsed)
     except Exception:  # noqa: BLE001
         return Maybe.failure('Input must be a valid UUID')

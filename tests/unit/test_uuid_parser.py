@@ -1,4 +1,3 @@
-import re
 from uuid import UUID
 
 import pytest
@@ -10,10 +9,31 @@ from valid8r.core.parsers import parse_uuid
 def make_uuid(version: int) -> str:
     # Generate a syntactically valid UUID for the given version.
     # UUID format: 8-4-4-4-12 hex; set variant nibble to 'a' (RFC 4122) and version nibble accordingly.
-    seg1 = '123e4567'
-    seg2 = 'e89b'
-    seg3 = f'{version:x}234'  # version nibble + 3 arbitrary hex
+    if version == 7:
+        # Use a plausible current timestamp (ms) for the first 48 bits
+        import time
+
+        ts_ms = int(time.time() * 1000)
+        ts_hex = f'{ts_ms:012x}'
+        seg1 = ts_hex[:8]
+        seg2 = ts_hex[8:12]
+        seg3 = '7abc'  # version nibble '7' + 3 arbitrary hex
+    else:
+        seg1 = '123e4567'
+        seg2 = 'e89b'
+        seg3 = f'{version:x}234'  # version nibble + 3 arbitrary hex
+
     seg4 = 'a234'  # variant nibble in [89ab] + 3 arbitrary hex
+    seg5 = '1234567890ab'
+    return f'{seg1}-{seg2}-{seg3}-{seg4}-{seg5}'
+
+
+def make_v7_with_timestamp(ts_ms: int) -> str:
+    ts_hex = f'{ts_ms:012x}'
+    seg1 = ts_hex[:8]
+    seg2 = ts_hex[8:12]
+    seg3 = '7def'  # version 7
+    seg4 = 'a234'  # RFC 4122 variant
     seg5 = '1234567890ab'
     return f'{seg1}-{seg2}-{seg3}-{seg4}-{seg5}'
 
@@ -44,3 +64,15 @@ class DescribeUuidParsing:
                 pytest.fail(f'Unexpected success: {value}')
             case Failure(error):
                 assert 'expected v7' in error and 'got v4' in error
+
+    def it_rejects_v7_with_implausible_timestamp(self) -> None:
+        import time
+
+        now_ms = int(time.time() * 1000)
+        too_future_ms = now_ms + 20 * 365 * 24 * 60 * 60 * 1000  # ~20 years
+        forged_v7 = make_v7_with_timestamp(too_future_ms)
+        match parse_uuid(forged_v7, version=7, strict=True):
+            case Success(value):
+                pytest.fail(f'Unexpected success: {value}')
+            case Failure(error):
+                assert 'timestamp' in error or 'implausibly' in error
