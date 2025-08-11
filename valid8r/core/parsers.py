@@ -25,6 +25,15 @@ from decimal import Decimal, InvalidOperation
 import re
 from uuid import UUID
 
+# Optional enhanced UUID v7 validation via third-party library
+try:
+    from uuid6 import UUID as UUIDv6  # type: ignore
+
+    _HAS_UUID6 = True
+except Exception:  # noqa: BLE001
+    UUIDv6 = None  # type: ignore
+    _HAS_UUID6 = False
+
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
@@ -633,8 +642,18 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
 
     try:
         parsed = UUID(s)
-        # Additional structural validation for UUIDv7: first 48 bits are Unix timestamp (ms)
-        if strict and parsed_version == 7:
+
+        # Prefer library-based validation for v7 if available
+        if parsed_version == 7 and strict and _HAS_UUID6 and UUIDv6 is not None:
+            try:
+                v6_obj = UUIDv6(s)  # type: ignore[misc]
+            except Exception:  # noqa: BLE001
+                return Maybe.failure('Input must be a valid UUID v7')
+            if getattr(v6_obj, 'version', None) != 7:  # type: ignore[attr-defined]
+                return Maybe.failure('Input must be a valid UUID v7')
+
+        # Fallback structural plausibility checks for v7 when library is unavailable
+        if parsed_version == 7 and strict and not _HAS_UUID6:
             # Extract first 48 bits (12 hex chars) as milliseconds since Unix epoch
             hex_no_dashes = s.replace('-', '')
             ts_ms = int(hex_no_dashes[:12], 16)
@@ -645,6 +664,7 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
             ten_years_ms = 10 * 365 * 24 * 60 * 60 * 1000
             if ts_ms > now_ms + ten_years_ms:
                 return Maybe.failure('UUID v7 timestamp is implausibly far in the future')
+
         return Maybe.success(parsed)
     except Exception:  # noqa: BLE001
         return Maybe.failure('Input must be a valid UUID')
