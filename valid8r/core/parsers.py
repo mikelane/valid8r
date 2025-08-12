@@ -22,6 +22,8 @@ from valid8r.core.maybe import (
     Success,
 )
 from decimal import Decimal, InvalidOperation
+from uuid import UUID
+import uuid_utils as uuidu
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -591,3 +593,46 @@ def validated_parser(
         return result.bind(validator)
 
     return parser
+
+
+def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Maybe[UUID]:
+    """Parse a string to a UUID.
+
+    Uses uuid-utils to parse and validate UUIDs across versions 1, 3, 4, 5, 6, 7, and 8.
+    When ``version`` is provided, validates the parsed UUID version. In ``strict`` mode (default),
+    a mismatch yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
+
+    Args:
+        text: The UUID string in canonical 8-4-4-4-12 form.
+        version: Optional expected UUID version to validate against.
+        strict: Whether to enforce the expected version when provided.
+
+    Returns:
+        Maybe[UUID]: Success with a UUID object or Failure with an error message.
+    """
+    if not text:
+        return Maybe.failure('Input must not be empty')
+
+    s = text.strip()
+
+    try:
+        # Let uuid-utils perform parsing/validation across all supported versions
+        parsed_any = uuidu.UUID(s)
+    except Exception:  # noqa: BLE001
+        return Maybe.failure('Input must be a valid UUID')
+
+    parsed_version = getattr(parsed_any, 'version', None)
+
+    if version is not None:
+        supported_versions = {1, 3, 4, 5, 6, 7, 8}
+        if version not in supported_versions:
+            return Maybe.failure(f'Unsupported UUID version: v{version}')
+        if strict and version != parsed_version:
+            return Maybe.failure(f'UUID version mismatch: expected v{version}, got v{parsed_version}')
+
+    # Return a standard library UUID object for compatibility
+    try:
+        return Maybe.success(UUID(s))
+    except Exception:  # noqa: BLE001
+        # This should not happen if uuid-utils succeeded, but guard anyway
+        return Maybe.failure('Input must be a valid UUID')
