@@ -52,10 +52,23 @@ Maybe Monad
 
    .. py:method:: value_or(default)
 
-      Safely get the value or a default.
+      Safely get the value or a default for Success.
 
       :param default: Value to return if this is a Failure
-      :return: The contained value, error message, or the default
+      :return: The contained value or the default
+
+   .. py:method:: error_or(default)
+
+      Safely get the error message or a default for Success.
+
+      :param default: Value to return if this is a Success
+      :return: The error message or the default
+
+   .. py:method:: get_error()
+
+      Retrieve the error if present.
+
+      :return: The error message, or None if this is a Success
 
 .. py:class:: valid8r.core.maybe.Success
 

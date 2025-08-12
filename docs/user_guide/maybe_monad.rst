@@ -40,21 +40,29 @@ Checking Maybe Status
    # Check if it's a success
    if success.is_success():
        # Safe to access the value
-       value = success.value_or("default")
+       value = success.value_or(0)
 
    # Check if it's a failure
    if failure.is_failure():
        # Safe to access the error
-       error_message = failure.value_or("default error")
+       error_message = failure.error_or("")
 
-Extracting Values Safely
-------------------------
+Extracting Values and Errors
+----------------------------
 
 .. code-block:: python
 
-   # Safe extraction with a default value
+   # Safe extraction with a default value for Success
    value = success.value_or(0)  # Returns 42
-   value = failure.value_or(0)  # Returns the error message or the default if no error message
+   value = failure.value_or(0)  # Returns 0 (default), since this is a Failure
+
+   # Safe extraction of error information
+   err1 = failure.error_or("no error")  # Returns "Invalid input"
+   err2 = success.error_or("no error")  # Returns the provided default for Success
+
+   # Optional access to the error
+   maybe_error = failure.get_error()  # "Invalid input"
+   maybe_error_none = success.get_error()  # None
 
 Pattern Matching with Match Statement
 -------------------------------------
