@@ -22,17 +22,8 @@ from valid8r.core.maybe import (
     Success,
 )
 from decimal import Decimal, InvalidOperation
-import re
 from uuid import UUID
-
-# Optional enhanced UUID v7 validation via third-party library
-try:
-    from uuid6 import UUID as UUIDv6  # type: ignore
-
-    _HAS_UUID6 = True
-except Exception:  # noqa: BLE001
-    UUIDv6 = None  # type: ignore
-    _HAS_UUID6 = False
+import uuid_utils as uuidu
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -41,9 +32,6 @@ P = ParamSpec('P')
 E = TypeVar('E', bound=Enum)
 
 ISO_DATE_LENGTH = 10
-UUID_REGEX = re.compile(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-([13457])[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
-)
 
 
 def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
@@ -610,9 +598,9 @@ def validated_parser(
 def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Maybe[UUID]:
     """Parse a string to a UUID.
 
-    Supports RFC 4122 UUID versions 1, 3, 4, 5, and 7. When ``version`` is provided,
-    validates the parsed UUID version. In ``strict`` mode (default), a mismatch
-    yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
+    Uses uuid-utils to parse and validate UUIDs across versions 1, 3, 4, 5, 6, 7, and 8.
+    When ``version`` is provided, validates the parsed UUID version. In ``strict`` mode (default),
+    a mismatch yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
 
     Args:
         text: The UUID string in canonical 8-4-4-4-12 form.
@@ -627,44 +615,24 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
 
     s = text.strip()
 
-    match_obj = UUID_REGEX.match(s)
-    if not match_obj:
+    try:
+        # Let uuid-utils perform parsing/validation across all supported versions
+        parsed_any = uuidu.UUID(s)
+    except Exception:  # noqa: BLE001
         return Maybe.failure('Input must be a valid UUID')
 
-    parsed_version = int(match_obj.group(1))
+    parsed_version = getattr(parsed_any, 'version', None)
 
     if version is not None:
-        supported_versions = {1, 3, 4, 5, 7}
+        supported_versions = {1, 3, 4, 5, 6, 7, 8}
         if version not in supported_versions:
             return Maybe.failure(f'Unsupported UUID version: v{version}')
         if strict and version != parsed_version:
             return Maybe.failure(f'UUID version mismatch: expected v{version}, got v{parsed_version}')
 
+    # Return a standard library UUID object for compatibility
     try:
-        parsed = UUID(s)
-
-        # Prefer library-based validation for v7 if available
-        if parsed_version == 7 and strict and _HAS_UUID6 and UUIDv6 is not None:
-            try:
-                v6_obj = UUIDv6(s)  # type: ignore[misc]
-            except Exception:  # noqa: BLE001
-                return Maybe.failure('Input must be a valid UUID v7')
-            if getattr(v6_obj, 'version', None) != 7:  # type: ignore[attr-defined]
-                return Maybe.failure('Input must be a valid UUID v7')
-
-        # Fallback structural plausibility checks for v7 when library is unavailable
-        if parsed_version == 7 and strict and not _HAS_UUID6:
-            # Extract first 48 bits (12 hex chars) as milliseconds since Unix epoch
-            hex_no_dashes = s.replace('-', '')
-            ts_ms = int(hex_no_dashes[:12], 16)
-            if ts_ms < 0:
-                return Maybe.failure('UUID v7 timestamp must be non-negative')
-            # Accept timestamps from epoch up to a reasonable future window (10 years)
-            now_ms = int(datetime.now().timestamp() * 1000)
-            ten_years_ms = 10 * 365 * 24 * 60 * 60 * 1000
-            if ts_ms > now_ms + ten_years_ms:
-                return Maybe.failure('UUID v7 timestamp is implausibly far in the future')
-
-        return Maybe.success(parsed)
+        return Maybe.success(UUID(s))
     except Exception:  # noqa: BLE001
+        # This should not happen if uuid-utils succeeded, but guard anyway
         return Maybe.failure('Input must be a valid UUID')
