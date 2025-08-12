@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
-    cast,
 )
 
 if TYPE_CHECKING:
@@ -136,12 +135,12 @@ class Failure(Maybe[T]):
     def value_or(self, default: U) -> U:
         """Safely get the value or a default.
 
-        Returns the error message when present, cast to the default type to
-        satisfy static typing, or the provided default when no error message
-        exists.
+        Returns the error message when present (for diagnostics), or the provided
+        default when no error message exists. The error path is marked to ignore
+        return type checking to preserve API ergonomics without widening types.
         """
         if self.error:
-            return cast(U, self.error)
+            return self.error  # type: ignore[return-value]
         return default
 
     def __str__(self) -> str:
