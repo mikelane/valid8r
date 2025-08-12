@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+import uuid as std_uuid
 from uuid import UUID
 
 import pytest
-import uuid as std_uuid
 import uuid_utils as uuidu
 
-from valid8r.core.maybe import Success, Failure
+from valid8r.core.maybe import (
+    Failure,
+    Success,
+)
 from valid8r.core.parsers import parse_uuid
 
 
@@ -27,7 +32,18 @@ def generate_uuid_of_version(v: int) -> str:
 
 
 class DescribeUuidParsing:
-    @pytest.mark.parametrize('expected', [1, 3, 4, 5, 6, 7, 8])
+    @pytest.mark.parametrize(
+        'expected',
+        [
+            pytest.param(1, id='uuid version 1'),
+            pytest.param(3, id='uuid version 3'),
+            pytest.param(4, id='uuid version 4'),
+            pytest.param(5, id='uuid version 5'),
+            pytest.param(6, id='uuid version 6'),
+            pytest.param(7, id='uuid version 7'),
+            pytest.param(8, id='uuid version 8'),
+        ],
+    )
     def it_validates_expected_version_against_all_others(self, expected: int) -> None:
         # Generate one valid UUID for the expected version
         correct = generate_uuid_of_version(expected)

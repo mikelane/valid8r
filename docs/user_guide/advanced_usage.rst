@@ -529,12 +529,12 @@ Writing tests for your validators is crucial:
            # Test valid case
            result = is_positive(10)
            self.assertTrue(result.is_success())
-           self.assertEqual(result.value_or(None), 10)
+           self.assertEqual(result.value_or(0), 10)
 
            # Test invalid case
            result = is_positive(-5)
            self.assertTrue(result.is_failure())
-           self.assertIn("must be at least 0", result.value_or(""))
+           self.assertIn("must be at least 0", result.error_or(""))
 
        def test_combined_validators(self):
            # Create combined validator
@@ -547,11 +547,11 @@ Writing tests for your validators is crucial:
            # Test invalid cases
            result = is_valid_age(15)
            self.assertTrue(result.is_failure())
-           self.assertIn("must be at least 18", result.value_or(""))
+           self.assertIn("must be at least 18", result.error_or(""))
 
            result = is_valid_age(70)
            self.assertTrue(result.is_failure())
-           self.assertIn("must be at most 65", result.value_or(""))
+           self.assertIn("must be at most 65", result.error_or(""))
 
 Performance Considerations
 --------------------------

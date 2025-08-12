@@ -32,6 +32,7 @@ Functions
    valid8r.core.parsers.parse_bool
    valid8r.core.parsers.parse_date
    valid8r.core.parsers.parse_complex
+   valid8r.core.parsers.parse_decimal
    valid8r.core.parsers.parse_enum
    valid8r.core.parsers.parse_list
    valid8r.core.parsers.parse_dict
@@ -42,6 +43,7 @@ Functions
    valid8r.core.parsers.create_parser
    valid8r.core.parsers.make_parser
    valid8r.core.parsers.validated_parser
+   valid8r.core.parsers.parse_uuid
 
 
 Module Contents
@@ -84,6 +86,17 @@ Module Contents
 .. py:function:: parse_complex(input_value, error_message = None)
 
    Parse a string to a complex number.
+
+
+.. py:function:: parse_decimal(input_value, error_message = None)
+
+   Parse a string to a Decimal.
+
+   :param input_value: String representation of a decimal number
+   :param error_message: Optional custom error message
+
+   :returns: Success with Decimal value or Failure with an error message
+   :rtype: Maybe[Decimal]
 
 
 .. py:function:: parse_enum(input_value, enum_class, error_message = None)
@@ -223,5 +236,21 @@ Module Contents
       >>> result = parse_percent("42.5")
       >>> result.is_success()
       True
+
+
+.. py:function:: parse_uuid(text, version = None, strict = True)
+
+   Parse a string to a UUID.
+
+   Uses uuid-utils to parse and validate UUIDs across versions 1, 3, 4, 5, 6, 7, and 8.
+   When ``version`` is provided, validates the parsed UUID version. In ``strict`` mode (default),
+   a mismatch yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
+
+   :param text: The UUID string in canonical 8-4-4-4-12 form.
+   :param version: Optional expected UUID version to validate against.
+   :param strict: Whether to enforce the expected version when provided.
+
+   :returns: Success with a UUID object or Failure with an error message.
+   :rtype: Maybe[UUID]
 
 

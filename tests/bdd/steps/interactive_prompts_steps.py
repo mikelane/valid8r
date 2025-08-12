@@ -156,7 +156,7 @@ def step_prompt_result_is_success_with_string_value(context: Context, expected: 
 def step_prompt_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     pc = get_prompt_context(context)
     assert pc.result.is_failure(), f'Expected failure but got success: {pc.result}'
-    assert pc.result.value_or('TEST') == expected_error, (
+    assert pc.result.error_or('TEST') == expected_error, (
         f"Expected error '{expected_error}' but got '{pc.result.value_or('TEST')}'"
     )
 

@@ -43,6 +43,9 @@ Module Contents
 
 .. py:class:: PromptConfig
 
+   Bases: :py:obj:`Generic`\ [\ :py:obj:`T`\ ]
+
+
    Configuration for the ask function.
 
 

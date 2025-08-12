@@ -162,11 +162,11 @@ Here's a complete example showing how to test a function that validates user reg
         """Register a user with validation."""
         username_result = username_validator(username)
         if username_result.is_failure():
-            return Maybe.failure(f"Invalid username: {username_result.error()}")
+            return Maybe.failure(f"Invalid username: {username_result.error_or('')}")
 
         age_result = parse_int(str(age)).bind(lambda x: age_validator(x))
         if age_result.is_failure():
-            return Maybe.failure(f"Invalid age: {age_result.error()}")
+            return Maybe.failure(f"Invalid age: {age_result.error_or('')}")
 
         # Both valid, register the user
         return Maybe.success({

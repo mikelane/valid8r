@@ -177,7 +177,7 @@ def _find_enum_by_value(enum_class: type[Enum], value: str) -> Enum | None:
 def _find_enum_by_name(enum_class: type[E], value: str) -> E | None:
     """Find an enum member by its name."""
     try:
-        return enum_class[value]  # type: ignore[no-any-return]
+        return enum_class[value]
     except KeyError:
         return None
 
@@ -279,16 +279,29 @@ def _parse_key_value_pair(  # noqa: PLR0913
     # Parse the key
     key_result = key_parser(key_str.strip())
     if key_result.is_failure():
-        error = f"Failed to parse key in pair {index + 1} '{pair}': {key_result.value_or('Parse error')}"
+        error = f"Failed to parse key in pair {index + 1} '{pair}': {key_result.error_or('Parse error')}"
         return False, None, None, error_message or error
 
     # Parse the value
     value_result = value_parser(value_str.strip())
     if value_result.is_failure():
-        error = f"Failed to parse value in pair {index + 1} '{pair}': {value_result.value_or('Parse error')}"
+        error = f"Failed to parse value in pair {index + 1} '{pair}': {value_result.error_or('Parse error')}"
         return False, None, None, error_message or error
 
-    return True, key_result.value_or(None), value_result.value_or(None), None
+    # At this point both results are Success; extract concrete values by pattern matching
+    match key_result:
+        case Success(key_val):
+            key: K | None = key_val
+        case _:
+            key = None
+
+    match value_result:
+        case Success(value_val):
+            value: V | None = value_val
+        case _:
+            value = None
+
+    return True, key, value, None
 
 
 def parse_dict(  # noqa: PLR0913
@@ -361,7 +374,8 @@ def parse_set(
         return Maybe.failure('Parse error')
 
     # Convert to set (removes duplicates)
-    return Maybe.success(set(result.value_or(set())))
+    parsed_list = result.value_or([])
+    return Maybe.success(set(parsed_list))
 
 
 # Type-specific validation parsers

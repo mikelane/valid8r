@@ -11,6 +11,7 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
+    cast,
 )
 
 from valid8r.core.maybe import (
@@ -122,14 +123,17 @@ def ask(  # noqa: PLR0913
     return _ask_with_config(prompt_text, config)
 
 
-def _ask_with_config(prompt_text: str, config: PromptConfig) -> Maybe[T]:
+def _ask_with_config(prompt_text: str, config: PromptConfig[T]) -> Maybe[T]:
     """Implement ask using a PromptConfig object."""
     # For testing the final return path
     if config._test_mode:  # noqa: SLF001
         return Maybe.failure(config.error_message or 'Maximum retry attempts reached')
 
     # Set default parser and validator if not provided
-    parser = config.parser or (lambda s: Maybe.success(s))
+    if config.parser is None:
+        parser: Callable[[str], Maybe[T]] = lambda s: Maybe.success(cast(T, s))
+    else:
+        parser = config.parser
     validator = config.validator or (lambda v: Maybe.success(v))
 
     # Calculate max retries

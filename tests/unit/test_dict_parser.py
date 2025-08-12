@@ -68,17 +68,17 @@ class DescribeDictParser:
 
         if expected_result is None:
             assert result.is_failure()
-            assert result.value_or('TEST') == 'Input must not be empty'
+            assert result.error_or('') == 'Input must not be empty'
         else:
             assert result.is_success()
-            assert result.value_or('TEST') == expected_result
+            assert result.value_or({}) == expected_result
 
     def it_handles_invalid_key_value_pairs(self) -> None:
         """Test that parse_dict handles invalid key-value pairs."""
         result = parse_dict('a:1,b2,c:3')
 
         assert result.is_failure()
-        assert 'Invalid key-value pair' in result.value_or('TEST')
+        assert 'Invalid key-value pair' in result.error_or('')
 
     def it_handles_invalid_keys(self) -> None:
         """Test that parse_dict handles invalid keys."""
@@ -89,21 +89,21 @@ class DescribeDictParser:
         result = parse_dict('a:1,b:2', key_parser=fail_parser)
 
         assert result.is_failure()
-        assert 'Failed to parse key' in result.value_or('TEST')
+        assert 'Failed to parse key' in result.error_or('')
 
     def it_handles_invalid_values(self) -> None:
         """Test that parse_dict handles invalid values."""
         result = parse_dict('a:1,b:x,c:3', value_parser=parse_int)
 
         assert result.is_failure()
-        assert 'Failed to parse value' in result.value_or('TEST')
+        assert 'Failed to parse value' in result.error_or('')
 
     def it_uses_default_parsers_when_none_specified(self) -> None:
         """Test that parse_dict uses default parsers when none are specified."""
         result = parse_dict('a:1,b:2')
 
         assert result.is_success()
-        assert result.value_or('TEST') == {'a': '1', 'b': '2'}
+        assert result.value_or({}) == {'a': '1', 'b': '2'}
 
     def it_handles_custom_error_messages(self) -> None:
         """Test that parse_dict uses custom error messages."""
@@ -111,4 +111,4 @@ class DescribeDictParser:
         result = parse_dict('a:1,b:x,c:3', value_parser=parse_int, error_message=custom_msg)
 
         assert result.is_failure()
-        assert custom_msg == result.value_or('TEST')
+        assert custom_msg == result.error_or('')

@@ -119,7 +119,7 @@ class DescribeTestingUtilities:
             result = ask('Enter a number: ', parser=lambda s: Maybe.success(int(s)))
 
             assert result.is_success()
-            assert result.value_or('FAIL') == 42
+            assert result.value_or(0) == 42
 
         # Test with multiple inputs (simulating retry)
         with MockInputContext(['invalid', '42']):
@@ -130,14 +130,14 @@ class DescribeTestingUtilities:
             )
 
             assert result.is_success()
-            assert result.value_or('FAIL') == 42
+            assert result.value_or(0) == 42
 
         # Test with validation failure
         with MockInputContext(['-5']):
             result = ask('Enter a positive number: ', parser=lambda s: Maybe.success(int(s)), validator=minimum(0))
 
             assert result.is_failure()
-            assert 'must be at least 0' in result.value_or('FAIL')
+            assert 'must be at least 0' in result.error_or('')
 
     def it_raises_index_error_when_no_inputs_available(self) -> None:
         """Test that mock_input raises IndexError when no more inputs are available."""

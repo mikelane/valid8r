@@ -104,7 +104,7 @@ def step_validation_result_is_success_with_string_value(context: Context, expect
 def step_validation_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     vc = get_validator_context(context)
     assert vc.result.is_failure(), f'Expected failure but got success: {vc.result}'
-    assert vc.result.value_or('TEST') == expected_error, (
+    assert vc.result.error_or('TEST') == expected_error, (
         f"Expected error '{expected_error}' but got '{vc.result.value_or('TEST')}'"
     )
 

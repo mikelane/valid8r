@@ -110,7 +110,7 @@ def step_combinator_result_is_success_with_int_value(context: Context, expected:
 def step_combinator_result_is_failure_with_error(context: Context, expected_error: str) -> None:
     cc = get_combinator_context(context)
     assert cc.result.is_failure(), f'Expected failure but got success: {cc.result}'
-    assert cc.result.value_or('TEST') == expected_error, (
+    assert cc.result.error_or('TEST') == expected_error, (
         f"Expected error '{expected_error}' but got '{cc.result.value_or('TEST')}'"
     )
 

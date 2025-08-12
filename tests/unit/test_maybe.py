@@ -207,13 +207,13 @@ class DescribeMaybe:
         mapped = failure.map(lambda x: str(x))
 
         assert mapped.is_failure()
-        assert mapped.value_or('default') == 'Original error'
+        assert mapped.error_or('') == 'Original error'
 
         # Map with more complex function
         mapped = failure.map(lambda x: [x, x * 2, x * 3])
 
         assert mapped.is_failure()
-        assert mapped.value_or([]) == 'Original error'
+        assert mapped.error_or('') == 'Original error'
 
     def it_handles_bind_with_functions_returning_success(self) -> None:
         """Test bind with functions that return Success."""
@@ -252,7 +252,7 @@ class DescribeMaybe:
         # Test with even number (should fail)
         result = Success(4).bind(fail_if_even)
         assert result.is_failure()
-        assert result.value_or('') == 'Number cannot be even'
+        assert result.error_or('') == 'Number cannot be even'
 
     def it_allows_type_change_in_bind_and_map(self) -> None:
         """Test that bind and map allow changing the type of the value."""
