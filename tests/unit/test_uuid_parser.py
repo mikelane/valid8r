@@ -22,7 +22,7 @@ def generate_uuid_of_version(v: int) -> str:
     if v == 7:
         return str(uuidu.uuid7())
     if v == 8:
-        return str(uuidu.uuid8())
+        return str(uuidu.uuid8(b'\x00' * 16))
     raise ValueError('Unsupported version for test')
 
 

@@ -21,6 +21,7 @@ include = [{ path = "valid8r/py.typed", format = "wheel" }]
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 # No external dependencies for core functionality
+uuid-utils = "^0.11.0"
 
 [tool.poetry.group.dev.dependencies]
 livereload = "^2.7.1"
