@@ -50,7 +50,7 @@ class Maybe(Generic[T], ABC):
         """Transform the value if present."""
 
     @abstractmethod
-    def value_or(self, default: U) -> T | U:
+    def value_or(self, default: U) -> T | U | str:
         """Safely get the value or a default."""
 
 

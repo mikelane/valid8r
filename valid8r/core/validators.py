@@ -21,18 +21,18 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-class Numeric(Protocol):  # noqa: D101
-    def __le__(self, other: Numeric) -> bool: ...  # noqa: D105
-    def __lt__(self, other: Numeric) -> bool: ...  # noqa: D105
-    def __ge__(self, other: Numeric) -> bool: ...  # noqa: D105
-    def __gt__(self, other: Numeric) -> bool: ...  # noqa: D105
-    def __eq__(self, other: object) -> bool: ...  # noqa: D105
-    def __ne__(self, other: object) -> bool: ...  # noqa: D105
+class SupportsComparison(Protocol):  # noqa: D101
+    def __le__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __lt__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __ge__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __gt__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __eq__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __ne__(self, other: object, /) -> bool: ...  # noqa: D105
 
 
 T = TypeVar('T')
 U = TypeVar('U')
-N = TypeVar('N', bound=Numeric | Decimal)
+N = TypeVar('N', bound=SupportsComparison)
 
 
 class Validator(Generic[T]):

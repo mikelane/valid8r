@@ -177,7 +177,7 @@ def _find_enum_by_value(enum_class: type[Enum], value: str) -> Enum | None:
 def _find_enum_by_name(enum_class: type[E], value: str) -> E | None:
     """Find an enum member by its name."""
     try:
-        return enum_class[value]  # type: ignore[no-any-return]
+        return enum_class[value]
     except KeyError:
         return None
 
@@ -288,7 +288,20 @@ def _parse_key_value_pair(  # noqa: PLR0913
         error = f"Failed to parse value in pair {index + 1} '{pair}': {value_result.value_or('Parse error')}"
         return False, None, None, error_message or error
 
-    return True, key_result.value_or(None), value_result.value_or(None), None
+    # At this point both results are Success; extract concrete values by pattern matching
+    match key_result:
+        case Success(key_val):
+            key: K | None = key_val
+        case _:
+            key = None
+
+    match value_result:
+        case Success(value_val):
+            value: V | None = value_val
+        case _:
+            value = None
+
+    return True, key, value, None
 
 
 def parse_dict(  # noqa: PLR0913
@@ -361,7 +374,8 @@ def parse_set(
         return Maybe.failure('Parse error')
 
     # Convert to set (removes duplicates)
-    return Maybe.success(set(result.value_or(set())))
+    parsed_list = result.value_or([])  # list[T]
+    return Maybe.success(set(cast('list[T]', parsed_list)))
 
 
 # Type-specific validation parsers
@@ -390,7 +404,7 @@ def parse_int_with_validation(
         return result
 
     # Validate the parsed value
-    value = result.value_or(0)
+    value = cast(int, result.value_or(0))
 
     if min_value is not None and value < min_value:
         return Maybe.failure(error_message or f'Value must be at least {min_value}')
@@ -428,7 +442,7 @@ def parse_list_with_validation(  # noqa: PLR0913
         return result
 
     # Validate the parsed list
-    parsed_list = result.value_or([])
+    parsed_list = cast('list[T]', result.value_or([]))
 
     if min_length is not None and len(parsed_list) < min_length:
         return Maybe.failure(error_message or f'List must have at least {min_length} elements')
@@ -468,7 +482,7 @@ def parse_dict_with_validation(  # noqa: PLR0913
         return result
 
     # Validate the parsed dictionary
-    parsed_dict = result.value_or({})
+    parsed_dict = cast('dict[K, V]', result.value_or({}))
 
     if required_keys:
         missing_keys = [key for key in required_keys if key not in parsed_dict]

@@ -161,8 +161,8 @@ def generate_test_cases(validator: Validator[T]) -> dict[str, list[Any]]:
     validator_type, param1, param2 = _identify_validator_type(validator)
 
     # Generate test cases based on validator type
-    valid_cases: list = []
-    invalid_cases: list = []
+    valid_cases: list[Any] = []
+    invalid_cases: list[Any] = []
 
     if validator_type == 'minimum' and param1 is not None:
         valid_cases, invalid_cases = _generate_minimum_validator_cases(param1)
