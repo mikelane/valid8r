@@ -39,10 +39,20 @@ print(f"Your age is {age}")
 Valid8r includes testing utilities to help you verify your validation logic:
 
 ```python
+from valid8r import (
+    Maybe,
+    validators,
+    parsers,
+    prompt,
+)
+
 from valid8r.testing import (
     MockInputContext,
     assert_maybe_success,
 )
+
+def validate_age(age: int) -> Maybe[int]:
+    return validators.minimum(0) & validators.maximum(120)(age)
 
 # Test prompts with mock input
 with MockInputContext(["yes"]):

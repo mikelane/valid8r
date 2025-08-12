@@ -7,7 +7,6 @@ that either contains the validated value or an error message.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -15,6 +14,11 @@ from typing import (
     TypeVar,
 )
 
+from valid8r.core.combinators import (
+    and_then,
+    not_validator,
+    or_else,
+)
 from valid8r.core.maybe import Maybe
 
 if TYPE_CHECKING:
@@ -28,6 +32,7 @@ class SupportsComparison(Protocol):  # noqa: D101
     def __gt__(self, other: object, /) -> bool: ...  # noqa: D105
     def __eq__(self, other: object, /) -> bool: ...  # noqa: D105
     def __ne__(self, other: object, /) -> bool: ...  # noqa: D105
+    def __hash__(self, /) -> int: ...  # noqa: D105
 
 
 T = TypeVar('T')
@@ -69,8 +74,6 @@ class Validator(Generic[T]):
             A new validator that passes only if both validators pass
 
         """
-        from valid8r.core.combinators import and_then
-
         return Validator(lambda value: and_then(self.func, other.func)(value))
 
     def __or__(self, other: Validator[T]) -> Validator[T]:
@@ -83,8 +86,6 @@ class Validator(Generic[T]):
             A new validator that passes if either validator passes
 
         """
-        from valid8r.core.combinators import or_else
-
         return Validator(lambda value: or_else(self.func, other.func)(value))
 
     def __invert__(self) -> Validator[T]:
@@ -94,8 +95,6 @@ class Validator(Generic[T]):
             A new validator that passes if this validator fails
 
         """
-        from valid8r.core.combinators import not_validator
-
         return Validator(lambda value: not_validator(self.func, 'Negated validation failed')(value))
 
 
