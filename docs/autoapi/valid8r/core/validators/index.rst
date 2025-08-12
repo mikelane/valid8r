@@ -28,7 +28,7 @@ Classes
 
 .. autoapisummary::
 
-   valid8r.core.validators.Numeric
+   valid8r.core.validators.SupportsComparison
    valid8r.core.validators.Validator
 
 
@@ -47,7 +47,7 @@ Functions
 Module Contents
 ---------------
 
-.. py:class:: Numeric
+.. py:class:: SupportsComparison
 
    Bases: :py:obj:`Protocol`
 
@@ -84,22 +84,25 @@ Module Contents
                ...
 
 
-   .. py:method:: __le__(other)
+   .. py:method:: __le__(other, /)
 
 
-   .. py:method:: __lt__(other)
+   .. py:method:: __lt__(other, /)
 
 
-   .. py:method:: __ge__(other)
+   .. py:method:: __ge__(other, /)
 
 
-   .. py:method:: __gt__(other)
+   .. py:method:: __gt__(other, /)
 
 
-   .. py:method:: __eq__(other)
+   .. py:method:: __eq__(other, /)
 
 
-   .. py:method:: __ne__(other)
+   .. py:method:: __ne__(other, /)
+
+
+   .. py:method:: __hash__(/)
 
 
 .. py:data:: T

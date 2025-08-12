@@ -24,6 +24,7 @@ Functions
 
    valid8r.testing.assertions.assert_maybe_success
    valid8r.testing.assertions.assert_maybe_failure
+   valid8r.testing.assertions.assert_error_equals
 
 
 Module Contents
@@ -61,5 +62,10 @@ Module Contents
       >>> result = Maybe.failure("Invalid input")
       >>> assert_maybe_failure(result, "Invalid input")  # Returns True
       >>> assert_maybe_failure(result, "Other error")  # Returns False
+
+
+.. py:function:: assert_error_equals(result, expected_error, default = '')
+
+   Assert error via error_or helper.
 
 

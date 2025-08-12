@@ -95,7 +95,23 @@ Module Contents
       :abstractmethod:
 
 
-      Safely get the value or a default.
+      Return the contained value or the provided default if this is a Failure.
+
+
+
+   .. py:method:: error_or(default)
+      :abstractmethod:
+
+
+      Return the error message or the provided default if this is a Success.
+
+
+
+   .. py:method:: get_error()
+      :abstractmethod:
+
+
+      Get the error message if present, otherwise None.
 
 
 
@@ -141,9 +157,19 @@ Module Contents
 
    .. py:method:: value_or(_default)
 
-      Safely get the value or a default.
+      Return the contained value (default is ignored for Success).
 
-      Default is unused in Success case as we always return the value.
+
+
+   .. py:method:: error_or(default)
+
+      Return the provided default since Success has no error.
+
+
+
+   .. py:method:: get_error()
+
+      Get None since Success has no error.
 
 
 
@@ -199,7 +225,19 @@ Module Contents
 
    .. py:method:: value_or(default)
 
-      Safely get the value or a default.
+      Return the provided default for Failure.
+
+
+
+   .. py:method:: error_or(default)
+
+      Return the error message for Failure (or provided default if empty).
+
+
+
+   .. py:method:: get_error()
+
+      Get the error message.
 
 
 
