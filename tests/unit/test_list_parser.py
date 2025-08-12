@@ -33,24 +33,24 @@ class DescribeListParser:
 
         if expected_result is None:
             assert result.is_failure()
-            assert result.value_or('TEST') == 'Input must not be empty'
+            assert result.error_or('') == 'Input must not be empty'
         else:
             assert result.is_success()
-            assert result.value_or('TEST') == expected_result
+            assert result.value_or([]) == expected_result
 
     def it_handles_invalid_elements(self) -> None:
         """Test that parse_list handles invalid element errors."""
         result = parse_list('1,a,3', element_parser=parse_int)
 
         assert result.is_failure()
-        assert 'Failed to parse element' in result.value_or('TEST')
+        assert 'Failed to parse element' in result.error_or('')
 
     def it_uses_default_parser_when_none_specified(self) -> None:
         """Test that parse_list uses a default parser when none is specified."""
         result = parse_list('a,b,c')
 
         assert result.is_success()
-        assert result.value_or('TEST') == ['a', 'b', 'c']
+        assert result.value_or([]) == ['a', 'b', 'c']
 
     def it_handles_custom_error_messages(self) -> None:
         """Test that parse_list uses custom error messages."""
@@ -58,4 +58,4 @@ class DescribeListParser:
         result = parse_list('1,a,3', element_parser=parse_int, error_message=custom_msg)
 
         assert result.is_failure()
-        assert custom_msg == result.value_or('TEST')
+        assert custom_msg == result.error_or('')

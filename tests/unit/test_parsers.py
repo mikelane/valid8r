@@ -409,7 +409,10 @@ class DescribeParsers:
             input_str, element_parser=element_parser, min_length=min_length, max_length=max_length
         ):
             case result:
-                assert result.value_or('TEST') == expected_result
+                if isinstance(expected_result, list):
+                    assert result.value_or([]) == expected_result
+                else:
+                    assert result.error_or('') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'required_keys', 'expected_result'),
@@ -439,7 +442,10 @@ class DescribeParsers:
             required_keys=required_keys,
         ):
             case result:
-                assert result.value_or('TEST') == expected_result
+                if isinstance(expected_result, dict):
+                    assert result.value_or({}) == expected_result
+                else:
+                    assert result.error_or('') == expected_result
 
     def it_parses_set_with_duplicates(self) -> None:
         """Test that parse_set removes duplicates from the input."""
@@ -486,7 +492,10 @@ class DescribeParsers:
             error_message=error_message,
         ):
             case actual:
-                assert actual.value_or('TEST') == expected_result
+                if isinstance(expected_result, int):
+                    assert actual.value_or(0) == expected_result
+                else:
+                    assert actual.error_or('') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected'),
@@ -518,7 +527,10 @@ class DescribeParsers:
         """Test edge cases in parse_date for non-ISO formats."""
         match parse_date(input_str, date_format=date_format):
             case actual:
-                assert expected == actual.value_or('TEST')
+                if isinstance(expected, date):
+                    assert expected == actual.value_or(date(1970, 1, 1))
+                else:
+                    assert expected == actual.error_or('')
 
     @pytest.mark.parametrize(
         ('input_str', 'seperator', 'element_parser', 'expected_result'),
@@ -539,7 +551,10 @@ class DescribeParsers:
         """Test parsing sets with various separator configurations."""
         match parse_set(input_str, separator=seperator, element_parser=element_parser):
             case actual:
-                assert actual.value_or(None) == expected_result
+                if isinstance(expected_result, set):
+                    assert actual.value_or(set()) == expected_result
+                else:
+                    assert actual.error_or('') == expected_result
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),

@@ -50,8 +50,16 @@ class Maybe(Generic[T], ABC):
         """Transform the value if present."""
 
     @abstractmethod
-    def value_or(self, default: U) -> T | U:
-        """Safely get the value or a default."""
+    def value_or(self, default: T) -> T:
+        """Return the contained value or the provided default if this is a Failure."""
+
+    @abstractmethod
+    def error_or(self, default: str) -> str:
+        """Return the error message or the provided default if this is a Success."""
+
+    @abstractmethod
+    def get_error(self) -> str | None:
+        """Get the error message if present, otherwise None."""
 
 
 class Success(Maybe[T]):
@@ -84,12 +92,17 @@ class Success(Maybe[T]):
         """Transform the value."""
         return Success(f(self.value))
 
-    def value_or(self, _default: U) -> T:
-        """Safely get the value or a default.
-
-        Default is unused in Success case as we always return the value.
-        """
+    def value_or(self, _default: T) -> T:
+        """Return the contained value (default is ignored for Success)."""
         return self.value
+
+    def error_or(self, default: str) -> str:
+        """Return the provided default since Success has no error."""
+        return default
+
+    def get_error(self) -> str | None:
+        """Get None since Success has no error."""
+        return None
 
     def __str__(self) -> str:
         """Get a string representation."""
@@ -132,16 +145,17 @@ class Failure(Maybe[T]):
         """
         return Failure(self.error)
 
-    def value_or(self, default: U) -> U:
-        """Safely get the value or a default.
-
-        Returns the error message when present (for diagnostics), or the provided
-        default when no error message exists. The error path is marked to ignore
-        return type checking to preserve API ergonomics without widening types.
-        """
-        if self.error:
-            return self.error  # type: ignore[return-value]
+    def value_or(self, default: T) -> T:
+        """Return the provided default for Failure."""
         return default
+
+    def error_or(self, default: str) -> str:
+        """Return the error message for Failure (or provided default if empty)."""
+        return self.error or default
+
+    def get_error(self) -> str | None:
+        """Get the error message."""
+        return self.error
 
     def __str__(self) -> str:
         """Get a string representation."""

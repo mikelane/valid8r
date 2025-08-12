@@ -59,7 +59,7 @@ class DescribePrompt:
 
         mock_input.assert_called_once_with('Enter a number: ')
         assert result.is_success()
-        assert result.value_or('TESTTEST') == 42
+        assert result.value_or(0) == 42
         mock_print.assert_not_called()
 
     def it_handles_empty_input_with_default(self, mock_input: MockType, mock_print: MockType) -> None:
@@ -70,7 +70,7 @@ class DescribePrompt:
 
         mock_input.assert_called_once_with('Enter a number:  [10]: ')
         assert result.is_success()
-        assert result.value_or('TESTTEST') == 10
+        assert result.value_or(0) == 10
         mock_print.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ class DescribePrompt:
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
         assert result.is_failure()
-        assert 'Input must be a valid integer' in result.value_or('TEST')
+        assert 'Input must be a valid integer' in result.error_or('')
 
     @pytest.mark.parametrize(
         ('setup_input_scenario', 'max_retries', 'expected_value'),
@@ -107,7 +107,7 @@ class DescribePrompt:
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
         assert result.is_success()
-        assert result.value_or('TESTTEST') == expected_value
+        assert result.value_or(0) == expected_value
 
     @pytest.mark.parametrize(
         ('setup_input_scenario', 'max_retries'),
@@ -121,7 +121,7 @@ class DescribePrompt:
         result = ask('Enter a number: ', parser=parse_int, retry=max_retries)
 
         assert result.is_failure()
-        assert 'Maximum retry attempts reached' in result.value_or('TEST')
+        assert 'Maximum retry attempts reached' in result.error_or('')
 
     def it_tests_display_error_different_retry_modes(self, mock_print: MockType) -> None:
         """Test error display behavior with different retry modes."""
@@ -155,13 +155,13 @@ class DescribePrompt:
 
         # Should return failure with the error message
         assert result.is_failure()
-        assert result.value_or('') == 'Test mode error'
+        assert result.error_or('') == 'Test mode error'
 
         # If no error message was provided, check the default
         config = PromptConfig(_test_mode=True)
         result = _ask_with_config('Enter value: ', config)
         assert result.is_failure()
-        assert result.value_or('') == 'Maximum retry attempts reached'
+        assert result.error_or('') == 'Maximum retry attempts reached'
 
     def it_handles_infinite_retries(self) -> None:
         """Test _run_prompt_loop with infinite retries (float('inf'))."""
@@ -233,7 +233,7 @@ class DescribePrompt:
 
         # Should fail
         assert result.is_failure()
-        assert result.value_or('') == 'Cannot be even'
+        assert result.error_or('') == 'Cannot be even'
 
         # Try with an odd number (should succeed)
         with patch('builtins.input', return_value='43'):
@@ -261,7 +261,7 @@ class DescribePrompt:
 
         # Should return the validator's failure
         assert result.is_failure()
-        assert result.value_or('') == 'Validation error'
+        assert result.error_or('') == 'Validation error'
 
     def it_handles_default_values_properly(self) -> None:
         """Test that _handle_user_input handles default values correctly."""
