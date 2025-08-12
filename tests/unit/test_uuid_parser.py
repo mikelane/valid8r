@@ -17,8 +17,12 @@ def generate_uuid_of_version(v: int) -> str:
         return str(std_uuid.uuid4())
     if v == 5:
         return str(std_uuid.uuid5(std_uuid.NAMESPACE_DNS, 'example.com'))
-    if v in (6, 7, 8):
-        return str(uuidu.uuid(v))  # type: ignore[arg-type]
+    if v == 6:
+        return str(uuidu.uuid6())
+    if v == 7:
+        return str(uuidu.uuid7())
+    if v == 8:
+        return str(uuidu.uuid8())
     raise ValueError('Unsupported version for test')
 
 
