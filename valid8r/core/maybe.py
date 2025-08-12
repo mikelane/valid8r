@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
+    cast,
 )
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ class Maybe(Generic[T], ABC):
         """Transform the value if present."""
 
     @abstractmethod
-    def value_or(self, default: U) -> T | U | str:
+    def value_or(self, default: U) -> T | U:
         """Safely get the value or a default."""
 
 
@@ -132,10 +133,15 @@ class Failure(Maybe[T]):
         """
         return Failure(self.error)
 
-    def value_or(self, default: U) -> U | str:
-        """Safely get the value or a default."""
+    def value_or(self, default: U) -> U:
+        """Safely get the value or a default.
+
+        Returns the error message when present, cast to the default type to
+        satisfy static typing, or the provided default when no error message
+        exists.
+        """
         if self.error:
-            return self.error
+            return cast(U, self.error)
         return default
 
     def __str__(self) -> str:

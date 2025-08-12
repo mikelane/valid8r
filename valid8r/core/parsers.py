@@ -374,8 +374,8 @@ def parse_set(
         return Maybe.failure('Parse error')
 
     # Convert to set (removes duplicates)
-    parsed_list = result.value_or([])  # list[T]
-    return Maybe.success(set(cast('list[T]', parsed_list)))
+    parsed_list = cast('list[T]', result.value_or([]))
+    return Maybe.success(set(parsed_list))
 
 
 # Type-specific validation parsers
