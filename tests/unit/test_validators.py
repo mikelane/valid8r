@@ -107,11 +107,11 @@ class DescribeValidators:
     @pytest.mark.parametrize(
         ('min_len', 'max_len', 'test_string', 'should_pass'),
         [
-            (3, 10, 'hello', True),
-            (3, 10, 'abc', True),
-            (3, 10, 'helloworld', True),
-            (3, 10, 'hi', False),
-            (3, 10, 'helloworldplus', False),
+            pytest.param(3, 10, 'hello', True, id='valid string'),
+            pytest.param(3, 10, 'abc', True, id='valid string with length 3'),
+            pytest.param(3, 10, 'helloworld', True, id='valid string with length 10'),
+            pytest.param(3, 10, 'hi', False, id='invalid string with length 2'),
+            pytest.param(3, 10, 'helloworldplus', False, id='invalid string with length 11'),
         ],
     )
     def it_validates_string_length(

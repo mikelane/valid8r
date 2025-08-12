@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -9,7 +10,6 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
 )
 
 import pytest
@@ -37,8 +37,6 @@ from valid8r.core.parsers import (
 from valid8r.core.validators import minimum
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from pytest_mock import (
         MockerFixture,
         MockType,
@@ -56,6 +54,7 @@ def expect_success(expected: Any) -> Expectation:  # noqa: ANN401
                 assert value == expected
             case Failure(err):
                 pytest.fail(f'Expected success but got failure: {err}')
+
     return _check
 
 
@@ -66,6 +65,7 @@ def expect_error_equals(expected_error: str) -> Expectation:
                 assert err == expected_error
             case Success(value):
                 pytest.fail(f'Expected failure but got success: {value}')
+
     return _check
 
 
@@ -76,6 +76,7 @@ def expect_error_contains(text: str) -> Expectation:
                 assert text in err
             case Success(value):
                 pytest.fail(f'Expected failure but got success: {value}')
+
     return _check
 
 
@@ -146,13 +147,13 @@ class DescribeParsers:
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
         [
-            ('3.14159', 3.14159),
-            ('  3.14  ', 3.14),
-            ('42', 42.0),
-            ('-42.5', -42.5),
-            ('1.23e2', 123.0),
-            ('inf', float('inf')),
-            ('NaN', float('nan')),
+            pytest.param('3.14159', 3.14159, id='float'),
+            pytest.param('  3.14  ', 3.14, id='whitespace-padded float'),
+            pytest.param('42', 42.0, id='integer-equivalent float'),
+            pytest.param('-42.5', -42.5, id='negative float'),
+            pytest.param('1.23e2', 123.0, id='scientific notation'),
+            pytest.param('inf', float('inf'), id='infinity'),
+            pytest.param('NaN', float('nan'), id='not-a-number'),
         ],
     )
     def it_parses_floats_successfully(self, input_str: str, expected_result: float) -> None:
@@ -241,10 +242,10 @@ class DescribeParsers:
     @pytest.mark.parametrize(
         ('input_str', 'format_str', 'expected_date'),
         [
-            ('2023-01-15', '%Y-%m-%d', date(2023, 1, 15)),
-            ('15/01/2023', '%d/%m/%Y', date(2023, 1, 15)),
-            ('Jan 15, 2023', '%b %d, %Y', date(2023, 1, 15)),
-            ('20230115', '%Y%m%d', date(2023, 1, 15)),
+            pytest.param('2023-01-15', '%Y-%m-%d', date(2023, 1, 15), id='basic format'),
+            pytest.param('15/01/2023', '%d/%m/%Y', date(2023, 1, 15), id='US format'),
+            pytest.param('Jan 15, 2023', '%b %d, %Y', date(2023, 1, 15), id='standard written format'),
+            pytest.param('20230115', '%Y%m%d', date(2023, 1, 15), id='machine readable format'),
         ],
     )
     def it_parses_dates_with_custom_formats(self, input_str: str, format_str: str, expected_date: date) -> None:
@@ -412,8 +413,22 @@ class DescribeParsers:
     @pytest.mark.parametrize(
         ('input_str', 'element_parser', 'min_length', 'max_length', 'expectation'),
         [
-            pytest.param('1,2,3', lambda s: Maybe.success(int(s)), 5, None, expect_error_equals('List must have at least 5 elements'), id='min length'),
-            pytest.param('1,2,3,4,5', lambda s: Maybe.success(int(s)), None, 3, expect_error_equals('List must have at most 3 elements'), id='max length'),
+            pytest.param(
+                '1,2,3',
+                lambda s: Maybe.success(int(s)),
+                5,
+                None,
+                expect_error_equals('List must have at least 5 elements'),
+                id='min length',
+            ),
+            pytest.param(
+                '1,2,3,4,5',
+                lambda s: Maybe.success(int(s)),
+                None,
+                3,
+                expect_error_equals('List must have at most 3 elements'),
+                id='max length',
+            ),
             pytest.param('1,2,3', lambda s: Maybe.success(int(s)), 2, 5, expect_success([1, 2, 3]), id='valid length'),
         ],
     )
@@ -435,11 +450,17 @@ class DescribeParsers:
     @pytest.mark.parametrize(
         ('input_str', 'required_keys', 'expectation'),
         [
-            pytest.param('a:1,b:2,c:3', ['a', 'b', 'c'], expect_success({'a': 1, 'b': 2, 'c': 3}), id='all required keys present'),
-            pytest.param('a:1,b:2', ['a', 'b', 'c'], expect_error_equals('Missing required keys: c'), id='missing required keys'),
+            pytest.param(
+                'a:1,b:2,c:3', ['a', 'b', 'c'], expect_success({'a': 1, 'b': 2, 'c': 3}), id='all required keys present'
+            ),
+            pytest.param(
+                'a:1,b:2', ['a', 'b', 'c'], expect_error_equals('Missing required keys: c'), id='missing required keys'
+            ),
         ],
     )
-    def it_validates_dictionary_required_keys(self, input_str: str, required_keys: list[str], expectation: Expectation) -> None:
+    def it_validates_dictionary_required_keys(
+        self, input_str: str, required_keys: list[str], expectation: Expectation
+    ) -> None:
         """Test that parse_dict_with_validation validates required keys correctly."""
         match parse_dict_with_validation(
             input_str,
@@ -520,10 +541,14 @@ class DescribeParsers:
         [
             pytest.param('2023/01/15', None, expect_error_equals('Input must be a valid date'), id='invalid date'),
             pytest.param('2023/01/15', '%Y/%m/%d', expect_success(date(2023, 1, 15)), id='valid date with format'),
-            pytest.param('20230115', None, expect_error_equals('Input must be a valid date'), id='invalid date with no format'),
+            pytest.param(
+                '20230115', None, expect_error_equals('Input must be a valid date'), id='invalid date with no format'
+            ),
         ],
     )
-    def it_parses_date_with_non_iso_format(self, input_str: str, date_format: str | None, expectation: Expectation) -> None:
+    def it_parses_date_with_non_iso_format(
+        self, input_str: str, date_format: str | None, expectation: Expectation
+    ) -> None:
         """Test edge cases in parse_date for non-ISO formats."""
         match parse_date(input_str, date_format=date_format):
             case actual:
@@ -596,8 +621,6 @@ class DescribeParsers:
 
     def it_creates_basic_decimal_parser(self) -> None:
         """Test create_parser with Decimal type."""
-        from decimal import Decimal
-
         decimal_parser = create_parser(Decimal)
         match decimal_parser('123.45'):
             case Success(result):
@@ -627,7 +650,7 @@ class DescribeParsers:
         """Test validated_parser with minimum value validation."""
 
         def min_validator(n: Decimal) -> Maybe[Decimal]:
-            return minimum(Decimal('0'))(n)
+            return minimum(Decimal(0))(n)
 
         positive_decimal = validated_parser(Decimal, validator=min_validator)
 
@@ -641,7 +664,7 @@ class DescribeParsers:
         """Test validated_parser rejects values that fail validation."""
 
         def min_validator(n: Decimal) -> Maybe[Decimal]:
-            return minimum(Decimal('0'))(n)
+            return minimum(Decimal(0))(n)
 
         positive_decimal = validated_parser(Decimal, min_validator)
 
@@ -655,7 +678,7 @@ class DescribeParsers:
         """Test validated_parser with empty input."""
 
         def min_validator(n: Decimal) -> Maybe[Decimal]:
-            return minimum(Decimal('0'))(n)
+            return minimum(Decimal(0))(n)
 
         positive_decimal = validated_parser(Decimal, min_validator)
 
