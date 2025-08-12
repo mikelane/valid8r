@@ -153,3 +153,23 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "pytest",
+  "pytest.*",
+  "pytest_mock",
+  "pytest_mock.*",
+  "behave",
+  "behave.*",
+  "sphinx",
+  "sphinx.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "tests.*",
+  "docs.*",
+]
+ignore_errors = true
