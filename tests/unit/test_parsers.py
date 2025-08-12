@@ -9,6 +9,7 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
 )
 
 import pytest
@@ -42,6 +43,40 @@ if TYPE_CHECKING:
         MockerFixture,
         MockType,
     )
+
+
+# Expectation helpers to avoid branching inside test bodies
+Expectation = Callable[[Maybe[Any]], None]
+
+
+def expect_success(expected: Any) -> Expectation:  # noqa: ANN401
+    def _check(result: Maybe[Any]) -> None:
+        match result:
+            case Success(value):
+                assert value == expected
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+    return _check
+
+
+def expect_error_equals(expected_error: str) -> Expectation:
+    def _check(result: Maybe[Any]) -> None:
+        match result:
+            case Failure(err):
+                assert err == expected_error
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+    return _check
+
+
+def expect_error_contains(text: str) -> Expectation:
+    def _check(result: Maybe[Any]) -> None:
+        match result:
+            case Failure(err):
+                assert text in err
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+    return _check
 
 
 @pytest.fixture
@@ -375,25 +410,11 @@ class DescribeParsers:
                 assert error == 'Input must be a valid date'
 
     @pytest.mark.parametrize(
-        ('input_str', 'element_parser', 'min_length', 'max_length', 'expected_result'),
+        ('input_str', 'element_parser', 'min_length', 'max_length', 'expectation'),
         [
-            pytest.param(
-                '1,2,3',
-                lambda s: Maybe.success(int(s)),
-                5,
-                None,
-                'List must have at least 5 elements',
-                id='min length',
-            ),
-            pytest.param(
-                '1,2,3,4,5',
-                lambda s: Maybe.success(int(s)),
-                None,
-                3,
-                'List must have at most 3 elements',
-                id='max length',
-            ),
-            pytest.param('1,2,3', lambda s: Maybe.success(int(s)), 2, 5, [1, 2, 3], id='valid length'),
+            pytest.param('1,2,3', lambda s: Maybe.success(int(s)), 5, None, expect_error_equals('List must have at least 5 elements'), id='min length'),
+            pytest.param('1,2,3,4,5', lambda s: Maybe.success(int(s)), None, 3, expect_error_equals('List must have at most 3 elements'), id='max length'),
+            pytest.param('1,2,3', lambda s: Maybe.success(int(s)), 2, 5, expect_success([1, 2, 3]), id='valid length'),
         ],
     )
     def it_validates_list_length(
@@ -402,38 +423,23 @@ class DescribeParsers:
         element_parser: Callable[..., Maybe],
         min_length: int,
         max_length: int,
-        expected_result: str | list[int],
+        expectation: Expectation,
     ) -> None:
         """Test that parse_list_with_validation validates list length correctly."""
         match parse_list_with_validation(
             input_str, element_parser=element_parser, min_length=min_length, max_length=max_length
         ):
             case result:
-                if isinstance(expected_result, list):
-                    assert result.value_or([]) == expected_result
-                else:
-                    assert result.error_or('') == expected_result
+                expectation(result)
 
     @pytest.mark.parametrize(
-        ('input_str', 'required_keys', 'expected_result'),
+        ('input_str', 'required_keys', 'expectation'),
         [
-            pytest.param(
-                'a:1,b:2,c:3',
-                ['a', 'b', 'c'],
-                {'a': 1, 'b': 2, 'c': 3},
-                id='all required keys present',
-            ),
-            pytest.param(
-                'a:1,b:2',
-                ['a', 'b', 'c'],
-                'Missing required keys: c',
-                id='missing required keys',
-            ),
+            pytest.param('a:1,b:2,c:3', ['a', 'b', 'c'], expect_success({'a': 1, 'b': 2, 'c': 3}), id='all required keys present'),
+            pytest.param('a:1,b:2', ['a', 'b', 'c'], expect_error_equals('Missing required keys: c'), id='missing required keys'),
         ],
     )
-    def it_validates_dictionary_required_keys(
-        self, input_str: str, required_keys: list[str], expected_result: dict[str, int] | str
-    ) -> None:
+    def it_validates_dictionary_required_keys(self, input_str: str, required_keys: list[str], expectation: Expectation) -> None:
         """Test that parse_dict_with_validation validates required keys correctly."""
         match parse_dict_with_validation(
             input_str,
@@ -442,10 +448,7 @@ class DescribeParsers:
             required_keys=required_keys,
         ):
             case result:
-                if isinstance(expected_result, dict):
-                    assert result.value_or({}) == expected_result
-                else:
-                    assert result.error_or('') == expected_result
+                expectation(result)
 
     def it_parses_set_with_duplicates(self) -> None:
         """Test that parse_set removes duplicates from the input."""
@@ -468,12 +471,12 @@ class DescribeParsers:
                 assert 'Invalid enum class provided' in error  # type: ignore[arg-type]
 
     @pytest.mark.parametrize(
-        ('input_str', 'min_value', 'max_value', 'error_message', 'expected_result'),
+        ('input_str', 'min_value', 'max_value', 'error_message', 'expectation'),
         [
-            pytest.param('15', 10, 20, None, 15, id='valid value'),
-            pytest.param('5', 10, 20, None, 'Value must be at least 10', id='below minimum'),
-            pytest.param('25', 10, 20, None, 'Value must be at most 20', id='above maximum'),
-            pytest.param('5', 10, 20, 'Custom error', 'Custom error', id='custom error message'),
+            pytest.param('15', 10, 20, None, expect_success(15), id='valid value'),
+            pytest.param('5', 10, 20, None, expect_error_equals('Value must be at least 10'), id='below minimum'),
+            pytest.param('25', 10, 20, None, expect_error_equals('Value must be at most 20'), id='above maximum'),
+            pytest.param('5', 10, 20, 'Custom error', expect_error_equals('Custom error'), id='custom error message'),
         ],
     )
     def it_validates_int_with_min_max(
@@ -482,7 +485,7 @@ class DescribeParsers:
         min_value: int,
         max_value: int,
         error_message: str,
-        expected_result: int | str,
+        expectation: Expectation,
     ) -> None:
         """Test parse_int_with_validation with min and max values."""
         match parse_int_with_validation(
@@ -492,10 +495,7 @@ class DescribeParsers:
             error_message=error_message,
         ):
             case actual:
-                if isinstance(expected_result, int):
-                    assert actual.value_or(0) == expected_result
-                else:
-                    assert actual.error_or('') == expected_result
+                expectation(actual)
 
     @pytest.mark.parametrize(
         ('input_str', 'expected'),
@@ -516,29 +516,26 @@ class DescribeParsers:
                 pytest.fail(f'Unexpected error: {error}')
 
     @pytest.mark.parametrize(
-        ('input_str', 'date_format', 'expected'),
+        ('input_str', 'date_format', 'expectation'),
         [
-            pytest.param('2023/01/15', None, 'Input must be a valid date', id='invalid date'),
-            pytest.param('2023/01/15', '%Y/%m/%d', date(2023, 1, 15), id='valid date with format'),
-            pytest.param('20230115', None, 'Input must be a valid date', id='invalid date with no format'),
+            pytest.param('2023/01/15', None, expect_error_equals('Input must be a valid date'), id='invalid date'),
+            pytest.param('2023/01/15', '%Y/%m/%d', expect_success(date(2023, 1, 15)), id='valid date with format'),
+            pytest.param('20230115', None, expect_error_equals('Input must be a valid date'), id='invalid date with no format'),
         ],
     )
-    def it_parses_date_with_non_iso_format(self, input_str: str, date_format: str | None, expected: date | str) -> None:
+    def it_parses_date_with_non_iso_format(self, input_str: str, date_format: str | None, expectation: Expectation) -> None:
         """Test edge cases in parse_date for non-ISO formats."""
         match parse_date(input_str, date_format=date_format):
             case actual:
-                if isinstance(expected, date):
-                    assert expected == actual.value_or(date(1970, 1, 1))
-                else:
-                    assert expected == actual.error_or('')
+                expectation(actual)
 
     @pytest.mark.parametrize(
-        ('input_str', 'seperator', 'element_parser', 'expected_result'),
+        ('input_str', 'seperator', 'element_parser', 'expectation'),
         [
-            pytest.param('a,b,c,a', None, None, {'a', 'b', 'c'}, id='default separator'),
-            pytest.param('a|b|c', '|', None, {'a', 'b', 'c'}, id='custom separator'),
-            pytest.param('1,2,3', None, create_parser(int), {1, 2, 3}, id='with element parser'),
-            pytest.param('', None, None, 'Parse error', id='empty string'),
+            pytest.param('a,b,c,a', None, None, expect_success({'a', 'b', 'c'}), id='default separator'),
+            pytest.param('a|b|c', '|', None, expect_success({'a', 'b', 'c'}), id='custom separator'),
+            pytest.param('1,2,3', None, create_parser(int), expect_success({1, 2, 3}), id='with element parser'),
+            pytest.param('', None, None, expect_error_equals('Parse error'), id='empty string'),
         ],
     )
     def it_parses_set_with_implicit_separators(
@@ -546,15 +543,12 @@ class DescribeParsers:
         input_str: str,
         seperator: str | None,
         element_parser: Callable[[str], Any],
-        expected_result: set[str | int],
+        expectation: Expectation,
     ) -> None:
         """Test parsing sets with various separator configurations."""
         match parse_set(input_str, separator=seperator, element_parser=element_parser):
             case actual:
-                if isinstance(expected_result, set):
-                    assert actual.value_or(set()) == expected_result
-                else:
-                    assert actual.error_or('') == expected_result
+                expectation(actual)
 
     @pytest.mark.parametrize(
         ('input_str', 'expected_result'),
