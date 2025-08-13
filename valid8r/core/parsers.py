@@ -708,6 +708,10 @@ def parse_ipv6(text: str) -> Maybe[IPv6Address]:
     if s == '':
         return Maybe.failure('value is empty')
 
+    # Explicitly reject scope IDs like %eth0
+    if '%' in s:
+        return Maybe.failure('not a valid IPv6 address')
+
     try:
         addr = ip_address(s)
     except ValueError:
@@ -736,6 +740,10 @@ def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     s = text.strip()
     if s == '':
         return Maybe.failure('value is empty')
+
+    # Reject non-address forms such as IPv6 scope IDs or URLs
+    if '%' in s or '://' in s:
+        return Maybe.failure('not a valid IP address')
 
     try:
         addr = ip_address(s)

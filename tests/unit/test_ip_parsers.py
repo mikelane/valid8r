@@ -170,7 +170,7 @@ class DescribeIpParsers:
                 pytest.fail(f'unexpected failure: {err}')
 
     def it_ignores_surrounding_whitespace(self) -> None:
-        match parse_cidr('  172.16.0.1/16  '):
+        match parse_cidr('  172.16.0.0/16  '):
             case Success(value):
                 assert isinstance(value, ip.IPv4Network)
                 assert str(value) == '172.16.0.0/16'
