@@ -454,4 +454,33 @@ Valid8r also handles validation of complex data structures:
 
    process_user(user)
 
+IP Address parsing
+------------------
+
+.. code-block:: python
+
+   from valid8r.core.maybe import Success, Failure
+   from valid8r import parsers
+
+   # IPv4
+   match parsers.parse_ipv4("8.8.8.8"):
+       case Success(addr):
+           print(addr)
+       case Failure(err):
+           print("Error:", err)
+
+   # IPv6
+   match parsers.parse_ipv6("2001:db8::1"):
+       case Success(addr):
+           print(addr)
+       case Failure(err):
+           print("Error:", err)
+
+   # CIDR (non-strict)
+   match parsers.parse_cidr("10.0.0.1/24", strict=False):
+       case Success(net):
+           print(net)  # 10.0.0.0/24
+       case Failure(err):
+           print("Error:", err)
+
 These examples provide a solid foundation for understanding how to use Valid8r effectively in your applications. In the next sections, we'll explore more advanced usage patterns.

@@ -24,6 +24,14 @@ from valid8r.core.maybe import (
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 import uuid_utils as uuidu
+from ipaddress import (
+    IPv4Address,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+    ip_address,
+    ip_network,
+)
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -650,3 +658,133 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
     except Exception:  # noqa: BLE001
         # This should not happen if uuid-utils succeeded, but guard anyway
         return Maybe.failure('Input must be a valid UUID')
+
+
+def parse_ipv4(text: str) -> Maybe[IPv4Address]:
+    """Parse an IPv4 address string.
+
+    Trims surrounding whitespace only. Returns Success with a concrete
+    IPv4Address on success, or Failure with a deterministic error message.
+
+    Error messages:
+    - value must be a string
+    - value is empty
+    - not a valid IPv4 address
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('value must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('value is empty')
+
+    try:
+        addr = ip_address(s)
+    except ValueError:
+        return Maybe.failure('not a valid IPv4 address')
+
+    if isinstance(addr, IPv4Address):
+        return Maybe.success(addr)
+
+    return Maybe.failure('not a valid IPv4 address')
+
+
+
+def parse_ipv6(text: str) -> Maybe[IPv6Address]:
+    """Parse an IPv6 address string.
+
+    Trims surrounding whitespace only. Returns Success with a concrete
+    IPv6Address on success, or Failure with a deterministic error message.
+
+    Error messages:
+    - value must be a string
+    - value is empty
+    - not a valid IPv6 address
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('value must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('value is empty')
+
+    # Explicitly reject scope IDs like %eth0
+    if '%' in s:
+        return Maybe.failure('not a valid IPv6 address')
+
+    try:
+        addr = ip_address(s)
+    except ValueError:
+        return Maybe.failure('not a valid IPv6 address')
+
+    if isinstance(addr, IPv6Address):
+        return Maybe.success(addr)
+
+    return Maybe.failure('not a valid IPv6 address')
+
+
+
+def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
+    """Parse a string as either an IPv4 or IPv6 address.
+
+    Trims surrounding whitespace only.
+
+    Error messages:
+    - value must be a string
+    - value is empty
+    - not a valid IP address
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('value must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('value is empty')
+
+    # Reject non-address forms such as IPv6 scope IDs or URLs
+    if '%' in s or '://' in s:
+        return Maybe.failure('not a valid IP address')
+
+    try:
+        addr = ip_address(s)
+    except ValueError:
+        return Maybe.failure('not a valid IP address')
+
+    if isinstance(addr, (IPv4Address, IPv6Address)):
+        return Maybe.success(addr)
+
+    return Maybe.failure('not a valid IP address')
+
+
+
+def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Network]:
+    """Parse a CIDR network string (IPv4 or IPv6).
+
+    Uses ipaddress.ip_network under the hood. By default ``strict=True``
+    so host bits set will fail. With ``strict=False``, host bits are masked.
+
+    Error messages:
+    - value must be a string
+    - value is empty
+    - has host bits set (when strict and host bits are present)
+    - not a valid network (all other parsing failures)
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('value must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('value is empty')
+
+    try:
+        net = ip_network(s, strict=strict)
+    except ValueError as exc:
+        msg = str(exc)
+        if 'has host bits set' in msg:
+            return Maybe.failure('has host bits set')
+        return Maybe.failure('not a valid network')
+
+    if isinstance(net, (IPv4Network, IPv6Network)):
+        return Maybe.success(net)
+
+    return Maybe.failure('not a valid network')

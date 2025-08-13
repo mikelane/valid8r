@@ -12,6 +12,12 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 Added
 ~~~~~
 
+- IP parsing helpers built on ``ipaddress``:
+  - ``parse_ipv4``, ``parse_ipv6``, ``parse_ip``, ``parse_cidr``
+- Deterministic error messages and whitespace normalization
+- Unit tests covering IPv4/IPv6/CIDR success and failure scenarios
+- Documentation updates in User Guide, API reference, and examples
+
 - Initial implementation of the Maybe monad
 - Core parsers for various data types
 - Core validators with operator overloading
