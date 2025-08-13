@@ -34,6 +34,33 @@ age = prompt.ask(
 print(f"Your age is {age}")
 ```
 
+### IP parsing helpers
+
+```python
+from valid8r.core.maybe import Success, Failure
+from valid8r.core import parsers
+
+# IPv4 / IPv6 / generic IP
+for text in ["192.168.0.1", "::1", " 10.0.0.1 "]:
+    match parsers.parse_ip(text):
+        case Success(addr):
+            print("Parsed:", addr)
+        case Failure(err):
+            print("Error:", err)
+
+# CIDR (strict by default)
+match parsers.parse_cidr("10.0.0.0/8"):
+    case Success(net):
+        print("Network:", net)  # 10.0.0.0/8
+    case Failure(err):
+        print("Error:", err)
+
+# Non-strict masks host bits
+match parsers.parse_cidr("10.0.0.1/24", strict=False):
+    case Success(net):
+        assert str(net) == "10.0.0.0/24"
+```
+
 ## Testing Support
 
 Valid8r includes testing utilities to help you verify your validation logic:
