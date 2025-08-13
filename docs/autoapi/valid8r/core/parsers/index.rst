@@ -44,6 +44,10 @@ Functions
    valid8r.core.parsers.make_parser
    valid8r.core.parsers.validated_parser
    valid8r.core.parsers.parse_uuid
+   valid8r.core.parsers.parse_ipv4
+   valid8r.core.parsers.parse_ipv6
+   valid8r.core.parsers.parse_ip
+   valid8r.core.parsers.parse_cidr
 
 
 Module Contents
@@ -252,5 +256,57 @@ Module Contents
 
    :returns: Success with a UUID object or Failure with an error message.
    :rtype: Maybe[UUID]
+
+
+.. py:function:: parse_ipv4(text)
+
+   Parse an IPv4 address string.
+
+   Trims surrounding whitespace only. Returns Success with a concrete
+   IPv4Address on success, or Failure with a deterministic error message.
+
+   Error messages:
+   - value must be a string
+   - value is empty
+   - not a valid IPv4 address
+
+
+.. py:function:: parse_ipv6(text)
+
+   Parse an IPv6 address string.
+
+   Trims surrounding whitespace only. Returns Success with a concrete
+   IPv6Address on success, or Failure with a deterministic error message.
+
+   Error messages:
+   - value must be a string
+   - value is empty
+   - not a valid IPv6 address
+
+
+.. py:function:: parse_ip(text)
+
+   Parse a string as either an IPv4 or IPv6 address.
+
+   Trims surrounding whitespace only.
+
+   Error messages:
+   - value must be a string
+   - value is empty
+   - not a valid IP address
+
+
+.. py:function:: parse_cidr(text, *, strict = True)
+
+   Parse a CIDR network string (IPv4 or IPv6).
+
+   Uses ipaddress.ip_network under the hood. By default ``strict=True``
+   so host bits set will fail. With ``strict=False``, host bits are masked.
+
+   Error messages:
+   - value must be a string
+   - value is empty
+   - has host bits set (when strict and host bits are present)
+   - not a valid network (all other parsing failures)
 
 
