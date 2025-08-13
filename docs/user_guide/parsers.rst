@@ -294,6 +294,60 @@ Valid8r supports parsing strings into collection types like lists and dictionari
        case Failure(error):
            print(f"Error: {error}")
 
+IP Address and CIDR Parsers
+---------------------------
+
+Valid8r provides built-in helpers for parsing IPv4, IPv6, generic IP addresses, and CIDR networks using Python's ``ipaddress``.
+
+.. code-block:: python
+
+   from valid8r.core.maybe import Success, Failure
+   from valid8r import parsers
+
+   # IPv4
+   match parsers.parse_ipv4("192.168.0.1"):
+       case Success(addr):
+           print(addr)  # 192.168.0.1
+       case Failure(error):
+           print(error)
+
+   # IPv6 (normalized to canonical form)
+   match parsers.parse_ipv6("2001:db8:0:0:0:0:2:1"):
+       case Success(addr):
+           print(addr)  # 2001:db8::2:1
+       case Failure(error):
+           print(error)
+
+   # Generic IP (either IPv4 or IPv6)
+   match parsers.parse_ip("::1"):
+       case Success(addr):
+           print(type(addr), addr)  # <class 'ipaddress.IPv6Address'> ::1
+       case Failure(error):
+           print(error)
+
+   # CIDR networks (strict by default)
+   match parsers.parse_cidr("10.0.0.0/8"):
+       case Success(net):
+           print(net)  # 10.0.0.0/8
+       case Failure(error):
+           print(error)
+
+   # Non-strict CIDR masks host bits instead of failing
+   match parsers.parse_cidr("10.0.0.1/24", strict=False):
+       case Success(net):
+           print(net)  # 10.0.0.0/24
+       case Failure(error):
+           print(error)
+
+Error messages are short and deterministic:
+
+- "value must be a string" for non-string inputs
+- "value is empty" for empty strings
+- "not a valid IPv4 address" or "not a valid IPv6 address" for address-specific failures
+- "not a valid IP address" for generic IP failures
+- "not a valid network" for invalid CIDR/prefix formats
+- "has host bits set" when strict CIDR parsing is enabled and input contains host bits
+
 Creating Custom Parsers
 ------------------------
 
@@ -308,23 +362,14 @@ The ``create_parser`` function allows you to create a parser from any function t
 
    from valid8r.core.parsers import create_parser
    from valid8r.core.maybe import Maybe, Success, Failure
-   import ipaddress
-
-   # Define a custom parser for IP addresses
-   def parse_ip_address(input_value: str) -> Maybe[ipaddress.IPv4Address]:
-       try:
-           return Maybe.success(ipaddress.IPv4Address(input_value))
-       except ValueError:
-           return Maybe.failure("Invalid IP address")
-
-   # Or more simply with create_parser
-   ip_parser = create_parser(ipaddress.IPv4Address, "Invalid IP address")
+   # You can still create custom parsers with create_parser for other types.
 
    # Parse a string to an IP address
-   result = ip_parser("192.168.1.1")
+   # (Built-in helpers exist: parse_ipv4/parse_ipv6/parse_ip/parse_cidr)
+   result = create_parser(int, "Not a valid integer")("123")
    match result:
        case Success(value):
-           print(f"Parsed IP: {value}")  # Parsed IP: 192.168.1.1
+           print(f"Parsed: {value}")  # Parsed: 123
        case Failure(error):
            print(f"Error: {error}")
 

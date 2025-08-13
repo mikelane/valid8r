@@ -727,3 +727,34 @@ Matching Multiple Results
                return f"Invalid x-coordinate: {error}"
            case (_, Failure(error)):
                return f"Invalid y-coordinate: {error}"
+
+.. py:function:: valid8r.core.parsers.parse_ipv4(text)
+
+   Parse a string to an IPv4Address. Surrounding whitespace is ignored.
+
+   :param text: Input string
+   :return: Maybe[IPv4Address] with deterministic errors: "value must be a string", "value is empty", "not a valid IPv4 address"
+
+.. py:function:: valid8r.core.parsers.parse_ipv6(text)
+
+   Parse a string to an IPv6Address. Surrounding whitespace is ignored and output is canonicalized.
+
+   :param text: Input string
+   :return: Maybe[IPv6Address] with deterministic errors: "value must be a string", "value is empty", "not a valid IPv6 address"
+
+.. py:function:: valid8r.core.parsers.parse_ip(text)
+
+   Parse a string to an IP address, accepting either IPv4 or IPv6. Surrounding whitespace is ignored.
+
+   :param text: Input string
+   :return: Maybe[IPv4Address | IPv6Address] with deterministic errors: "value must be a string", "value is empty", "not a valid IP address"
+
+.. py:function:: valid8r.core.parsers.parse_cidr(text, *, strict=True)
+
+   Parse a CIDR network string to IPv4Network or IPv6Network using ``ipaddress.ip_network``.
+
+   ``strict=True`` (default) rejects inputs with host bits set; use ``strict=False`` to mask host bits.
+
+   :param text: Input string
+   :param strict: Whether to reject host bits
+   :return: Maybe[IPv4Network | IPv6Network] with deterministic errors: "value must be a string", "value is empty", "has host bits set" (when strict), "not a valid network"
