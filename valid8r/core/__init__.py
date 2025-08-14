@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 from valid8r.core.parsers import (
+    EmailAddress,
+    UrlParts,
     parse_cidr,
+    parse_email,
     parse_ip,
     parse_ipv4,
     parse_ipv6,
+    parse_url,
 )
 
 __all__ = [
@@ -16,4 +20,9 @@ __all__ = [
     'parse_ipv6',
     'parse_ip',
     'parse_cidr',
+    # URL/Email helpers
+    'parse_url',
+    'parse_email',
+    'UrlParts',
+    'EmailAddress',
 ]
