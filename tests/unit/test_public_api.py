@@ -5,7 +5,7 @@ class DescribePublicApi:
     def it_imports_core_modules_from_top_level(self) -> None:
         # Feature: Public API re-exports
         # Scenario: Import core modules from top-level
-        from valid8r import parsers, validators, prompt
+        from valid8r import parsers, prompt, validators
 
         assert parsers is not None
         assert validators is not None

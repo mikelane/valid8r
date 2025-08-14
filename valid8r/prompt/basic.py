@@ -131,7 +131,8 @@ def _ask_with_config(prompt_text: str, config: PromptConfig[T]) -> Maybe[T]:
 
     # Set default parser and validator if not provided
     if config.parser is None:
-        parser: Callable[[str], Maybe[T]] = lambda s: Maybe.success(cast(T, s))
+        def parser(s: str) -> Maybe[T]:
+            return Maybe.success(cast('T', s))
     else:
         parser = config.parser
     validator = config.validator or (lambda v: Maybe.success(v))
