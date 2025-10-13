@@ -28,6 +28,19 @@ try:
     import uuid_utils as uuidu
 except Exception:  # noqa: BLE001
     uuidu = None  # type: ignore[assignment]
+
+try:
+    from email_validator import (
+        EmailNotValidError,
+        validate_email,
+    )
+
+    HAS_EMAIL_VALIDATOR = True
+except ImportError:
+    HAS_EMAIL_VALIDATOR = False
+    EmailNotValidError = None  # type: ignore[assignment,misc]
+    validate_email = None  # type: ignore[assignment]
+
 from dataclasses import dataclass
 from ipaddress import (
     IPv4Address,
@@ -686,11 +699,11 @@ def parse_ipv4(text: str) -> Maybe[IPv4Address]:
     - not a valid IPv4 address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     try:
         addr = ip_address(s)
@@ -715,11 +728,11 @@ def parse_ipv6(text: str) -> Maybe[IPv6Address]:
     - not a valid IPv6 address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     # Explicitly reject scope IDs like %eth0
     if '%' in s:
@@ -747,11 +760,11 @@ def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     - not a valid IP address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     # Reject non-address forms such as IPv6 scope IDs or URLs
     if '%' in s or '://' in s:
@@ -781,11 +794,11 @@ def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Net
     - not a valid network (all other parsing failures)
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     try:
         net = ip_network(s, strict=strict)
@@ -926,7 +939,7 @@ def _parse_host_and_port(hostport: str) -> tuple[str | None, int | None]:
                 port_val = int(rest[1:])
             except ValueError:
                 return None, None
-            if not (0 < port_val <= 65535):
+            if not (0 <= port_val <= 65535):
                 return None, None
             port = port_val
         elif rest != '':
@@ -944,7 +957,7 @@ def _parse_host_and_port(hostport: str) -> tuple[str | None, int | None]:
         except ValueError:
             # Could be part of IPv6 without brackets (not supported by URL syntax)
             return hostport, None
-        if not (0 < port_val <= 65535):
+        if not (0 <= port_val <= 65535):
             return None, None
         return host_candidate, port_val
 
@@ -990,24 +1003,24 @@ def parse_url(
     - Lowercase scheme and host; do not modify path/query/fragment
 
     Failure messages (exact substrings):
-    - value must be a string
-    - value is empty
-    - unsupported URL scheme
+    - Input must be a string
+    - Input must not be empty
+    - Unsupported URL scheme
     - URL requires host
-    - invalid host
+    - Invalid host
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     parts = urlsplit(s)
 
     scheme_lower = parts.scheme.lower()
     if scheme_lower == '' or scheme_lower not in {sch.lower() for sch in allowed_schemes}:
-        return Maybe.failure('unsupported URL scheme')
+        return Maybe.failure('Unsupported URL scheme')
 
     username: str | None
     password: str | None
@@ -1030,7 +1043,7 @@ def parse_url(
 
         # Validate host when present
         if host is not None and not _validate_url_host(host, netloc):
-            return Maybe.failure('invalid host')
+            return Maybe.failure('Invalid host')
     elif require_host:
         return Maybe.failure('URL requires host')
 
@@ -1058,15 +1071,19 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
     Uses the email-validator library for RFC 5322 compliant validation.
     Domain names are normalized to lowercase, local parts preserve their case.
 
+    Requires the email-validator library to be installed. If not available,
+    returns a Failure indicating the library is required.
+
     Rules:
     - Trim surrounding whitespace
     - Full RFC 5322 email validation
     - Supports internationalized domains (IDNA)
     - Domain is lowercased in the result; local part preserves case
 
-    Failure messages (from email-validator):
-    - value must be a string
-    - value is empty
+    Failure messages:
+    - Input must be a string
+    - Input must not be empty
+    - email-validator library is required but not installed
     - Various RFC-compliant validation error messages from email-validator
 
     Args:
@@ -1076,24 +1093,22 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
         Maybe[EmailAddress]: Success with EmailAddress or Failure with error message
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
+
+    if not HAS_EMAIL_VALIDATOR:
+        return Maybe.failure('email-validator library is required but not installed')
 
     try:
-        from email_validator import (
-            EmailNotValidError,
-            validate_email,
-        )
-
         # Validate without DNS lookups
-        result = validate_email(s, check_deliverability=False)
+        result = validate_email(s, check_deliverability=False)  # type: ignore[misc]
 
         # Return normalized components
         return Maybe.success(EmailAddress(local=result.local_part, domain=result.domain))
-    except EmailNotValidError as e:
+    except EmailNotValidError as e:  # type: ignore[misc]
         return Maybe.failure(str(e))
     except Exception as e:  # noqa: BLE001
         return Maybe.failure(f'email validation error: {e}')
