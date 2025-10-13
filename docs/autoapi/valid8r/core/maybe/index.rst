@@ -244,6 +244,3 @@ Module Contents
    .. py:method:: __str__()
 
       Get a string representation.
-
-
-

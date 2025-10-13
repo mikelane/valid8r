@@ -21,7 +21,7 @@ pip install valid8r
 from valid8r import (
     parsers,
     prompt,
-    validators, 
+    validators,
 )
 
 # Simple validation
@@ -59,6 +59,27 @@ match parsers.parse_cidr("10.0.0.0/8"):
 match parsers.parse_cidr("10.0.0.1/24", strict=False):
     case Success(net):
         assert str(net) == "10.0.0.0/24"
+```
+
+### URL and Email helpers
+
+```python
+from valid8r.core.maybe import Success, Failure
+from valid8r.core import parsers
+
+# URL parsing
+match parsers.parse_url("https://alice:pw@example.com:8443/x?q=1#top"):
+    case Success(u):
+        print(u.scheme, u.username, u.password, u.host, u.port)
+    case Failure(err):
+        print("Error:", err)
+
+# Email parsing
+match parsers.parse_email("First.Last+tag@Example.COM"):
+    case Success(e):
+        print(e.local, e.domain)  # First.Last+tag example.com
+    case Failure(err):
+        print("Error:", err)
 ```
 
 ## Testing Support

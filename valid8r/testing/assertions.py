@@ -62,6 +62,6 @@ def assert_maybe_failure(result: Maybe[T], expected_error: str) -> bool:
             return False
 
 
-def assert_error_equals(result: Maybe[T], expected_error: str, default: str = "") -> bool:
+def assert_error_equals(result: Maybe[T], expected_error: str, default: str = '') -> bool:
     """Assert error via error_or helper."""
     return result.error_or(default) == expected_error

@@ -40,8 +40,8 @@ class DescribeIpParsers:
             pytest.param('192.168.0', 'not a valid IPv4 address', id='v4-invalid-too-few-octets'),
             pytest.param('192.168.0.1.1', 'not a valid IPv4 address', id='v4-invalid-too-many-octets'),
             pytest.param('abc', 'not a valid IPv4 address', id='v4-invalid-alpha'),
-            pytest.param('', 'value is empty', id='v4-empty'),
-            pytest.param(None, 'value must be a string', id='v4-wrong-type'),
+            pytest.param('', 'must not be empty', id='v4-empty'),
+            pytest.param(None, 'must be a string', id='v4-wrong-type'),
         ],
     )
     def it_rejects_invalid_ipv4(self, text: object, message: str) -> None:

@@ -2,28 +2,49 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import (
     date,
     datetime,
 )
+from decimal import (
+    Decimal,
+    InvalidOperation,
+)
 from enum import Enum
 from functools import wraps
 from typing import (
+    TYPE_CHECKING,
     ParamSpec,
     TypeVar,
     cast,
     overload,
 )
+from uuid import UUID
 
 from valid8r.core.maybe import (
     Failure,
     Maybe,
     Success,
 )
-from decimal import Decimal, InvalidOperation
-from uuid import UUID
-import uuid_utils as uuidu
+
+try:
+    import uuid_utils as uuidu
+except Exception:  # noqa: BLE001
+    uuidu = None  # type: ignore[assignment]
+
+try:
+    from email_validator import (
+        EmailNotValidError,
+        validate_email,
+    )
+
+    HAS_EMAIL_VALIDATOR = True
+except ImportError:
+    HAS_EMAIL_VALIDATOR = False
+    EmailNotValidError = None  # type: ignore[assignment,misc]
+    validate_email = None  # type: ignore[assignment]
+
+from dataclasses import dataclass
 from ipaddress import (
     IPv4Address,
     IPv4Network,
@@ -32,6 +53,13 @@ from ipaddress import (
     ip_address,
     ip_network,
 )
+from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -158,6 +186,7 @@ def parse_decimal(input_value: str, error_message: str | None = None) -> Maybe[D
 
     Returns:
         Maybe[Decimal]: Success with Decimal value or Failure with an error message
+
     """
     if not input_value:
         return Maybe.failure('Input must not be empty')
@@ -329,11 +358,11 @@ def parse_dict(  # noqa: PLR0913
         return Maybe.success(s.strip())
 
     actual_key_parser: Callable[[str], Maybe[K | None]] = cast(
-        Callable[[str], Maybe[K | None]], key_parser if key_parser is not None else _default_parser
+        'Callable[[str], Maybe[K | None]]', key_parser if key_parser is not None else _default_parser
     )
 
     actual_value_parser: Callable[[str], Maybe[V | None]] = cast(
-        Callable[[str], Maybe[V | None]], value_parser if value_parser is not None else _default_parser
+        'Callable[[str], Maybe[V | None]]', value_parser if value_parser is not None else _default_parser
     )
 
     # Split the input string by the pair separator
@@ -620,17 +649,18 @@ def validated_parser(
 def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Maybe[UUID]:
     """Parse a string to a UUID.
 
-    Uses uuid-utils to parse and validate UUIDs across versions 1, 3, 4, 5, 6, 7, and 8.
+    Uses uuid-utils to parse and validate UUIDs across versions 1, 3, 4, 5, 6, 7, and 8 when available.
     When ``version`` is provided, validates the parsed UUID version. In ``strict`` mode (default),
     a mismatch yields a Failure; otherwise, the mismatch is ignored and the UUID is returned.
 
     Args:
-        text: The UUID string in canonical 8-4-4-4-12 form.
+        text: The input string to parse as UUID.
         version: Optional expected UUID version to validate against.
         strict: Whether to enforce the expected version when provided.
 
     Returns:
         Maybe[UUID]: Success with a UUID object or Failure with an error message.
+
     """
     if not text:
         return Maybe.failure('Input must not be empty')
@@ -638,12 +668,15 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
     s = text.strip()
 
     try:
-        # Let uuid-utils perform parsing/validation across all supported versions
-        parsed_any = uuidu.UUID(s)
+        # Prefer uuid-utils if available; fall back to stdlib
+        if uuidu is not None:
+            parsed_any = uuidu.UUID(s)
+            parsed_version = getattr(parsed_any, 'version', None)
+        else:
+            parsed_std = UUID(s)
+            parsed_version = getattr(parsed_std, 'version', None)
     except Exception:  # noqa: BLE001
         return Maybe.failure('Input must be a valid UUID')
-
-    parsed_version = getattr(parsed_any, 'version', None)
 
     if version is not None:
         supported_versions = {1, 3, 4, 5, 6, 7, 8}
@@ -656,7 +689,7 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
     try:
         return Maybe.success(UUID(s))
     except Exception:  # noqa: BLE001
-        # This should not happen if uuid-utils succeeded, but guard anyway
+        # This should not happen if initial parsing succeeded, but guard anyway
         return Maybe.failure('Input must be a valid UUID')
 
 
@@ -672,11 +705,11 @@ def parse_ipv4(text: str) -> Maybe[IPv4Address]:
     - not a valid IPv4 address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     try:
         addr = ip_address(s)
@@ -687,7 +720,6 @@ def parse_ipv4(text: str) -> Maybe[IPv4Address]:
         return Maybe.success(addr)
 
     return Maybe.failure('not a valid IPv4 address')
-
 
 
 def parse_ipv6(text: str) -> Maybe[IPv6Address]:
@@ -702,11 +734,11 @@ def parse_ipv6(text: str) -> Maybe[IPv6Address]:
     - not a valid IPv6 address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     # Explicitly reject scope IDs like %eth0
     if '%' in s:
@@ -723,7 +755,6 @@ def parse_ipv6(text: str) -> Maybe[IPv6Address]:
     return Maybe.failure('not a valid IPv6 address')
 
 
-
 def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     """Parse a string as either an IPv4 or IPv6 address.
 
@@ -735,11 +766,11 @@ def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     - not a valid IP address
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     # Reject non-address forms such as IPv6 scope IDs or URLs
     if '%' in s or '://' in s:
@@ -756,7 +787,6 @@ def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     return Maybe.failure('not a valid IP address')
 
 
-
 def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Network]:
     """Parse a CIDR network string (IPv4 or IPv6).
 
@@ -770,11 +800,11 @@ def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Net
     - not a valid network (all other parsing failures)
     """
     if not isinstance(text, str):
-        return Maybe.failure('value must be a string')
+        return Maybe.failure('Input must be a string')
 
     s = text.strip()
     if s == '':
-        return Maybe.failure('value is empty')
+        return Maybe.failure('Input must not be empty')
 
     try:
         net = ip_network(s, strict=strict)
@@ -788,3 +818,303 @@ def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Net
         return Maybe.success(net)
 
     return Maybe.failure('not a valid network')
+
+
+# ---------------------------
+# URL and Email parsing
+# ---------------------------
+
+
+@dataclass(frozen=True)
+class UrlParts:
+    """Structured URL components.
+
+    Attributes:
+        scheme: Lowercased scheme (e.g. "http").
+        username: Username from userinfo, if present.
+        password: Password from userinfo, if present.
+        host: Lowercased host or IPv6 literal without brackets, or None when not provided and not required.
+        port: Explicit port if present, otherwise None.
+        path: Path component as-is (no normalization).
+        query: Query string without leading '?'.
+        fragment: Fragment without leading '#'.
+
+    Examples:
+        >>> from valid8r.core.maybe import Success
+        >>> match parse_url('https://alice:pw@example.com:8443/x?q=1#top'):
+        ...     case Success(u):
+        ...         (u.scheme, u.username, u.password, u.host, u.port, u.path, u.query, u.fragment)
+        ...     case _:
+        ...         ()
+        ('https', 'alice', 'pw', 'example.com', 8443, '/x', 'q=1', 'top')
+
+    """
+
+    scheme: str
+    username: str | None
+    password: str | None
+    host: str | None
+    port: int | None
+    path: str
+    query: str
+    fragment: str
+
+
+@dataclass(frozen=True)
+class EmailAddress:
+    """Structured email address.
+
+    Attributes:
+        local: Local part (preserves original case).
+        domain: Domain part lowercased.
+
+    Examples:
+        >>> from valid8r.core.maybe import Success
+        >>> match parse_email('First.Last+tag@Example.COM'):
+        ...     case Success(addr):
+        ...         (addr.local, addr.domain)
+        ...     case _:
+        ...         ()
+        ('First.Last+tag', 'example.com')
+
+    """
+
+    local: str
+    domain: str
+
+
+def _is_valid_hostname_label(label: str) -> bool:
+    if not (1 <= len(label) <= 63):
+        return False
+    # Alnum or hyphen; cannot start or end with hyphen
+    if label.startswith('-') or label.endswith('-'):
+        return False
+    for ch in label:
+        if ch.isalnum() or ch == '-':
+            continue
+        return False
+    return True
+
+
+def _is_valid_hostname(host: str) -> bool:
+    # Allow localhost explicitly
+    if host.lower() == 'localhost':
+        return True
+
+    if len(host) == 0 or len(host) > 253:
+        return False
+
+    # Reject underscores and empty labels
+    labels = host.split('.')
+    return all(not (part == '' or not _is_valid_hostname_label(part)) for part in labels)
+
+
+def _parse_userinfo_and_hostport(netloc: str) -> tuple[str | None, str | None, str]:
+    """Split userinfo and hostport from a netloc string."""
+    if '@' in netloc:
+        userinfo, hostport = netloc.rsplit('@', 1)
+        if ':' in userinfo:
+            user, pwd = userinfo.split(':', 1)
+        else:
+            user, pwd = userinfo, None
+        return (user or None), (pwd or None), hostport
+    return None, None, netloc
+
+
+def _parse_host_and_port(hostport: str) -> tuple[str | None, int | None]:
+    """Parse host and optional port from hostport.
+
+    Supports IPv6 literals in brackets.
+    Returns (host, port). Host is None when missing.
+    """
+    if not hostport:
+        return None, None
+
+    host = None
+    port: int | None = None
+
+    if hostport.startswith('['):
+        # IPv6 literal [::1] or [::1]:443
+        if ']' not in hostport:
+            return None, None
+        end = hostport.find(']')
+        host = hostport[1:end]
+        rest = hostport[end + 1 :]
+        if rest.startswith(':'):
+            try:
+                port_val = int(rest[1:])
+            except ValueError:
+                return None, None
+            if not (0 <= port_val <= 65535):
+                return None, None
+            port = port_val
+        elif rest != '':
+            # Garbage after bracket
+            return None, None
+        return host, port
+
+    # Not bracketed: split on last ':' to allow IPv6 bracket requirement
+    if ':' in hostport:
+        host_candidate, port_str = hostport.rsplit(':', 1)
+        if host_candidate == '':
+            return None, None
+        try:
+            port_val = int(port_str)
+        except ValueError:
+            # Could be part of IPv6 without brackets (not supported by URL syntax)
+            return hostport, None
+        if not (0 <= port_val <= 65535):
+            return None, None
+        return host_candidate, port_val
+
+    return hostport, None
+
+
+def _validate_url_host(host: str | None, original_netloc: str) -> bool:
+    if host is None:
+        return False
+
+    # If original contained brackets or host contains ':' treat as IPv6
+    if original_netloc.startswith('[') or ':' in host:
+        try:
+            _ = ip_address(host)
+            return isinstance(_, (IPv6Address, IPv4Address))
+        except ValueError:
+            return False
+
+    # Try IPv4
+    try:
+        _ = ip_address(host)
+        if isinstance(_, IPv4Address):
+            return True
+    except ValueError:
+        pass
+
+    # Hostname
+    return _is_valid_hostname(host)
+
+
+def parse_url(
+    text: str,
+    *,
+    allowed_schemes: Iterable[str] = ('http', 'https'),
+    require_host: bool = True,
+) -> Maybe[UrlParts]:
+    """Parse a URL with light validation.
+
+    Rules:
+    - Trim surrounding whitespace only
+    - Require scheme in allowed_schemes (defaults to http/https)
+    - If require_host, netloc must include a valid host (hostname, IPv4, or bracketed IPv6)
+    - Lowercase scheme and host; do not modify path/query/fragment
+
+    Failure messages (exact substrings):
+    - Input must be a string
+    - Input must not be empty
+    - Unsupported URL scheme
+    - URL requires host
+    - Invalid host
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('Input must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('Input must not be empty')
+
+    parts = urlsplit(s)
+
+    scheme_lower = parts.scheme.lower()
+    if scheme_lower == '' or scheme_lower not in {sch.lower() for sch in allowed_schemes}:
+        return Maybe.failure('Unsupported URL scheme')
+
+    username: str | None
+    password: str | None
+    host: str | None
+    port: int | None
+
+    username = None
+    password = None
+    host = None
+    port = None
+
+    netloc = parts.netloc
+
+    if netloc:
+        username, password, hostport = _parse_userinfo_and_hostport(netloc)
+        host, port = _parse_host_and_port(hostport)
+
+        if host is not None:
+            host = host.lower()
+
+        # Validate host when present
+        if host is not None and not _validate_url_host(host, netloc):
+            return Maybe.failure('Invalid host')
+    elif require_host:
+        return Maybe.failure('URL requires host')
+
+    # When require_host is True we must have a host
+    if require_host and (host is None or host == ''):
+        return Maybe.failure('URL requires host')
+
+    result = UrlParts(
+        scheme=scheme_lower,
+        username=username,
+        password=password,
+        host=host,
+        port=port,
+        path=parts.path,
+        query=parts.query,
+        fragment=parts.fragment,
+    )
+
+    return Maybe.success(result)
+
+
+def parse_email(text: str) -> Maybe[EmailAddress]:
+    """Parse a bare email address of the form ``local@domain``.
+
+    Uses the email-validator library for RFC 5322 compliant validation.
+    Domain names are normalized to lowercase, local parts preserve their case.
+
+    Requires the email-validator library to be installed. If not available,
+    returns a Failure indicating the library is required.
+
+    Rules:
+    - Trim surrounding whitespace
+    - Full RFC 5322 email validation
+    - Supports internationalized domains (IDNA)
+    - Domain is lowercased in the result; local part preserves case
+
+    Failure messages:
+    - Input must be a string
+    - Input must not be empty
+    - email-validator library is required but not installed
+    - Various RFC-compliant validation error messages from email-validator
+
+    Args:
+        text: The email address string to parse
+
+    Returns:
+        Maybe[EmailAddress]: Success with EmailAddress or Failure with error message
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('Input must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('Input must not be empty')
+
+    if not HAS_EMAIL_VALIDATOR:
+        return Maybe.failure('email-validator library is required but not installed')
+
+    try:
+        # Validate without DNS lookups
+        result = validate_email(s, check_deliverability=False)
+
+        # Return normalized components
+        return Maybe.success(EmailAddress(local=result.local_part, domain=result.domain))
+    except EmailNotValidError as e:
+        return Maybe.failure(str(e))
+    except Exception as e:  # noqa: BLE001
+        return Maybe.failure(f'email validation error: {e}')

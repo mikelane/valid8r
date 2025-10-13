@@ -20,12 +20,16 @@ include = [{ path = "valid8r/py.typed", format = "wheel" }]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
+email-validator = "^2.3.0"
+pydantic = ">=2.0"
+pydantic-core = "^2.27.0"
 # No external dependencies for core functionality
 uuid-utils = "^0.11.0"
 
 [tool.poetry.group.dev.dependencies]
 livereload = "^2.7.1"
 mypy = "^1.17.1"
+pre-commit = "^4.3.0"
 
 [tool.poetry.group.lint.dependencies]
 isort = "^6.0.1"
@@ -44,7 +48,6 @@ sphinx-rtd-theme = "^3.0.2"
 behave = "^1.3.0"
 coverage = "^7.10.2"
 pytest = "^8.4.1"
-pytest-bdd = "^8.1.0"
 pytest-cov = "^6.2.1"
 pytest-mock = "^3.14.1"
 pytest-sugar = "^1.0.0"
@@ -127,6 +130,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "D103", # Don't require function docstrings in tests
     "D104", # Don't require init docstrings in tests
     "PGH003", # Allow tests to casually ignore mypy complaints about incorrect types
+    "PLC0415", # Allow imports inside test functions
     "PLR0913", # Allow tests to have as many arguments as we want
 ]
 "tests/bdd/steps/*" = [
@@ -134,8 +138,16 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 ]
 "tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
 "scripts/*" = ["T201"] # allow print function in the scripts
+"smoke_test.py" = ["S101"] # allow asserts in smoke test
 "conftest.py" = ["D100"] # Don't require module docstrings in conftest
 "__init__.py" = ["F401"] # allow unused imports in __init__.py
+"valid8r/core/parsers.py" = [
+    "C901", # Allow complex functions in parsers
+    "D413", # Allow missing blank line after last docstring section
+    "FBT001", # Allow boolean positional arguments
+    "FBT002", # Allow boolean default arguments
+    "PLR2004", # Allow magic values for network constants
+]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]

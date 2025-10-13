@@ -1,0 +1,73 @@
+name: Documentation Improvement
+description: Suggest improvements to documentation
+title: "[Docs]: "
+labels: ["type: docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation needs improvement?
+      options:
+        - "API Reference"
+        - "User Guide"
+        - "Tutorial"
+        - "README"
+        - "Code Comments"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is this documentation located? (URL or file path)
+      placeholder: "docs/user-guide.md or https://..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue with Current Documentation
+      description: What's wrong, missing, or unclear?
+      placeholder: The documentation for parse_int doesn't explain...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should it be improved?
+      placeholder: It should include examples of...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Proposed Content
+      description: If you have specific content to suggest, include it here
+      render: markdown
+      placeholder: |
+        ## New section
+
+        Here's how to use parse_int with validation:
+
+        ```python
+        result = parse_int("42")
+        ```
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: This came up when I was trying to...

@@ -1,0 +1,33 @@
+# CODEOWNERS
+# This file defines code ownership for the valid8r project.
+# Each line is a file pattern followed by one or more owners.
+# These owners will be automatically requested for review when a PR modifies matching files.
+#
+# More information: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @mikelane
+
+# Core library code
+/valid8r/core/ @mikelane
+/valid8r/prompt/ @mikelane
+/valid8r/testing/ @mikelane
+
+# Tests
+/tests/ @mikelane
+
+# Documentation
+/docs/ @mikelane
+*.md @mikelane
+CLAUDE.md @mikelane
+
+# Configuration files
+pyproject.toml @mikelane
+poetry.lock @mikelane
+tox.ini @mikelane
+
+# GitHub workflows and templates
+/.github/ @mikelane
+
+# CI/CD
+/.github/workflows/ @mikelane

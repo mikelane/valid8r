@@ -210,5 +210,3 @@ Module Contents
    :param error_message: Optional custom error message
 
    :returns: A validator function
-
-
