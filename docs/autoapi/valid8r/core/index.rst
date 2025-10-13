@@ -85,5 +85,3 @@ Package Contents
    - value must be a string
    - value is empty
    - not a valid IPv6 address
-
-

@@ -6,7 +6,10 @@ from datetime import (
     date,
     datetime,
 )
-from decimal import Decimal, InvalidOperation
+from decimal import (
+    Decimal,
+    InvalidOperation,
+)
 from enum import Enum
 from functools import wraps
 from typing import (
@@ -53,7 +56,10 @@ from ipaddress import (
 from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -663,8 +669,8 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
 
     try:
         # Prefer uuid-utils if available; fall back to stdlib
-        if uuidu is not None:  # type: ignore[truthy-function]
-            parsed_any = uuidu.UUID(s)  # type: ignore[attr-defined]
+        if uuidu is not None:
+            parsed_any = uuidu.UUID(s)
             parsed_version = getattr(parsed_any, 'version', None)
         else:
             parsed_std = UUID(s)
@@ -1104,11 +1110,11 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
 
     try:
         # Validate without DNS lookups
-        result = validate_email(s, check_deliverability=False)  # type: ignore[misc]
+        result = validate_email(s, check_deliverability=False)
 
         # Return normalized components
         return Maybe.success(EmailAddress(local=result.local_part, domain=result.domain))
-    except EmailNotValidError as e:  # type: ignore[misc]
+    except EmailNotValidError as e:
         return Maybe.failure(str(e))
     except Exception as e:  # noqa: BLE001
         return Maybe.failure(f'email validation error: {e}')

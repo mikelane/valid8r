@@ -105,5 +105,3 @@ Module Contents
 
       >>> is_valid_age = minimum(0) & maximum(120)
       >>> test_validator_composition(is_valid_age)  # Returns True
-
-

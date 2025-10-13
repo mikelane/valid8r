@@ -209,12 +209,12 @@ Module Contents
       @make_parser
       def parse_decimal(s: str) -> Decimal:
           return Decimal(s)
-      
+
       # Or with parentheses
       @make_parser()
       def parse_decimal(s: str) -> Decimal:
           return Decimal(s)
-      
+
       result = parse_decimal("123.45")  # Returns Maybe[Decimal]
 
 
@@ -308,5 +308,3 @@ Module Contents
    - value is empty
    - has host bits set (when strict and host bits are present)
    - not a valid network (all other parsing failures)
-
-

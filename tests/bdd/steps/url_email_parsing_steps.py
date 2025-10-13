@@ -170,9 +170,9 @@ def step_url_fragment_is(context: Context, expected_fragment: str) -> None:
     match ctx.result:
         case Success(url_parts):
             assert isinstance(url_parts, UrlParts)
-            assert (
-                url_parts.fragment == expected_fragment
-            ), f'Expected fragment {expected_fragment} but got {url_parts.fragment}'
+            assert url_parts.fragment == expected_fragment, (
+                f'Expected fragment {expected_fragment} but got {url_parts.fragment}'
+            )
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -184,9 +184,9 @@ def step_url_username_is(context: Context, expected_username: str) -> None:
     match ctx.result:
         case Success(url_parts):
             assert isinstance(url_parts, UrlParts)
-            assert (
-                url_parts.username == expected_username
-            ), f'Expected username {expected_username} but got {url_parts.username}'
+            assert url_parts.username == expected_username, (
+                f'Expected username {expected_username} but got {url_parts.username}'
+            )
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -198,9 +198,9 @@ def step_url_password_is(context: Context, expected_password: str) -> None:
     match ctx.result:
         case Success(url_parts):
             assert isinstance(url_parts, UrlParts)
-            assert (
-                url_parts.password == expected_password
-            ), f'Expected password {expected_password} but got {url_parts.password}'
+            assert url_parts.password == expected_password, (
+                f'Expected password {expected_password} but got {url_parts.password}'
+            )
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -224,9 +224,9 @@ def step_email_domain_is(context: Context, expected_domain: str) -> None:
     match ctx.result:
         case Success(email_addr):
             assert isinstance(email_addr, EmailAddress)
-            assert (
-                email_addr.domain == expected_domain
-            ), f'Expected domain {expected_domain} but got {email_addr.domain}'
+            assert email_addr.domain == expected_domain, (
+                f'Expected domain {expected_domain} but got {email_addr.domain}'
+            )
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -239,6 +239,6 @@ def step_error_contains(context: Context, expected_substring: str) -> None:
         case Success(value):
             pytest.fail(f'Expected Failure but got Success: {value}')
         case Failure(err):
-            assert (
-                expected_substring.lower() in err.lower()
-            ), f'Expected error to contain "{expected_substring}" but got: {err}'
+            assert expected_substring.lower() in err.lower(), (
+                f'Expected error to contain "{expected_substring}" but got: {err}'
+            )

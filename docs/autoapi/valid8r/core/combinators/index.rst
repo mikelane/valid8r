@@ -63,5 +63,3 @@ Module Contents
    :param error_message: Error message for when the negated validator fails
 
    :returns: A new validator function that passes if the original validator fails
-
-

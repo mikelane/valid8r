@@ -67,5 +67,3 @@ Module Contents
 .. py:function:: assert_error_equals(result, expected_error, default = '')
 
    Assert error via error_or helper.
-
-

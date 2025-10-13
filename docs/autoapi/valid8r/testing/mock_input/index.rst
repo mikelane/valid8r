@@ -51,5 +51,3 @@ Module Contents
       >>> configure_mock_input(["yes", "42"])
       >>> answer = input("Continue? ")  # returns "yes"
       >>> number = input("Enter number: ")  # returns "42"
-
-

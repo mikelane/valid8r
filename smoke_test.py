@@ -6,8 +6,14 @@ are working correctly without requiring the full test suite.
 
 from __future__ import annotations
 
-from valid8r.core.maybe import Failure, Success
-from valid8r.core.parsers import parse_email, parse_url
+from valid8r.core.maybe import (
+    Failure,
+    Success,
+)
+from valid8r.core.parsers import (
+    parse_email,
+    parse_url,
+)
 
 
 def main() -> None:

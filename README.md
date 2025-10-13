@@ -21,7 +21,7 @@ pip install valid8r
 from valid8r import (
     parsers,
     prompt,
-    validators, 
+    validators,
 )
 
 # Simple validation

@@ -4,9 +4,16 @@ from decimal import Decimal
 
 import pytest
 
-from valid8r.core.maybe import Failure, Success
+from valid8r.core.maybe import (
+    Failure,
+    Success,
+)
 from valid8r.core.parsers import parse_decimal
-from valid8r.core.validators import between, maximum, minimum
+from valid8r.core.validators import (
+    between,
+    maximum,
+    minimum,
+)
 
 
 class DescribeDecimalParser:
