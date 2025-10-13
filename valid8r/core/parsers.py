@@ -1055,24 +1055,25 @@ def parse_url(
 def parse_email(text: str) -> Maybe[EmailAddress]:
     """Parse a bare email address of the form ``local@domain``.
 
-    Parsing is RFC 5322-lite: permissive yet strict for common errors.
+    Uses the email-validator library for RFC 5322 compliant validation.
+    Domain names are normalized to lowercase, local parts preserve their case.
 
     Rules:
-    - Trim surrounding whitespace only
-    - Exactly one '@'
-    - Local part: length 1..64, allowed ASCII letters/digits and .!#$%&'*+/=?^_{|}~-`;
-      cannot start or end with '.' and no consecutive dots
-    - Domain: hostname rules (labels 1..63, alnum or '-', not starting/ending with '-')
-      or valid IPv4, or bracketed IPv6 literal like "[2001:db8::1]"
+    - Trim surrounding whitespace
+    - Full RFC 5322 email validation
+    - Supports internationalized domains (IDNA)
     - Domain is lowercased in the result; local part preserves case
 
-    Failure messages (exact substrings):
+    Failure messages (from email-validator):
     - value must be a string
     - value is empty
-    - email must contain a single @
-    - invalid email local part
-    - invalid email domain
-    - email is too long
+    - Various RFC-compliant validation error messages from email-validator
+
+    Args:
+        text: The email address string to parse
+
+    Returns:
+        Maybe[EmailAddress]: Success with EmailAddress or Failure with error message
     """
     if not isinstance(text, str):
         return Maybe.failure('value must be a string')
@@ -1081,63 +1082,18 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
     if s == '':
         return Maybe.failure('value is empty')
 
-    # Must contain exactly one '@'
-    if s.count('@') != 1:
-        return Maybe.failure('email must contain a single @')
-
-    # Enforce max overall length
-    if len(s) > 254:
-        return Maybe.failure('email is too long')
-
-    local, domain = s.split('@', 1)
-
-    # Validate local part
-    if not (1 <= len(local) <= 64):
-        return Maybe.failure('invalid email local part')
-
-    # Allowed characters set for local part
-    allowed_local_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!#$%&'*+/=?^_{|}~-`")
-
-    # Not starting or ending with '.' and no consecutive '..'
-    if local.startswith('.') or local.endswith('.') or '..' in local:
-        return Maybe.failure('invalid email local part')
-
-    if not all(ch in allowed_local_chars for ch in local):
-        return Maybe.failure('invalid email local part')
-
-    # Validate domain
-    domain_original = domain
-
-    # Bracketed domain-literal
-    if domain_original.startswith('[') and domain_original.endswith(']'):
-        literal = domain_original[1:-1]
-        # Prefer IPv6; fall back to IPv4
-        try:
-            addr = ip_address(literal)
-        except ValueError:
-            return Maybe.failure('invalid email domain')
-        if isinstance(addr, (IPv6Address, IPv4Address)):
-            return Maybe.success(EmailAddress(local=local, domain=domain_original.lower()))
-        return Maybe.failure('invalid email domain')
-
-    domain_lower = domain_original.lower()
-
-    # Domain length
-    if not (1 <= len(domain_lower) <= 253):
-        return Maybe.failure('invalid email domain')
-
-    # Allow raw IPv4 address as domain (without brackets)
     try:
-        addr = ip_address(domain_lower)
-        if isinstance(addr, IPv4Address):
-            return Maybe.success(EmailAddress(local=local, domain=domain_lower))
-        # Disallow bare IPv6 (must be bracketed)
-        if isinstance(addr, IPv6Address):
-            return Maybe.failure('invalid email domain')
-    except ValueError:
-        pass
+        from email_validator import (
+            EmailNotValidError,
+            validate_email,
+        )
 
-    if not _is_valid_hostname(domain_lower):
-        return Maybe.failure('invalid email domain')
+        # Validate without DNS lookups
+        result = validate_email(s, check_deliverability=False)
 
-    return Maybe.success(EmailAddress(local=local, domain=domain_lower))
+        # Return normalized components
+        return Maybe.success(EmailAddress(local=result.local_part, domain=result.domain))
+    except EmailNotValidError as e:
+        return Maybe.failure(str(e))
+    except Exception as e:  # noqa: BLE001
+        return Maybe.failure(f'email validation error: {e}')
