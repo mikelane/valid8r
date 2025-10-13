@@ -130,11 +130,10 @@ def _ask_with_config(prompt_text: str, config: PromptConfig[T]) -> Maybe[T]:
         return Maybe.failure(config.error_message or 'Maximum retry attempts reached')
 
     # Set default parser and validator if not provided
-    if config.parser is None:
-        def parser(s: str) -> Maybe[T]:
-            return Maybe.success(cast('T', s))
-    else:
-        parser = config.parser
+    def default_parser(s: str) -> Maybe[T]:
+        return Maybe.success(cast('T', s))
+
+    parser: Callable[[str], Maybe[T]] = config.parser if config.parser is not None else default_parser
     validator = config.validator or (lambda v: Maybe.success(v))
 
     # Calculate max retries

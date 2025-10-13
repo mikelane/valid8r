@@ -34,11 +34,25 @@ def step_have_url_string(context: Context, url_string: str) -> None:
     ctx.url_input = url_string
 
 
+@given('I have the URL string ""')
+def step_have_empty_url_string(context: Context) -> None:
+    """Store an empty URL string for parsing."""
+    ctx = get_custom_context(context)
+    ctx.url_input = ''
+
+
 @given('I have the email string "{email_string}"')
 def step_have_email_string(context: Context, email_string: str) -> None:
     """Store the email string for parsing."""
     ctx = get_custom_context(context)
     ctx.email_input = email_string
+
+
+@given('I have the email string ""')
+def step_have_empty_email_string(context: Context) -> None:
+    """Store an empty email string for parsing."""
+    ctx = get_custom_context(context)
+    ctx.email_input = ''
 
 
 @when('I parse it with parse_url')
@@ -121,6 +135,18 @@ def step_url_path_is(context: Context, expected_path: str) -> None:
         case Success(url_parts):
             assert isinstance(url_parts, UrlParts)
             assert url_parts.path == expected_path, f'Expected path {expected_path} but got {url_parts.path}'
+        case Failure(err):
+            pytest.fail(f'Expected Success but got Failure: {err}')
+
+
+@then('the URL path is ""')
+def step_url_path_is_empty(context: Context) -> None:
+    """Verify the URL path is empty."""
+    ctx = get_custom_context(context)
+    match ctx.result:
+        case Success(url_parts):
+            assert isinstance(url_parts, UrlParts)
+            assert url_parts.path == '', f'Expected empty path but got {url_parts.path}'
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
