@@ -217,7 +217,7 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run smoke test
-        run: python smoke_test.py
+        run: poetry run python smoke_test.py
 
   all-checks:
     name: All Checks Passed
