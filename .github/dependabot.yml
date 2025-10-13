@@ -1,0 +1,60 @@
+version: 2
+updates:
+  # Python dependencies via Poetry
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "type: dependencies"
+      - "size: small"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    assignees:
+      - "mikelane"
+    reviewers:
+      - "mikelane"
+    # Group minor and patch updates together
+    groups:
+      development-dependencies:
+        patterns:
+          - "pytest*"
+          - "mypy"
+          - "ruff"
+          - "isort"
+          - "tox"
+          - "coverage"
+          - "behave"
+        update-types:
+          - "minor"
+          - "patch"
+      documentation-dependencies:
+        patterns:
+          - "sphinx*"
+          - "myst-parser"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "type: dependencies"
+      - "size: small"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    assignees:
+      - "mikelane"
+    reviewers:
+      - "mikelane"
