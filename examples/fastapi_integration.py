@@ -215,7 +215,7 @@ class ServerConfig(BaseModel):
     @classmethod
     def validate_max_connections(cls, v: int) -> int:
         """Validate max connections is positive."""
-        result = validators.positive()(v)
+        result = validators.minimum(1)(v)
         if result.is_failure():
             raise ValueError('Max connections must be positive')
         return v
@@ -227,7 +227,7 @@ class ServerConfig(BaseModel):
         if v is None:
             return v
 
-        result = validators.positive()(v)
+        result = validators.minimum(1)(v)
         if result.is_failure():
             raise ValueError('Timeout must be positive')
         return v
@@ -267,8 +267,8 @@ class ProductCreate(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         """Validate product name: 3-100 chars, non-empty."""
-        # Chain validators using bind
-        result = validators.non_empty()(v).bind(validators.min_length(3)).bind(validators.max_length(100))
+        # Validate length using Valid8r's length validator
+        result = validators.length(3, 100)(v)
 
         if result.is_failure():
             raise ValueError(result.error_or('Invalid product name'))
@@ -278,7 +278,7 @@ class ProductCreate(BaseModel):
     @classmethod
     def validate_price(cls, v: float) -> float:
         """Validate price is positive."""
-        result = validators.positive()(v)
+        result = validators.predicate(lambda x: x > 0, 'Price must be positive')(v)
         if result.is_failure():
             raise ValueError('Price must be positive')
         return v
