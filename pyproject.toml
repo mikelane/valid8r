@@ -1,13 +1,13 @@
-[tool.poetry]
+[project]
 name = "valid8r"
 version = "0.7.0"
 description = "Clean, flexible input validation for Python applications"
-authors = ["Mike Lane <mikelane@gmail.com>"]
-license = "MIT"
+authors = [
+    {name = "Mike Lane", email = "mikelane@gmail.com"}
+]
+license = {text = "MIT"}
 readme = "README.md"
-homepage = "https://valid8r.readthedocs.io/"
-repository = "https://github.com/mikelane/valid8r"
-documentation = "https://valid8r.readthedocs.io/"
+requires-python = ">=3.11"
 keywords = ["validation", "input", "cli", "maybe-monad", "parsing", "functional-programming"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -23,51 +23,68 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "Typing :: Typed",
 ]
-packages = [{include = "valid8r"}]
-include = [{ path = "valid8r/py.typed", format = "wheel" }]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<4.0"
-email-validator = "^2.3.0"
-pydantic = ">=2.0"
-pydantic-core = "^2.27.0"
-# No external dependencies for core functionality
-uuid-utils = "^0.11.0"
+dependencies = [
+    "email-validator>=2.3.0",
+    "pydantic>=2.0",
+    "pydantic-core>=2.27.0",
+    "uuid-utils>=0.11.0",
+]
 
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.17.1"
-pre-commit = "^4.3.0"
-python-semantic-release = "^9.21.1"
+[project.urls]
+Homepage = "https://valid8r.readthedocs.io/"
+Repository = "https://github.com/mikelane/valid8r"
+Documentation = "https://valid8r.readthedocs.io/"
+Issues = "https://github.com/mikelane/valid8r/issues"
 
-[tool.poetry.group.lint.dependencies]
-isort = "^6.0.1"
-ruff = "^0.12.8"
-
-[tool.poetry.group.docs.dependencies]
-myst-parser = "^4.0.1"
-sphinx = "^8.2.3"
-sphinx-autoapi = "^3.6.0"
-sphinx-autodoc-typehints = "^3.2.0"
-sphinx-copybutton = "^0.5.2"
-sphinx-rtd-theme = "^3.0.2"
-
-
-[tool.poetry.group.test.dependencies]
-behave = "^1.3.0"
-coverage = "^7.10.2"
-pytest = "^8.4.1"
-pytest-cov = "^6.2.1"
-pytest-mock = "^3.14.1"
-pytest-sugar = "^1.0.0"
-tox = "^4.28.4"
-
-[tool.poetry.scripts]
+[project.scripts]
 docs-build = "scripts.docs:build"
 docs-serve = "scripts.docs:serve"
 
+[dependency-groups]
+dev = [
+    "fastapi>=0.119.0",
+    "httpx>=0.28.1",
+    "livereload>=2.7.1",
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
+    "python-semantic-release>=9.21.1",
+    "uvicorn>=0.37.0",
+]
+
+lint = [
+    "isort>=6.0.1",
+    "ruff>=0.12.8",
+]
+
+docs = [
+    "myst-parser>=4.0.1",
+    "sphinx>=8.2.3",
+    "sphinx-autoapi>=3.6.0",
+    "sphinx-autodoc-typehints>=3.2.0",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-rtd-theme>=3.0.2",
+]
+
+test = [
+    "behave>=1.3.0",
+    "coverage>=7.10.2",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-mock>=3.14.1",
+    "pytest-sugar>=1.0.0",
+    "tox>=4.28.4",
+]
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["valid8r"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"valid8r/py.typed" = "valid8r/py.typed"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -75,7 +92,6 @@ python_files = ["it_*.py", "test_*.py"]
 python_functions = ["it_*"]
 python_classes = ["Describe[A-Z]*"]
 addopts = ["-s", "-ra", "-q", "-vv"]
-
 
 [tool.isort]
 line_length = 120
@@ -85,20 +101,14 @@ force_grid_wrap = 2
 include_trailing_comma = true
 use_parentheses = true
 ensure_newline_before_comments = true
-
 known_first_party = ["valid8r"]
 
 [tool.ruff]
 line-length = 120
-
 src = ["valid8r", "tests"]
-
 include = ["*.py"]
-
 exclude = [".git", ".venv", "__pycache__", "build", "dist"]
-
 target-version = "py311"
-
 respect-gitignore = true
 
 [tool.ruff.format]
@@ -119,7 +129,6 @@ ignore = [
     "T201", # This module needs to print, so don't prevent it
     "TRY003", # Don't be so strict about the length of exception messages or whatever this is
 ]
-
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
@@ -170,7 +179,6 @@ inline-quotes = "single"
 multiline-quotes = "double"
 docstring-quotes = "double"
 
-
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
@@ -199,9 +207,9 @@ module = [
 ignore_errors = true
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:tool.poetry.version"]
+version_toml = ["pyproject.toml:project.version"]
 branch = "main"
-build_command = "pip install poetry && poetry build"
+build_command = "uv build"
 dist_path = "dist/"
 upload_to_release = false
 upload_to_pypi = false
