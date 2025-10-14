@@ -32,7 +32,6 @@ httpx = "^0.28.1"
 livereload = "^2.7.1"
 mypy = "^1.17.1"
 pre-commit = "^4.3.0"
-pydantic = "^2.12.1"
 uvicorn = "^0.37.0"
 
 [tool.poetry.group.lint.dependencies]
