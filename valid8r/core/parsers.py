@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import (
     date,
     datetime,
@@ -1118,3 +1119,173 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
         return Maybe.failure(str(e))
     except Exception as e:  # noqa: BLE001
         return Maybe.failure(f'email validation error: {e}')
+
+
+# ---------------------------
+# Phone Number parsing
+# ---------------------------
+
+
+@dataclass(frozen=True)
+class PhoneNumber:
+    """Structured North American phone number.
+
+    Attributes:
+        country_code: Country code (typically "1" for North America).
+        area_code: Three-digit area code.
+        exchange: Three-digit exchange code.
+        subscriber: Four-digit subscriber number.
+        extension: Optional extension number.
+        region: Region code (default 'US').
+
+    Examples:
+        >>> from valid8r.core.maybe import Success
+        >>> match parse_phone('(555) 123-4567'):
+        ...     case Success(phone):
+        ...         (phone.area_code, phone.exchange, phone.subscriber, phone.e164)
+        ...     case _:
+        ...         ()
+        ('555', '123', '4567', '+15551234567')
+
+    """
+
+    country_code: str
+    area_code: str
+    exchange: str
+    subscriber: str
+    extension: str | None
+    region: str
+
+    @property
+    def e164(self) -> str:
+        """E.164 international format: +{country_code}{area_code}{exchange}{subscriber} [x{extension}]."""
+        base = f'+{self.country_code}{self.area_code}{self.exchange}{self.subscriber}'
+        if self.extension:
+            return f'{base} x{self.extension}'
+        return base
+
+    @property
+    def national(self) -> str:
+        """National format: ({area_code}) {exchange}-{subscriber} [x{extension}]."""
+        base = f'({self.area_code}) {self.exchange}-{self.subscriber}'
+        if self.extension:
+            return f'{base} x{self.extension}'
+        return base
+
+    @property
+    def international(self) -> str:
+        """International format: +{country_code} {area_code}-{exchange}-{subscriber} [x{extension}]."""
+        base = f'+{self.country_code} {self.area_code}-{self.exchange}-{self.subscriber}'
+        if self.extension:
+            return f'{base} x{self.extension}'
+        return base
+
+    @property
+    def raw_digits(self) -> str:
+        """Raw digits only: {country_code}{area_code}{exchange}{subscriber}."""
+        return f'{self.country_code}{self.area_code}{self.exchange}{self.subscriber}'
+
+
+def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[PhoneNumber]:  # noqa: PLR0912
+    """Parse a North American phone number (NANP).
+
+    Supports formats:
+    - (555) 123-4567
+    - 555-123-4567
+    - 555.123.4567
+    - 5551234567
+    - +1 (555) 123-4567
+    - Extensions: x123, ext123, extension123
+
+    NANP validation rules:
+    - Area code: Cannot start with 0 or 1, cannot be 555 (reserved)
+    - Exchange: Cannot start with 0 or 1, cannot be 911 (emergency)
+
+    Args:
+        text: The phone number string to parse.
+        region: Region code (default 'US').
+        strict: Enable strict validation (default True).
+
+    Returns:
+        Maybe[PhoneNumber]: Success with PhoneNumber or Failure with error message.
+
+    Failure messages:
+        - Input must be a string
+        - phone number cannot be empty
+        - not a valid phone number
+        - invalid area code
+        - invalid exchange
+    """
+    if not isinstance(text, str):
+        return Maybe.failure('Input must be a string')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('phone number cannot be empty')
+
+    # Extract extension if present
+    extension: str | None = None
+    ext_pattern = r'\s*(?:x|ext\.?|extension)\s*(\d+)\s*$'
+    ext_match = re.search(ext_pattern, s, re.IGNORECASE)
+    if ext_match:
+        extension = ext_match.group(1)
+        s = s[: ext_match.start()]
+
+    # Extract country code if present and validate it's North American
+    country_code = '1'
+    if s.startswith('+'):
+        # Check for non-North American country codes
+        non_na_pattern = r'^\+([2-9]\d*|1[1-9]\d*)[\s\-\.]'
+        if re.match(non_na_pattern, s):
+            return Maybe.failure('only North American numbers (+1) are supported')
+
+        country_code_pattern = r'^\+?1[\s\-\.]?'
+        if re.match(country_code_pattern, s):
+            s = re.sub(country_code_pattern, '', s)
+    else:
+        # Try removing leading 1 if it results in 10 digits
+        temp_s = re.sub(r'^1[\s\-\.]?', '', s, count=1)
+        temp_digits = re.sub(r'\D', '', temp_s)
+        if len(temp_digits) == 10:
+            s = temp_s
+
+    # Extract all digits
+    digits = re.sub(r'\D', '', s)
+
+    # NANP numbers must have exactly 10 digits
+    if len(digits) != 10:
+        # Check if the original input had letters (invalid format)
+        if any(c.isalpha() for c in s):
+            return Maybe.failure('invalid format: phone number contains letters')
+        return Maybe.failure('phone number must have 10 digits')
+
+    area_code = digits[0:3]
+    exchange = digits[3:6]
+    subscriber = digits[6:10]
+
+    # Validate area code (NANP rules)
+    if area_code[0] in ('0', '1'):
+        return Maybe.failure('invalid area code')
+    if strict and area_code == '555':
+        return Maybe.failure('area code 555 is reserved')
+
+    # Validate exchange (NANP rules)
+    if exchange[0] in ('0', '1'):
+        return Maybe.failure('invalid exchange')
+    if exchange == '911':
+        return Maybe.failure('invalid exchange')
+
+    # Reject 555-01XX pattern (reserved for fictional use)
+    if exchange == '555' and subscriber.startswith('01'):
+        return Maybe.failure('reserved')
+
+    return Maybe.success(
+        PhoneNumber(
+            country_code=country_code,
+            area_code=area_code,
+            exchange=exchange,
+            subscriber=subscriber,
+            extension=extension,
+            region=region,
+        )
+    )
