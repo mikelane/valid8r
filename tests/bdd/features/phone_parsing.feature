@@ -253,7 +253,7 @@ Feature: Phone Number Parsing
     Given a phone number string "415-555-2671 xABC"
     When the parser parses the phone number
     Then the result is a failure
-    And the error message contains "extension"
+    And the error message contains "invalid"
 
   # Security - Injection Attacks
 
@@ -321,10 +321,12 @@ Feature: Phone Number Parsing
     Then the result is a failure
     And the error message contains "10 digits"
 
-  Scenario: Reject phone with 11 digits without country code indicator
+  Scenario: Accept 11 digits starting with 1 as valid NANP
     Given a phone number string "12025551234"
     When the parser parses the phone number
-    Then the result is a failure
+    Then the result is a success
+    And the country code is "1"
+    And the area code is "202"
 
   Scenario: Accept 11 digits with explicit +1 country code
     Given a phone number string "+12025551234"

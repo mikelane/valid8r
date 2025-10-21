@@ -55,7 +55,8 @@ def step_supports_north_american(_context: Context) -> None:
 def step_have_phone_string(context: Context, phone_string: str) -> None:
     """Store the phone number string for parsing."""
     ctx = get_custom_context(context)
-    ctx.phone_input = phone_string
+    # Decode escape sequences like \t and \n
+    ctx.phone_input = phone_string.encode().decode('unicode_escape')
 
 
 @given('an empty phone number string')
@@ -98,7 +99,9 @@ def step_strict_mode_enabled(context: Context) -> None:
 def step_have_parsed_phone(context: Context, phone_string: str) -> None:
     """Parse and store a phone number for format conversion testing."""
     ctx = get_custom_context(context)
-    result = parse_phone(phone_string)
+    # Decode escape sequences like \t and \n
+    decoded_phone = phone_string.encode().decode('unicode_escape')
+    result = parse_phone(decoded_phone)
     match result:
         case Success(phone):
             ctx.parsed_phone = phone
