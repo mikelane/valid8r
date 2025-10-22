@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 from datetime import (  # type: ignore[attr-defined]  #datetime.UTC is totally a thing, c'mon mypy.
     UTC,
     datetime,
@@ -10,22 +11,25 @@ from datetime import (  # type: ignore[attr-defined]  #datetime.UTC is totally a
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import valid8r
-
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
 
 # Add the project root directory to the path so Sphinx can find the modules
 sys.path.insert(0, str(Path('..').resolve()))
 
+# Read version from pyproject.toml
+_pyproject_path = Path(__file__).parent.parent / 'pyproject.toml'
+with _pyproject_path.open('rb') as f:
+    _pyproject_data = tomllib.load(f)
+    _version = _pyproject_data['tool']['poetry']['version']
+
 # -- Project information -----------------------------------------------------
 project = 'Valid8r'
 copyright = f'{datetime.now(tz=UTC).year}, Valid8r Contributors'  # noqa: A001
 author = 'Valid8r Contributors'
 
-
-version = valid8r.__version__
-release = version
+version = _version
+release = _version
 
 # The document name of the "master" document
 master_doc = 'index'
