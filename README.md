@@ -124,8 +124,12 @@ match parsers.parse_phone("+1 (555) 123-4567"):
     case Success(phone):
         print(f"Country: {phone.country_code}")  # 1
         print(f"Area: {phone.area_code}")        # 555
-        print(f"Number: {phone.number}")         # 1234567
-        print(f"Formatted: {phone.formatted}")   # +1 (555) 123-4567
+        print(f"Exchange: {phone.exchange}")     # 123
+        print(f"Subscriber: {phone.subscriber}") # 4567
+
+        # Format for display using properties
+        print(f"E.164: {phone.e164}")           # +15551234567
+        print(f"National: {phone.national}")    # (555) 123-4567
     case Failure(err):
         print("Error:", err)
 

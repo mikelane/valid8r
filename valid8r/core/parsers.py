@@ -1133,7 +1133,7 @@ def parse_url(
         >>> url.path
         '/v1/users'
         >>> url.query
-        {'active': 'true'}
+        'active=true'
         >>> url.fragment
         'section'
         >>>
@@ -1235,16 +1235,11 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
         >>> isinstance(result, Success)
         True
         >>> email = result.value
+        >>> # Local part preserves original case
         >>> email.local
         'User.Name+tag'
-        >>> email.domain
-        'example.com'
-        >>>
-        >>> # Original format preserved for local part
-        >>> email.local_original
-        'User.Name+tag'
         >>> # Domain is normalized to lowercase
-        >>> email.domain_original
+        >>> email.domain
         'example.com'
     """
     if not isinstance(text, str):
