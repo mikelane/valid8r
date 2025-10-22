@@ -10,7 +10,7 @@ repository = "https://github.com/mikelane/valid8r"
 documentation = "https://valid8r.readthedocs.io/"
 keywords = ["validation", "input", "cli", "maybe-monad", "parsing", "functional-programming"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
