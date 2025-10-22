@@ -1,5 +1,11 @@
 # Valid8r
 
+[![PyPI version](https://img.shields.io/pypi/v/valid8r.svg)](https://pypi.org/project/valid8r/)
+[![Python versions](https://img.shields.io/pypi/pyversions/valid8r.svg)](https://pypi.org/project/valid8r/)
+[![License](https://img.shields.io/github/license/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/blob/main/LICENSE)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/mikelane/valid8r/ci.yml?branch=main)](https://github.com/mikelane/valid8r/actions)
+[![Documentation](https://img.shields.io/readthedocs/valid8r.svg)](https://valid8r.readthedocs.io/)
+
 A clean, flexible input validation library for Python applications.
 
 ## Features
@@ -36,9 +42,13 @@ A clean, flexible input validation library for Python applications.
 
 ## Installation
 
+**Requirements**: Python 3.11 or higher
+
 ```bash
 pip install valid8r
 ```
+
+Valid8r supports Python 3.11, 3.12, 3.13, and 3.14.
 
 ## Quick Start
 
@@ -218,4 +228,7 @@ poetry run tox -e bdd
 ```
 
 ## License
-MIT
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 Mike Lane
