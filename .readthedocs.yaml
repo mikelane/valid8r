@@ -18,11 +18,9 @@ build:
     post_install:
       # Install all dependencies including the project itself
       - poetry install --with docs --no-interaction
-
-# Build documentation in the "docs/" directory with Sphinx
-sphinx:
-  configuration: docs/conf.py
-  fail_on_warning: false
+  commands:
+    # Let Poetry run Sphinx to avoid dependency conflicts
+    - poetry run sphinx-build -b html docs $READTHEDOCS_OUTPUT/html
 
 # Build documentation formats
 formats:
