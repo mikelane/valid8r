@@ -13,9 +13,10 @@ build:
     post_create_environment:
       # Install poetry
       - pip install poetry
-    post_install:
-      # Install dependencies with poetry
+      # Configure poetry to not create virtualenvs
       - poetry config virtualenvs.create false
+    post_install:
+      # Install all dependencies including the project itself
       - poetry install --with docs --no-interaction
 
 # Build documentation in the "docs/" directory with Sphinx
@@ -27,9 +28,3 @@ sphinx:
 formats:
   - pdf
   - epub
-
-# Optional: python configuration
-python:
-  install:
-    - method: pip
-      path: .
