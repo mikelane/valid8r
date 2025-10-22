@@ -1106,6 +1106,42 @@ def parse_url(
     - Unsupported URL scheme
     - URL requires host
     - Invalid host
+
+    Args:
+        text: The URL string to parse
+        allowed_schemes: Iterable of allowed scheme names (default: ('http', 'https'))
+        require_host: Whether to require a host in the URL (default: True)
+
+    Returns:
+        Maybe[UrlParts]: Success with UrlParts containing parsed components, or Failure with error message
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_url
+        >>> from valid8r.core.maybe import Success
+        >>>
+        >>> # Parse a complete URL
+        >>> result = parse_url('https://user:pass@api.example.com:8080/v1/users?active=true#section')
+        >>> isinstance(result, Success)
+        True
+        >>> url = result.value
+        >>> url.scheme
+        'https'
+        >>> url.host
+        'api.example.com'
+        >>> url.port
+        8080
+        >>> url.path
+        '/v1/users'
+        >>> url.query
+        'active=true'
+        >>> url.fragment
+        'section'
+        >>>
+        >>> # Access credentials
+        >>> url.username
+        'user'
+        >>> url.password
+        'pass'
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')
@@ -1189,6 +1225,22 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
 
     Returns:
         Maybe[EmailAddress]: Success with EmailAddress or Failure with error message
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_email
+        >>> from valid8r.core.maybe import Success
+        >>>
+        >>> # Parse an email with case normalization
+        >>> result = parse_email('User.Name+tag@Example.COM')
+        >>> isinstance(result, Success)
+        True
+        >>> email = result.value
+        >>> # Local part preserves original case
+        >>> email.local
+        'User.Name+tag'
+        >>> # Domain is normalized to lowercase
+        >>> email.domain
+        'example.com'
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')

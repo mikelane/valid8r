@@ -8,6 +8,31 @@ A clean, flexible input validation library for Python applications.
 - **Flexible Validation**: Chain validators and create custom validation rules
 - **Monadic Error Handling**: Use Maybe monad for clean error propagation
 - **Input Prompting**: Prompt users for input with built-in validation
+- **Structured Results**: Network parsers return rich dataclasses with parsed components
+
+## Available Parsers
+
+### Basic Types
+- **Numbers**: `parse_int`, `parse_float`, `parse_complex`, `parse_decimal`
+- **Text**: `parse_bool` (flexible true/false parsing)
+- **Dates**: `parse_date` (ISO 8601 format)
+- **UUIDs**: `parse_uuid` (with optional version validation)
+
+### Collections
+- **Lists**: `parse_list` (with element parser)
+- **Dictionaries**: `parse_dict` (with key/value parsers)
+- **Sets**: `parse_set` (with element parser)
+
+### Network & Communication
+- **IP Addresses**: `parse_ipv4`, `parse_ipv6`, `parse_ip` (either v4 or v6)
+- **Networks**: `parse_cidr` (IPv4/IPv6 CIDR notation)
+- **Phone Numbers**: `parse_phone` → PhoneNumber (NANP validation)
+- **URLs**: `parse_url` → UrlParts (scheme, host, port, path, query, etc.)
+- **Email**: `parse_email` → EmailAddress (normalized case)
+
+### Advanced
+- **Enums**: `parse_enum` (type-safe enum parsing)
+- **Custom**: `create_parser`, `make_parser`, `validated_parser` (parser factories)
 
 ## Installation
 
@@ -67,53 +92,106 @@ match parsers.parse_cidr("10.0.0.1/24", strict=False):
 from valid8r.core.maybe import Success, Failure
 from valid8r.core import parsers
 
-# URL parsing
+# URL parsing with structured result (UrlParts)
 match parsers.parse_url("https://alice:pw@example.com:8443/x?q=1#top"):
     case Success(u):
-        print(u.scheme, u.username, u.password, u.host, u.port)
+        print(f"Scheme: {u.scheme}")     # https
+        print(f"Host: {u.host}")         # example.com
+        print(f"Port: {u.port}")         # 8443
+        print(f"Path: {u.path}")         # /x
+        print(f"Query: {u.query}")       # {'q': '1'}
+        print(f"Fragment: {u.fragment}") # top
     case Failure(err):
         print("Error:", err)
 
-# Email parsing
+# Email parsing with normalized case (EmailAddress)
 match parsers.parse_email("First.Last+tag@Example.COM"):
     case Success(e):
-        print(e.local, e.domain)  # First.Last+tag example.com
+        print(f"Local: {e.local}")   # First.Last+tag
+        print(f"Domain: {e.domain}") # example.com (normalized)
     case Failure(err):
         print("Error:", err)
+```
+
+### Phone Number Parsing
+
+```python
+from valid8r.core.maybe import Success, Failure
+from valid8r.core import parsers
+
+# Phone number parsing with NANP validation (PhoneNumber)
+match parsers.parse_phone("+1 (555) 123-4567"):
+    case Success(phone):
+        print(f"Country: {phone.country_code}")  # 1
+        print(f"Area: {phone.area_code}")        # 555
+        print(f"Exchange: {phone.exchange}")     # 123
+        print(f"Subscriber: {phone.subscriber}") # 4567
+
+        # Format for display using properties
+        print(f"E.164: {phone.e164}")           # +15551234567
+        print(f"National: {phone.national}")    # (555) 123-4567
+    case Failure(err):
+        print("Error:", err)
+
+# Also accepts various formats
+for number in ["5551234567", "(555) 123-4567", "555-123-4567"]:
+    result = parsers.parse_phone(number)
+    assert result.is_success()
 ```
 
 ## Testing Support
 
-Valid8r includes testing utilities to help you verify your validation logic:
+Valid8r includes comprehensive testing utilities to help you verify your validation logic:
 
 ```python
-from valid8r import (
-    Maybe,
-    validators,
-    parsers,
-    prompt,
-)
-
+from valid8r import Maybe, validators, parsers, prompt
 from valid8r.testing import (
     MockInputContext,
     assert_maybe_success,
+    assert_maybe_failure,
 )
 
 def validate_age(age: int) -> Maybe[int]:
-    return validators.minimum(0) & validators.maximum(120)(age)
+    """Validate age is between 0 and 120."""
+    return (validators.minimum(0) & validators.maximum(120))(age)
 
-# Test prompts with mock input
-with MockInputContext(["yes"]):
-    result = prompt.ask("Continue? ", parser=parsers.parse_bool)
-    assert result.is_success()
-    assert result.value_or(False) == True
-
-# Test validation functions
+# Test validation functions with assert helpers
 result = validate_age(42)
 assert assert_maybe_success(result, 42)
+
+result = validate_age(-5)
+assert assert_maybe_failure(result, "at least 0")
+
+# Test prompts with mock input
+with MockInputContext(["yes", "42", "invalid", "25"]):
+    # First prompt
+    result = prompt.ask("Continue? ", parser=parsers.parse_bool)
+    assert result.value_or(False) == True
+
+    # Second prompt
+    age = prompt.ask(
+        "Age? ",
+        parser=parsers.parse_int,
+        validator=validate_age
+    )
+    assert age == 42
+
+    # Third prompt will fail, fourth succeeds
+    age = prompt.ask(
+        "Age again? ",
+        parser=parsers.parse_int,
+        retries=1  # Retry once after failure
+    )
+    assert age == 25
 ```
 
-For more information, see the [Testing with Valid8r](docs/user_guide/testing.rst) guide.
+### Testing Utilities Reference
+
+- **`assert_maybe_success(result, expected_value)`**: Assert that a Maybe is Success with the expected value
+- **`assert_maybe_failure(result, error_substring)`**: Assert that a Maybe is Failure containing the error substring
+- **`MockInputContext(inputs)`**: Context manager for mocking user input in tests
+
+For more examples, see the [documentation](https://valid8r.readthedocs.io/).
 
 ## Development
 

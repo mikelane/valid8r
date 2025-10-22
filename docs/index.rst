@@ -137,6 +137,155 @@ Contents
    development/testing
    development/changelog
 
+Structured Result Types
+-----------------------
+
+Some parsers return rich dataclasses containing parsed components for easy access. This is particularly useful for network-related data like URLs, emails, and phone numbers.
+
+URL Parsing with UrlParts
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``parse_url`` function returns a ``UrlParts`` object with structured access to URL components:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success
+
+   result = parsers.parse_url('https://user:pass@api.example.com:8080/v1/users?active=true#section')
+
+   match result:
+       case Success(url):
+           print(f"Scheme: {url.scheme}")       # https
+           print(f"Host: {url.host}")           # api.example.com
+           print(f"Port: {url.port}")           # 8080
+           print(f"Path: {url.path}")           # /v1/users
+           print(f"Query: {url.query}")         # active=true
+           print(f"Fragment: {url.fragment}")   # section
+
+           # Access credentials
+           print(f"Username: {url.username}")   # user
+           print(f"Password: {url.password}")   # pass
+
+Email Parsing with EmailAddress
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``parse_email`` function returns an ``EmailAddress`` object with normalized domain:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success
+
+   result = parsers.parse_email('User.Name+tag@Example.COM')
+
+   match result:
+       case Success(email):
+           print(f"Local: {email.local}")     # User.Name+tag (case preserved)
+           print(f"Domain: {email.domain}")   # example.com (normalized lowercase)
+
+Phone Number Parsing with PhoneNumber
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``parse_phone`` function returns a ``PhoneNumber`` object with structured NANP components:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success
+
+   result = parsers.parse_phone('+1 (555) 123-4567')
+
+   match result:
+       case Success(phone):
+           print(f"Country: {phone.country_code}")  # 1
+           print(f"Area: {phone.area_code}")        # 555
+           print(f"Exchange: {phone.exchange}")     # 123
+           print(f"Subscriber: {phone.subscriber}") # 4567
+
+           # Format for display
+           print(f"E.164: {phone.e164}")           # +15551234567
+           print(f"National: {phone.national}")    # (555) 123-4567
+
+Testing Utilities
+-----------------
+
+Valid8r provides comprehensive testing utilities to help you test validation logic in your applications.
+
+Assert Helpers
+^^^^^^^^^^^^^^
+
+Use ``assert_maybe_success`` and ``assert_maybe_failure`` to verify Maybe results in tests:
+
+.. code-block:: python
+
+   from valid8r import parsers, validators
+   from valid8r.testing import assert_maybe_success, assert_maybe_failure
+
+   def test_valid_age():
+       result = parsers.parse_int("42").bind(validators.minimum(0))
+       assert assert_maybe_success(result, 42)
+
+   def test_invalid_age():
+       result = parsers.parse_int("-5").bind(validators.minimum(0))
+       assert assert_maybe_failure(result, "at least 0")
+
+Mock Input Context
+^^^^^^^^^^^^^^^^^^
+
+Use ``MockInputContext`` to test interactive prompts without actual user input:
+
+.. code-block:: python
+
+   from valid8r import parsers, validators, prompt
+   from valid8r.testing import MockInputContext
+
+   def test_interactive_age_prompt():
+       with MockInputContext(["25"]):
+           age = prompt.ask(
+               "Enter your age: ",
+               parser=parsers.parse_int,
+               validator=validators.minimum(0)
+           )
+           assert age == 25
+
+   def test_prompt_with_retry():
+       # First input invalid, second valid
+       with MockInputContext(["invalid", "30"]):
+           age = prompt.ask(
+               "Age: ",
+               parser=parsers.parse_int,
+               retries=1  # Allow one retry
+           )
+           assert age == 30
+
+Testing Complex Validation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Combine testing utilities for comprehensive validation tests:
+
+.. code-block:: python
+
+   from valid8r import parsers, validators, Maybe
+   from valid8r.testing import assert_maybe_success, assert_maybe_failure
+
+   def validate_user_age(age_str: str) -> Maybe[int]:
+       """Validate user age is between 0 and 120."""
+       return parsers.parse_int(age_str).bind(
+           validators.minimum(0) & validators.maximum(120)
+       )
+
+   def test_user_age_validation():
+       # Test valid ages
+       assert assert_maybe_success(validate_user_age("25"), 25)
+       assert assert_maybe_success(validate_user_age("0"), 0)
+       assert assert_maybe_success(validate_user_age("120"), 120)
+
+       # Test invalid ages
+       assert assert_maybe_failure(validate_user_age("-1"), "at least 0")
+       assert assert_maybe_failure(validate_user_age("121"), "at most 120")
+       assert assert_maybe_failure(validate_user_age("abc"), "valid integer")
+
 Why Valid8r?
 ------------
 
