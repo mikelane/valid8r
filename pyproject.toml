@@ -5,15 +5,23 @@ description = "Clean, flexible input validation for Python applications"
 authors = ["Mike Lane <mikelane@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://valid8r.readthedocs.io/"
 repository = "https://github.com/mikelane/valid8r"
-keywords = ["validation", "input", "cli", "maybe-monad"]
+documentation = "https://valid8r.readthedocs.io/"
+keywords = ["validation", "input", "cli", "maybe-monad", "parsing", "functional-programming"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
 ]
 packages = [{include = "valid8r"}]
 include = [{ path = "valid8r/py.typed", format = "wheel" }]
