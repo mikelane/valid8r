@@ -219,6 +219,8 @@ prerelease = false
 changelog_file = "CHANGELOG.md"
 exclude_commit_patterns = []
 mode = "init"
+# GitHub auto-generates release notes via .github/release.yml
+# CHANGELOG.md is maintained but not used for GitHub releases
 
 [tool.semantic_release.commit_parser_options]
 allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
