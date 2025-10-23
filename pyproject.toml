@@ -208,6 +208,8 @@ upload_to_pypi = true
 remove_dist = false
 major_on_zero = false
 tag_format = "v{version}"
+commit_parser = "angular"
+logging_use_named_masks = false
 
 [tool.semantic_release.branches.main]
 match = "main"
@@ -218,9 +220,10 @@ changelog_file = "CHANGELOG.md"
 exclude_commit_patterns = []
 
 [tool.semantic_release.commit_parser_options]
-allowed_tags = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
+default_bump_level = 0
 
 [tool.semantic_release.remote]
 name = "origin"
