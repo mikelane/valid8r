@@ -1,0 +1,63 @@
+# Configuration for actions/labeler
+# Automatically labels PRs based on which files are changed
+
+# Core library code
+'core':
+  - changed-files:
+    - any-glob-to-any-file: 'valid8r/core/**/*'
+
+'parsers':
+  - changed-files:
+    - any-glob-to-any-file: 'valid8r/core/parsers.py'
+
+'validators':
+  - changed-files:
+    - any-glob-to-any-file: 'valid8r/core/validators.py'
+
+'prompt':
+  - changed-files:
+    - any-glob-to-any-file: 'valid8r/prompt/**/*'
+
+'testing-utils':
+  - changed-files:
+    - any-glob-to-any-file: 'valid8r/testing/**/*'
+
+# Tests
+'tests':
+  - changed-files:
+    - any-glob-to-any-file: 'tests/**/*'
+
+'unit-tests':
+  - changed-files:
+    - any-glob-to-any-file: 'tests/unit/**/*'
+
+'bdd-tests':
+  - changed-files:
+    - any-glob-to-any-file: 'tests/bdd/**/*'
+
+# Documentation
+'documentation':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
+      - '*.rst'
+
+# Configuration
+'dependencies':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pyproject.toml'
+      - 'poetry.lock'
+
+'ci-cd':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**/*'
+      - '.github/*.yml'
+
+'github':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+      - '!.github/workflows/**/*'

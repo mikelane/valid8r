@@ -4,7 +4,14 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/valid8r.svg)](https://pypi.org/project/valid8r/)
 [![License](https://img.shields.io/github/license/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/blob/main/LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/mikelane/valid8r/ci.yml?branch=main)](https://github.com/mikelane/valid8r/actions)
+[![codecov](https://codecov.io/gh/mikelane/valid8r/branch/main/graph/badge.svg)](https://codecov.io/gh/mikelane/valid8r)
 [![Documentation](https://img.shields.io/readthedocs/valid8r.svg)](https://valid8r.readthedocs.io/)
+
+[![PyPI downloads](https://img.shields.io/pypi/dm/valid8r.svg)](https://pypi.org/project/valid8r/)
+[![GitHub stars](https://img.shields.io/github/stars/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/stargazers)
+[![GitHub contributors](https://img.shields.io/github/contributors/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/graphs/contributors)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Semantic Release](https://img.shields.io/badge/semantic--release-python-blue)](https://github.com/python-semantic-release/python-semantic-release)
 
 A clean, flexible input validation library for Python applications.
 
