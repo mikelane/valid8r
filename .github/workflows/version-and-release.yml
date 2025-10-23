@@ -185,68 +185,18 @@ jobs:
           git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
           git push origin "v$NEW_VERSION"
 
-      - name: Generate changelog
+      - name: Create GitHub Release with auto-generated notes
         if: steps.version.outputs.version_changed == 'true'
-        id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_TAG="${{ steps.latest_tag.outputs.latest_tag }}"
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
 
-          echo "# Release v$NEW_VERSION" > RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          # Get commits since last tag
-          if [ "$LATEST_TAG" = "v0.0.0" ]; then
-            COMMITS=$(git log --pretty=format:"%s|%h|%an" main)
-          else
-            COMMITS=$(git log --pretty=format:"%s|%h|%an" ${LATEST_TAG}..v${NEW_VERSION})
-          fi
-
-          # Categorize commits
-          echo "## Features" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^feat(\(.+\))?:" | sed 's/^feat\(([^)]*)\)\?: /- **\1:** /' | sed 's/^feat: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Bug Fixes" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^fix(\(.+\))?:" | sed 's/^fix\(([^)]*)\)\?: /- **\1:** /' | sed 's/^fix: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Documentation" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^docs(\(.+\))?:" | sed 's/^docs\(([^)]*)\)\?: /- **\1:** /' | sed 's/^docs: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Performance Improvements" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^perf(\(.+\))?:" | sed 's/^perf\(([^)]*)\)\?: /- **\1:** /' | sed 's/^perf: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Refactoring" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^refactor(\(.+\))?:" | sed 's/^refactor\(([^)]*)\)\?: /- **\1:** /' | sed 's/^refactor: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Testing" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^test(\(.+\))?:" | sed 's/^test\(([^)]*)\)\?: /- **\1:** /' | sed 's/^test: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Chores" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^chore(\(.+\))?:" | sed 's/^chore\(([^)]*)\)\?: /- **\1:** /' | sed 's/^chore: /- /' || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          echo "## Breaking Changes" >> RELEASE_NOTES.md
-          echo "$COMMITS" | grep -iE "^[a-z]+(\(.+\))?!:|BREAKING CHANGE:" || echo "None" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-
-          cat RELEASE_NOTES.md
-
-      - name: Create GitHub Release
-        if: steps.version.outputs.version_changed == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.new_version }}
-          name: Release v${{ steps.version.outputs.new_version }}
-          body_path: RELEASE_NOTES.md
-          draft: false
-          prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Create release using GitHub's auto-generated notes
+          gh release create "v$NEW_VERSION" \
+            --title "Release v$NEW_VERSION" \
+            --generate-notes \
+            --verify-tag
 
       - name: Trigger PyPI Publish Workflow
         if: steps.version.outputs.version_changed == 'true'
