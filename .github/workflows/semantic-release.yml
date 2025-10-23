@@ -47,14 +47,19 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions[bot]"
           git_committer_email: "github-actions[bot]@users.noreply.github.com"
-          vcs_release: false
 
-      - name: Create GitHub Release with auto-generated notes
+      - name: Update release notes with auto-generated content
         if: steps.release.outputs.released == 'true'
         run: |
-          gh release create ${{ steps.release.outputs.tag }} \
-            --title "Release ${{ steps.release.outputs.tag }}" \
-            --generate-notes \
+          # Generate release notes using GitHub's API
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name=${{ steps.release.outputs.tag }} \
+            -f target_commitish=main \
+            --jq '.body')
+
+          # Update the existing release with the generated notes and add artifacts
+          echo "$NOTES" | gh release edit ${{ steps.release.outputs.tag }} \
+            --notes-file - \
             dist/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
