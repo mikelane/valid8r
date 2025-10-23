@@ -1,7 +1,6 @@
 changelog:
   exclude:
     labels:
-      - dependencies
       - skip-changelog
     authors:
       - dependabot
@@ -47,6 +46,9 @@ changelog:
       labels:
         - chore
         - maintenance
+    - title: Dependencies 📦
+      labels:
+        - dependencies
     - title: Other Changes
       labels:
         - "*"
