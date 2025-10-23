@@ -1,0 +1,46 @@
+name: Welcome New Contributors
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            👋 Welcome to Valid8r! Thank you for opening your first issue.
+
+            We appreciate you taking the time to contribute to the project. A maintainer will review your issue and respond as soon as possible.
+
+            While you wait, here are some helpful resources:
+            - 📖 [Documentation](https://valid8r.readthedocs.io/)
+            - 🤝 [Contributing Guide](https://github.com/mikelane/valid8r/blob/main/CONTRIBUTING.md)
+            - 💬 [GitHub Discussions](https://github.com/mikelane/valid8r/discussions)
+
+            If you're interested in working on this issue yourself, please let us know!
+          pr-message: |
+            🎉 Congratulations on your first pull request to Valid8r! Thank you for contributing.
+
+            Here's what happens next:
+            1. ✅ Automated checks will run (linting, tests, type checking)
+            2. 👀 A maintainer will review your changes
+            3. 💬 We may provide feedback or request changes
+            4. 🚀 Once approved, your PR will be merged!
+
+            **Please make sure:**
+            - [ ] Your commits follow [Conventional Commits](https://github.com/mikelane/valid8r/blob/main/.github/CONVENTIONAL_COMMITS.md) format
+            - [ ] All tests pass locally (`poetry run tox`)
+            - [ ] You've added tests for new functionality
+            - [ ] Documentation is updated if needed
+
+            Thank you for helping make Valid8r better! 🙌

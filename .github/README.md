@@ -14,10 +14,14 @@ This directory contains all GitHub-specific configuration for the valid8r projec
 .github/
 ├── workflows/
 │   ├── ci.yml                      # Continuous Integration (tests, linting, type checking)
-│   ├── version-and-release.yml     # Automatic versioning and GitHub releases
-│   └── publish-pypi.yml            # PyPI package publishing
+│   ├── semantic-release.yml        # Automated semantic versioning, changelog, and PyPI publishing
+│   ├── welcome.yml                 # Welcome bot for first-time contributors
+│   ├── labeler.yml                 # Auto-label PRs based on files changed
+│   ├── size-label.yml              # PR size classification (XS/S/M/L/XL)
+│   └── stale.yml                   # Close inactive issues and PRs
 ├── ISSUE_TEMPLATE/
 │   └── ... (issue templates)
+├── labeler.yml                      # Configuration for auto-labeler
 ├── CODEOWNERS                       # Code ownership and review assignments
 ├── dependabot.yml                   # Dependency update automation
 ├── pull_request_template.md         # PR template for contributors
@@ -38,47 +42,92 @@ This directory contains all GitHub-specific configuration for the valid8r projec
 **Checks**:
 - Linting with ruff (code quality and formatting)
 - Type checking with mypy
-- Unit tests on Python 3.11, 3.12, 3.13
+- Unit tests on Python 3.11, 3.12, 3.13, 3.14
 - BDD tests with behave
 - Documentation build
 - Smoke tests
-- Coverage reporting
+- Coverage reporting with Codecov
 
 **Status**: ✅ All checks must pass before merging
 
-### 2. Version and Release Workflow (`workflows/version-and-release.yml`)
+### 2. Semantic Release Workflow (`workflows/semantic-release.yml`)
 
-**Runs on**: Pushes to main branch
+**Runs on**: Pushes to main branch (and manual trigger)
 
-**Purpose**: Automate semantic versioning based on conventional commits
+**Purpose**: Fully automated versioning, changelog generation, and PyPI publishing
 
 **Process**:
-1. Analyzes commit messages since last release
-2. Determines version bump (major, minor, or patch)
-3. Updates `pyproject.toml` version
-4. Creates git tag (e.g., `v0.2.0`)
-5. Generates changelog from commits
-6. Creates GitHub Release with notes
+1. Analyzes commit messages since last release using python-semantic-release
+2. Determines version bump (major, minor, or patch) based on conventional commits
+3. Updates `pyproject.toml` version automatically
+4. Generates comprehensive changelog from commit history
+5. Creates git tag (e.g., `v0.3.0`)
+6. Creates GitHub Release with generated changelog
+7. Builds package (wheel and source distribution)
+8. Publishes to PyPI automatically
 
-**Versioning Rules**:
+**Versioning Rules** (Conventional Commits):
 - `feat:` commits → Minor version bump (0.1.0 → 0.2.0)
-- `fix:`, `docs:`, etc. → Patch version bump (0.1.0 → 0.1.1)
+- `fix:`, `perf:` → Patch version bump (0.1.0 → 0.1.1)
 - `BREAKING CHANGE:` or `feat!:` → Major version bump (0.1.0 → 1.0.0)
+- `docs:`, `style:`, `refactor:`, `test:`, `build:`, `ci:`, `chore:` → No version bump
 
-### 3. Publish to PyPI Workflow (`workflows/publish-pypi.yml`)
+**Fully Automated**: No manual intervention required after merging PRs with conventional commits
 
-**Runs on**: GitHub release published (triggered by version-and-release workflow)
+### 3. Welcome Bot (`workflows/welcome.yml`)
 
-**Purpose**: Automatically publish package to PyPI
+**Runs on**: First-time issue or PR from contributor
 
-**Process**:
-1. Checks if version already exists on PyPI (prevents duplicates)
-2. Builds wheel and source distribution
-3. Tests built package on all Python versions
-4. Publishes to PyPI using API token
-5. Verifies publication
+**Purpose**: Welcome new contributors to the project
 
-**Safety**: Skips publishing if version already exists
+**Actions**:
+- Posts friendly welcome message on first issue
+- Posts contribution guidelines on first PR
+- Links to CONTRIBUTING.md and code of conduct
+
+### 4. Auto-Labeler (`workflows/labeler.yml`)
+
+**Runs on**: PR opened, synchronized, or reopened
+
+**Purpose**: Automatically label PRs based on changed files
+
+**Labels Applied**:
+- `core` - Changes to core library files
+- `parsers` - Changes to parser modules
+- `validators` - Changes to validator modules
+- `tests` - Changes to test files
+- `documentation` - Changes to docs or markdown files
+- `ci-cd` - Changes to workflows or CI configuration
+
+**Configuration**: `.github/labeler.yml`
+
+### 5. Size Labeler (`workflows/size-label.yml`)
+
+**Runs on**: PR opened, synchronized, or reopened
+
+**Purpose**: Classify PRs by size for easier review prioritization
+
+**Size Classifications**:
+- `size/XS` - < 10 lines changed
+- `size/S` - < 100 lines changed
+- `size/M` - < 500 lines changed
+- `size/L` - < 1000 lines changed
+- `size/XL` - > 1000 lines changed (suggests breaking into smaller PRs)
+
+**Ignores**: poetry.lock file
+
+### 6. Stale Bot (`workflows/stale.yml`)
+
+**Runs on**: Daily at midnight UTC (and manual trigger)
+
+**Purpose**: Manage inactive issues and pull requests
+
+**Behavior**:
+- Marks issues/PRs as stale after 60 days of inactivity
+- Closes stale items after additional 7 days
+- Exempts items with labels: `keep-open`, `bug`, `security`, `enhancement` (issues) or `work-in-progress`, `blocked` (PRs)
+
+**Override**: Add `keep-open` label to prevent auto-closure
 
 ## For Contributors
 
@@ -170,11 +219,10 @@ Follow the [SETUP_CHECKLIST.md](SETUP_CHECKLIST.md) for complete setup instructi
 ### Secrets Required
 
 **Required**:
-- `PYPI_API_TOKEN` - PyPI API token for publishing
+- `GH_TOKEN` - GitHub Personal Access Token with repo permissions (for semantic-release)
 
 **Optional**:
-- `TEST_PYPI_API_TOKEN` - Test PyPI token for testing
-- `CODECOV_TOKEN` - Codecov token for coverage reporting
+- `CODECOV_TOKEN` - Codecov token for coverage reporting (auto-detected if repository is public)
 
 ### Branch Protection
 
@@ -183,7 +231,7 @@ The `main` branch should be protected with these rules:
 - Require status checks to pass:
   - Lint and Format Check
   - Type Check (mypy)
-  - Test (Python 3.11, 3.12, 3.13)
+  - Test (Python 3.11, 3.12, 3.13, 3.14)
   - BDD Tests
   - All Checks Passed
 - Require conversation resolution
@@ -193,17 +241,17 @@ The `main` branch should be protected with these rules:
 
 ### Manual Triggers
 
-All workflows can be manually triggered:
+Workflows can be manually triggered via GitHub Actions UI or CLI:
 
 ```bash
-# Manual version bump (override automatic detection)
-gh workflow run version-and-release.yml -f version_bump=minor
+# Manual semantic release (analyzes commits and publishes if needed)
+gh workflow run semantic-release.yml
 
-# Manual PyPI publish
-gh workflow run publish-pypi.yml
+# Manual CI run
+gh workflow run ci.yml
 
-# Publish to Test PyPI
-gh workflow run publish-pypi.yml -f test_pypi=true
+# Manual stale issue/PR check
+gh workflow run stale.yml
 ```
 
 ## Troubleshooting
@@ -218,18 +266,19 @@ gh workflow run publish-pypi.yml -f test_pypi=true
 ### Version Not Bumping
 
 **Check**:
-1. Commits follow conventional format
-2. Commits since last tag use proper types (`feat:`, `fix:`, etc.)
-3. Not only `ci:` or `build:` commits (these don't trigger bumps)
+1. Commits follow conventional commits format (see CONTRIBUTING.md)
+2. Commits since last release use types that trigger bumps: `feat:`, `fix:`, `perf:`
+3. Not only non-releasing types (`docs:`, `ci:`, `build:`, `chore:`, `style:`, `refactor:`, `test:`)
+4. Check semantic-release workflow logs for analysis details
 
 ### PyPI Publishing Failed
 
 **Check**:
-1. `PYPI_API_TOKEN` secret is set correctly
-2. PyPI account has 2FA enabled
+1. `GH_TOKEN` secret is set correctly with repo permissions
+2. python-semantic-release configuration in pyproject.toml is correct
 3. Package name not already taken
 4. Version not already published
-5. Token has correct scope (account or project)
+5. Check semantic-release workflow logs for detailed error messages
 
 ### CI Checks Failing
 
@@ -282,37 +331,43 @@ Fix issues and push again.
 
 ```
 Developer Workflow:
-┌─────────────────┐
-│ Create PR       │
-│ (feat: ...)     │
-└────────┬────────┘
-         │
-         ▼
-    ┌────────┐
-    │   CI   │ ◄── Lint, Type Check, Test, BDD
-    └────┬───┘
-         │
-         ▼
-    ┌─────────┐
-    │ Merge   │
-    │ to main │
-    └────┬────┘
-         │
-         ▼
-┌──────────────────┐
-│ Version Bump     │ ◄── Auto-detect from commits
-│ & Release        │     Update version, create tag & release
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Publish to PyPI  │ ◄── Build, test, publish
-└──────────────────┘
-         │
-         ▼
-    ┌────────┐
-    │ Done!  │ Package available: pip install valid8r
-    └────────┘
+┌─────────────────────┐
+│ Create PR           │
+│ (feat: new parser)  │
+└──────────┬──────────┘
+           │
+           ▼
+      ┌────────┐
+      │   CI   │ ◄── Lint, Type Check, Test, BDD, Coverage
+      └────┬───┘
+           │
+           ├─► Auto-labeler (file-based labels)
+           ├─► Size labeler (XS/S/M/L/XL)
+           └─► Welcome bot (first-time contributors)
+           │
+           ▼
+      ┌─────────┐
+      │ Merge   │
+      │ to main │
+      └────┬────┘
+           │
+           ▼
+┌──────────────────────┐
+│ Semantic Release     │ ◄── python-semantic-release analyzes commits
+│                      │     • Determine version bump
+│ 1. Version Bump      │     • Generate changelog
+│ 2. Changelog         │     • Create tag & GitHub Release
+│ 3. GitHub Release    │     • Build package
+│ 4. PyPI Publish      │     • Publish to PyPI
+└──────────────────────┘
+           │
+           ▼
+      ┌────────┐
+      │ Done!  │ Package available: pip install valid8r
+      └────────┘
+
+Background:
+  Stale Bot → Runs daily to manage inactive issues/PRs
 ```
 
 ## Monitoring and Maintenance
@@ -357,10 +412,10 @@ When updating workflows:
 
 Example:
 ```bash
-git commit -m "ci: add Python 3.14 to test matrix
+git commit -m "ci: update semantic-release configuration
 
-Updates CI workflow to test against Python 3.14 beta.
-No changes to versioning or publishing logic."
+Adjusts version_toml paths in semantic-release config.
+No changes to application code or test logic."
 ```
 
 ## License
