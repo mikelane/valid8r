@@ -61,3 +61,10 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.release.outputs.tag }}
+
+      - name: Generate GitHub release notes
+        if: steps.release.outputs.released == 'true'
+        run: |
+          gh release edit ${{ steps.release.outputs.tag }} --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,52 @@
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - skip-changelog
+    authors:
+      - dependabot
+  categories:
+    - title: Breaking Changes 🚨
+      labels:
+        - breaking-change
+        - breaking
+    - title: Features ✨
+      labels:
+        - feature
+        - enhancement
+        - feat
+    - title: Bug Fixes 🐛
+      labels:
+        - bug
+        - fix
+        - bugfix
+    - title: Documentation 📚
+      labels:
+        - documentation
+        - docs
+    - title: Performance Improvements ⚡
+      labels:
+        - performance
+        - perf
+    - title: Code Refactoring 🔨
+      labels:
+        - refactor
+        - refactoring
+    - title: Testing 🧪
+      labels:
+        - test
+        - tests
+    - title: CI/CD & Infrastructure 🔧
+      labels:
+        - ci-cd
+        - ci
+        - cd
+        - github
+        - workflow
+    - title: Chores & Maintenance 🧹
+      labels:
+        - chore
+        - maintenance
+    - title: Other Changes
+      labels:
+        - "*"
