@@ -47,6 +47,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions[bot]"
           git_committer_email: "github-actions[bot]@users.noreply.github.com"
+          vcs_release: false
 
       - name: Create GitHub Release with auto-generated notes
         if: steps.release.outputs.released == 'true'
