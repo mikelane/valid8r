@@ -203,7 +203,7 @@ version_toml = ["pyproject.toml:tool.poetry.version"]
 branch = "main"
 build_command = "pip install poetry && poetry build"
 dist_path = "dist/"
-upload_to_release = true
+upload_to_release = false
 upload_to_pypi = false
 remove_dist = false
 major_on_zero = false
@@ -235,4 +235,4 @@ ignore_token_for_push = false
 
 [tool.semantic_release.publish]
 dist_glob_patterns = ["dist/*"]
-upload_to_vcs_release = true
+upload_to_vcs_release = false
