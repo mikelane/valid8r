@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-__version__ = '0.1.0'
+__version__ = '0.5.8'
 
 # Public API re-exports for concise imports
 # Modules
