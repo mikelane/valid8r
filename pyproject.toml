@@ -44,7 +44,7 @@ python-semantic-release = "^9.21.1"
 uvicorn = "^0.37.0"
 
 [tool.poetry.group.lint.dependencies]
-isort = "^6.0.1"
+isort = "^7.0.0"
 ruff = "^0.12.8"
 
 [tool.poetry.group.docs.dependencies]
