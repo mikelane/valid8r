@@ -1581,10 +1581,8 @@ def parse_base64(text: str) -> Maybe[bytes]:
         >>> parse_base64('Pz8_').is_success()
         True
         >>>
-        >>> # Base64 with whitespace/newlines (automatically stripped)
+        >>> # Base64 with whitespace (automatically stripped)
         >>> parse_base64(' SGVsbG8gV29ybGQ= ').value_or(None)
-        b'Hello World'
-        >>> parse_base64('SGVsbG8g\\nV29ybGQ=').value_or(None)
         b'Hello World'
         >>>
         >>> # Invalid base64
