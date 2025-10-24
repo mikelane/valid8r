@@ -70,6 +70,11 @@ E = TypeVar('E', bound=Enum)
 
 ISO_DATE_LENGTH = 10
 
+# Compiled regex patterns for phone parsing (cached for performance)
+_PHONE_EXTENSION_PATTERN = re.compile(r'\s*[,;]\s*(\d+)$|\s+(?:x|ext\.?|extension)\s*(\d+)$', re.IGNORECASE)
+_PHONE_VALID_CHARS_PATTERN = re.compile(r'^[\d\s()\-+.]+$', re.MULTILINE)
+_PHONE_DIGIT_EXTRACTION_PATTERN = re.compile(r'\D')
+
 
 def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
     """Parse a string to an integer."""
@@ -1329,8 +1334,7 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
 
     # Extract extension if present
     extension = None
-    extension_pattern = r'\s*[,;]\s*(\d+)$|\s+(?:x|ext\.?|extension)\s*(\d+)$'
-    extension_match = re.search(extension_pattern, s, re.IGNORECASE)
+    extension_match = _PHONE_EXTENSION_PATTERN.search(s)
     if extension_match:
         # Get the captured group (either group 1 or 2)
         extension = extension_match.group(1) or extension_match.group(2)
@@ -1342,11 +1346,11 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
 
     # Check for invalid characters before extracting digits
     # Allow only: digits, whitespace (including tabs/newlines), ()-.+ and common separators
-    if not re.match(r'^[\d\s()\-+.]+$', s, re.MULTILINE):
+    if not _PHONE_VALID_CHARS_PATTERN.match(s):
         return Maybe.failure('Invalid format: phone number contains invalid characters')
 
     # Extract only digits
-    digits = re.sub(r'\D', '', s)
+    digits = _PHONE_DIGIT_EXTRACTION_PATTERN.sub('', s)
 
     # Check for strict mode - original must have formatting
     if strict and text.strip() == digits:
@@ -1404,3 +1408,35 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
             extension=extension,
         )
     )
+
+
+# Public API exports
+__all__ = [
+    'EmailAddress',
+    'PhoneNumber',
+    'UrlParts',
+    'create_parser',
+    'make_parser',
+    'parse_bool',
+    'parse_cidr',
+    'parse_complex',
+    'parse_date',
+    'parse_decimal',
+    'parse_dict',
+    'parse_dict_with_validation',
+    'parse_email',
+    'parse_enum',
+    'parse_float',
+    'parse_int',
+    'parse_int_with_validation',
+    'parse_ip',
+    'parse_ipv4',
+    'parse_ipv6',
+    'parse_list',
+    'parse_list_with_validation',
+    'parse_phone',
+    'parse_set',
+    'parse_url',
+    'parse_uuid',
+    'validated_parser',
+]
