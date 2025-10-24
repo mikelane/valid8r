@@ -12,6 +12,69 @@ Valid8r is a clean, flexible input validation library for Python applications th
 
 **Key Philosophy**: Prefer functional composition over imperative validation. Parse and validate in a single pipeline using `bind` and `map`.
 
+## **MANDATORY SDLC Workflow: BDD + TDD**
+
+**THIS PROJECT FOLLOWS STRICT BDD AND TDD PRACTICES. NO EXCEPTIONS.**
+
+All new features MUST follow this exact workflow using the specialized agents defined in `~/.claude/agents/`:
+
+### Phase 1: Requirements & BDD Specifications (product-technical-lead)
+1. **Clarify requirements** through conversational discovery
+2. **Create Gherkin .feature files** in `tests/bdd/features/`
+3. **Write comprehensive scenarios** using Given-When-Then format
+4. **Commit .feature files** to the repository
+5. **Create GitHub issues** with proper labels and acceptance criteria
+6. **Pass to QA** for Gherkin validation
+
+### Phase 2: BDD Test Implementation (qa-security-engineer)
+1. **Review Gherkin for quality** - push back on anti-patterns
+2. **Ensure declarative scenarios** (WHAT not HOW)
+3. **Write Cucumber/Behave tests** in `tests/bdd/steps/` (in Python, separate from production code)
+4. **Verify tests FAIL** (RED) - no implementation exists yet
+5. **Commit BDD tests** with label: `bdd-ready` → `ready-for-dev`
+6. **Pass to Development** for TDD implementation
+
+### Phase 3: TDD Implementation (senior-developer)
+1. **Read failing BDD tests** - understand acceptance criteria
+2. **Write unit test FIRST** (in `tests/unit/`) - see it FAIL (RED)
+3. **Write minimal code** to make test PASS (GREEN)
+4. **Refactor** while keeping tests GREEN
+5. **Repeat** until all BDD tests pass
+6. **NEVER modify Gherkin or Cucumber tests** during implementation
+7. **Commit frequently** using conventional commits
+8. **Open Pull Request** when all tests pass
+
+### Phase 4: Code Review (code-reviewer)
+- Auto-assigned via CODEOWNERS
+- Review for design, maintainability, SOLID principles
+- Approve or request changes
+
+### Phase 5: QA Validation (qa-security-engineer)
+- Run full test suite, security audit, performance testing
+- Validate acceptance criteria from Gherkin scenarios
+- Approve or request fixes
+
+### Phase 6: Merge & Deploy
+- All approvals received → merge to main
+- CI/CD pipeline runs automatically
+
+### Critical Rules
+
+**NEVER:**
+- Write production code before tests (violates TDD)
+- Write tests after production code (violates TDD)
+- Skip the Gherkin phase for new features
+- Modify Gherkin/Cucumber tests during implementation
+- Commit code with failing tests
+
+**ALWAYS:**
+- Start with product-technical-lead for new features
+- Write BDD tests before unit tests
+- Write unit tests before implementation
+- See tests FAIL (RED) before writing code
+- Make tests PASS (GREEN) with minimal code
+- Refactor while keeping tests GREEN
+
 ## Common Development Commands
 
 ### Testing

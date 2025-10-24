@@ -36,3 +36,12 @@ repos:
         additional_dependencies: [email-validator, uuid-utils, pydantic, pydantic-core]
         args: [--strict]
         files: ^valid8r/
+
+  - repo: local
+    hooks:
+      - id: tox-tests
+        name: tox run-parallel
+        entry: poetry run tox run-parallel
+        language: system
+        pass_filenames: false
+        always_run: true

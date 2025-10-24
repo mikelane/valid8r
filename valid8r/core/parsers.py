@@ -45,6 +45,9 @@ except ImportError:
     EmailNotValidError = None  # type: ignore[assignment,misc]
     validate_email = None  # type: ignore[assignment]
 
+import base64
+import binascii
+import json
 from dataclasses import dataclass
 from ipaddress import (
     IPv4Address,
@@ -1410,6 +1413,308 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
     )
 
 
+def parse_slug(
+    text: str,
+    *,
+    min_length: int | None = None,
+    max_length: int | None = None,
+) -> Maybe[str]:
+    """Parse a URL-safe slug (lowercase letters, numbers, hyphens only).
+
+    A valid slug contains only lowercase letters, numbers, and hyphens.
+    Cannot start/end with hyphen or have consecutive hyphens.
+
+    Args:
+        text: String to validate as slug
+        min_length: Minimum length (optional)
+        max_length: Maximum length (optional)
+
+    Returns:
+        Maybe[str]: Success with slug or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_slug
+        >>>
+        >>> # Valid slugs
+        >>> parse_slug('hello-world').value_or(None)
+        'hello-world'
+        >>> parse_slug('blog-post-123').value_or(None)
+        'blog-post-123'
+        >>> parse_slug('a').value_or(None)
+        'a'
+        >>>
+        >>> # With length constraints
+        >>> parse_slug('hello', min_length=5).value_or(None)
+        'hello'
+        >>> parse_slug('hello', max_length=10).value_or(None)
+        'hello'
+        >>>
+        >>> # Invalid slugs
+        >>> parse_slug('').is_failure()
+        True
+        >>> parse_slug('Hello-World').is_failure()
+        True
+        >>> parse_slug('hello_world').is_failure()
+        True
+        >>> parse_slug('-hello').is_failure()
+        True
+        >>> parse_slug('hello-').is_failure()
+        True
+        >>> parse_slug('hello--world').is_failure()
+        True
+        >>>
+        >>> # Length constraint failures
+        >>> parse_slug('hi', min_length=5).is_failure()
+        True
+        >>> parse_slug('very-long-slug', max_length=5).is_failure()
+        True
+    """
+    if not text:
+        return Maybe.failure('Slug cannot be empty')
+
+    # Check length constraints
+    if min_length is not None and len(text) < min_length:
+        return Maybe.failure(f'Slug is too short (minimum {min_length} characters)')
+
+    if max_length is not None and len(text) > max_length:
+        return Maybe.failure(f'Slug is too long (maximum {max_length} characters)')
+
+    # Check for leading hyphen
+    if text.startswith('-'):
+        return Maybe.failure('Slug cannot start with a hyphen')
+
+    # Check for trailing hyphen
+    if text.endswith('-'):
+        return Maybe.failure('Slug cannot end with a hyphen')
+
+    # Check for consecutive hyphens
+    if '--' in text:
+        return Maybe.failure('Slug cannot contain consecutive hyphens')
+
+    # Check for invalid characters (not lowercase, digit, or hyphen)
+    if not re.match(r'^[a-z0-9-]+$', text):
+        # Check specifically for uppercase
+        if any(c.isupper() for c in text):
+            return Maybe.failure('Slug must contain only lowercase letters, numbers, and hyphens')
+        return Maybe.failure('Slug contains invalid characters')
+
+    return Maybe.success(text)
+
+
+def parse_json(text: str) -> Maybe[object]:
+    """Parse a JSON string into a Python object.
+
+    Supports all JSON types: objects, arrays, strings, numbers, booleans, null.
+
+    Args:
+        text: JSON-formatted string
+
+    Returns:
+        Maybe[object]: Success with parsed object or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_json
+        >>>
+        >>> # JSON objects
+        >>> parse_json('{"name": "Alice", "age": 30}').value_or(None)
+        {'name': 'Alice', 'age': 30}
+        >>>
+        >>> # JSON arrays
+        >>> parse_json('[1, 2, 3, 4, 5]').value_or(None)
+        [1, 2, 3, 4, 5]
+        >>>
+        >>> # JSON primitives
+        >>> parse_json('"hello world"').value_or(None)
+        'hello world'
+        >>> parse_json('42').value_or(None)
+        42
+        >>> parse_json('true').value_or(None)
+        True
+        >>> parse_json('false').value_or(None)
+        False
+        >>> parse_json('null').value_or(None)
+        >>>
+        >>> # Invalid JSON
+        >>> parse_json('').is_failure()
+        True
+        >>> parse_json('{invalid}').is_failure()
+        True
+        >>> parse_json('{"name": "Alice"').is_failure()
+        True
+    """
+    if not text:
+        return Maybe.failure('JSON input cannot be empty')
+
+    try:
+        result = json.loads(text)
+        return Maybe.success(result)
+    except json.JSONDecodeError as e:
+        return Maybe.failure(f'Invalid JSON: {e.msg}')
+
+
+def parse_base64(text: str) -> Maybe[bytes]:
+    r"""Parse and decode a base64-encoded string.
+
+    Accepts both standard and URL-safe base64, with or without padding.
+    Handles whitespace and newlines within the base64 string.
+
+    Args:
+        text: Base64-encoded string
+
+    Returns:
+        Maybe[bytes]: Success with decoded bytes or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_base64
+        >>>
+        >>> # Standard base64 with padding
+        >>> parse_base64('SGVsbG8gV29ybGQ=').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # Standard base64 without padding
+        >>> parse_base64('SGVsbG8gV29ybGQ').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # URL-safe base64 (hyphens and underscores)
+        >>> parse_base64('A-A=').is_success()
+        True
+        >>> parse_base64('Pz8_').is_success()
+        True
+        >>>
+        >>> # Base64 with whitespace (automatically stripped)
+        >>> parse_base64(' SGVsbG8gV29ybGQ= ').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # Invalid base64
+        >>> parse_base64('').is_failure()
+        True
+        >>> parse_base64('Not@Valid!').is_failure()
+        True
+        >>> parse_base64('====').is_failure()
+        True
+    """
+    # Strip all whitespace (including internal newlines)
+    text = ''.join(text.split())
+
+    if not text:
+        return Maybe.failure('Base64 input cannot be empty')
+
+    try:
+        # Replace URL-safe characters with standard base64
+        text = text.replace('-', '+').replace('_', '/')
+
+        # Add padding if missing
+        missing_padding = len(text) % 4
+        if missing_padding:
+            text += '=' * (4 - missing_padding)
+
+        decoded = base64.b64decode(text, validate=True)
+        return Maybe.success(decoded)
+    except (ValueError, binascii.Error):
+        return Maybe.failure('Base64 contains invalid characters')
+
+
+def parse_jwt(text: str) -> Maybe[str]:
+    """Parse and validate a JWT (JSON Web Token) structure.
+
+    Validates that the JWT has exactly three parts (header.payload.signature)
+    separated by dots, and that each part is valid base64url.
+    Also validates that header and payload are valid JSON.
+
+    Note: This function validates JWT structure only. It does NOT verify
+    the cryptographic signature. Use a dedicated JWT library (e.g., PyJWT)
+    for signature verification and claims validation.
+
+    Args:
+        text: JWT string to validate
+
+    Returns:
+        Maybe[str]: Success with original JWT or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_jwt
+        >>>
+        >>> # Valid JWT (structure only - signature not verified)
+        >>> jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig'
+        >>> parse_jwt(jwt).is_success()
+        True
+        >>>
+        >>> # JWT with whitespace (automatically stripped)
+        >>> parse_jwt(' ' + jwt + ' ').is_success()
+        True
+        >>>
+        >>> # Invalid: empty string
+        >>> parse_jwt('').is_failure()
+        True
+        >>>
+        >>> # Invalid: wrong number of parts
+        >>> parse_jwt('header.payload').is_failure()
+        True
+        >>> parse_jwt('a.b.c.d').is_failure()
+        True
+        >>>
+        >>> # Invalid: non-base64url encoding
+        >>> parse_jwt('not-base64!.eyJzdWIiOiIxMjM0In0.sig').is_failure()
+        True
+        >>>
+        >>> # Invalid: non-JSON header/payload
+        >>> parse_jwt('bm90anNvbg==.eyJzdWIiOiIxMjM0In0.sig').is_failure()
+        True
+    """
+    # Strip whitespace
+    text = text.strip()
+
+    if not text:
+        return Maybe.failure('JWT cannot be empty')
+
+    parts = text.split('.')
+    if len(parts) != 3:
+        return Maybe.failure('JWT must have exactly three parts separated by dots')
+
+    # Helper to convert base64url to base64 with padding
+    def decode_base64url(part: str) -> bytes:
+        base64_part = part.replace('-', '+').replace('_', '/')
+        missing_padding = len(base64_part) % 4
+        if missing_padding:
+            base64_part += '=' * (4 - missing_padding)
+        return base64.b64decode(base64_part, validate=True)
+
+    # Validate header (part 0)
+    if not parts[0]:
+        return Maybe.failure('JWT header cannot be empty')
+
+    try:
+        header_bytes = decode_base64url(parts[0])
+        json.loads(header_bytes)
+    except (ValueError, binascii.Error):
+        return Maybe.failure('JWT header is not valid base64')
+    except json.JSONDecodeError:
+        return Maybe.failure('JWT header is not valid JSON')
+
+    # Validate payload (part 1)
+    if not parts[1]:
+        return Maybe.failure('JWT payload cannot be empty')
+
+    try:
+        payload_bytes = decode_base64url(parts[1])
+        json.loads(payload_bytes)
+    except (ValueError, binascii.Error):
+        return Maybe.failure('JWT payload is not valid base64')
+    except json.JSONDecodeError:
+        return Maybe.failure('JWT payload is not valid JSON')
+
+    # Validate signature (part 2)
+    if not parts[2]:
+        return Maybe.failure('JWT signature cannot be empty')
+
+    try:
+        decode_base64url(parts[2])
+    except (ValueError, binascii.Error):
+        return Maybe.failure('JWT signature is not valid base64')
+
+    return Maybe.success(text)
+
+
 # Public API exports
 __all__ = [
     'EmailAddress',
@@ -1417,6 +1722,7 @@ __all__ = [
     'UrlParts',
     'create_parser',
     'make_parser',
+    'parse_base64',
     'parse_bool',
     'parse_cidr',
     'parse_complex',
@@ -1432,10 +1738,13 @@ __all__ = [
     'parse_ip',
     'parse_ipv4',
     'parse_ipv6',
+    'parse_json',
+    'parse_jwt',
     'parse_list',
     'parse_list_with_validation',
     'parse_phone',
     'parse_set',
+    'parse_slug',
     'parse_url',
     'parse_uuid',
     'validated_parser',
