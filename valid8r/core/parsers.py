@@ -1431,6 +1431,43 @@ def parse_slug(
 
     Returns:
         Maybe[str]: Success with slug or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_slug
+        >>>
+        >>> # Valid slugs
+        >>> parse_slug('hello-world').value_or(None)
+        'hello-world'
+        >>> parse_slug('blog-post-123').value_or(None)
+        'blog-post-123'
+        >>> parse_slug('a').value_or(None)
+        'a'
+        >>>
+        >>> # With length constraints
+        >>> parse_slug('hello', min_length=5).value_or(None)
+        'hello'
+        >>> parse_slug('hello', max_length=10).value_or(None)
+        'hello'
+        >>>
+        >>> # Invalid slugs
+        >>> parse_slug('').is_failure()
+        True
+        >>> parse_slug('Hello-World').is_failure()
+        True
+        >>> parse_slug('hello_world').is_failure()
+        True
+        >>> parse_slug('-hello').is_failure()
+        True
+        >>> parse_slug('hello-').is_failure()
+        True
+        >>> parse_slug('hello--world').is_failure()
+        True
+        >>>
+        >>> # Length constraint failures
+        >>> parse_slug('hi', min_length=5).is_failure()
+        True
+        >>> parse_slug('very-long-slug', max_length=5).is_failure()
+        True
     """
     if not text:
         return Maybe.failure('Slug cannot be empty')
@@ -1474,6 +1511,36 @@ def parse_json(text: str) -> Maybe[object]:
 
     Returns:
         Maybe[object]: Success with parsed object or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_json
+        >>>
+        >>> # JSON objects
+        >>> parse_json('{"name": "Alice", "age": 30}').value_or(None)
+        {'name': 'Alice', 'age': 30}
+        >>>
+        >>> # JSON arrays
+        >>> parse_json('[1, 2, 3, 4, 5]').value_or(None)
+        [1, 2, 3, 4, 5]
+        >>>
+        >>> # JSON primitives
+        >>> parse_json('"hello world"').value_or(None)
+        'hello world'
+        >>> parse_json('42').value_or(None)
+        42
+        >>> parse_json('true').value_or(None)
+        True
+        >>> parse_json('false').value_or(None)
+        False
+        >>> parse_json('null').value_or(None)
+        >>>
+        >>> # Invalid JSON
+        >>> parse_json('').is_failure()
+        True
+        >>> parse_json('{invalid}').is_failure()
+        True
+        >>> parse_json('{"name": "Alice"').is_failure()
+        True
     """
     if not text:
         return Maybe.failure('JSON input cannot be empty')
@@ -1486,7 +1553,7 @@ def parse_json(text: str) -> Maybe[object]:
 
 
 def parse_base64(text: str) -> Maybe[bytes]:
-    """Parse and decode a base64-encoded string.
+    r"""Parse and decode a base64-encoded string.
 
     Accepts both standard and URL-safe base64, with or without padding.
     Handles whitespace and newlines within the base64 string.
@@ -1496,6 +1563,37 @@ def parse_base64(text: str) -> Maybe[bytes]:
 
     Returns:
         Maybe[bytes]: Success with decoded bytes or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_base64
+        >>>
+        >>> # Standard base64 with padding
+        >>> parse_base64('SGVsbG8gV29ybGQ=').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # Standard base64 without padding
+        >>> parse_base64('SGVsbG8gV29ybGQ').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # URL-safe base64 (hyphens and underscores)
+        >>> parse_base64('A-A=').is_success()
+        True
+        >>> parse_base64('Pz8_').is_success()
+        True
+        >>>
+        >>> # Base64 with whitespace/newlines (automatically stripped)
+        >>> parse_base64(' SGVsbG8gV29ybGQ= ').value_or(None)
+        b'Hello World'
+        >>> parse_base64('SGVsbG8g\\nV29ybGQ=').value_or(None)
+        b'Hello World'
+        >>>
+        >>> # Invalid base64
+        >>> parse_base64('').is_failure()
+        True
+        >>> parse_base64('Not@Valid!').is_failure()
+        True
+        >>> parse_base64('====').is_failure()
+        True
     """
     # Strip all whitespace (including internal newlines)
     text = ''.join(text.split())
@@ -1525,11 +1623,45 @@ def parse_jwt(text: str) -> Maybe[str]:
     separated by dots, and that each part is valid base64url.
     Also validates that header and payload are valid JSON.
 
+    Note: This function validates JWT structure only. It does NOT verify
+    the cryptographic signature. Use a dedicated JWT library (e.g., PyJWT)
+    for signature verification and claims validation.
+
     Args:
         text: JWT string to validate
 
     Returns:
         Maybe[str]: Success with original JWT or Failure with error
+
+    Examples:
+        >>> from valid8r.core.parsers import parse_jwt
+        >>>
+        >>> # Valid JWT (structure only - signature not verified)
+        >>> jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig'
+        >>> parse_jwt(jwt).is_success()
+        True
+        >>>
+        >>> # JWT with whitespace (automatically stripped)
+        >>> parse_jwt(' ' + jwt + ' ').is_success()
+        True
+        >>>
+        >>> # Invalid: empty string
+        >>> parse_jwt('').is_failure()
+        True
+        >>>
+        >>> # Invalid: wrong number of parts
+        >>> parse_jwt('header.payload').is_failure()
+        True
+        >>> parse_jwt('a.b.c.d').is_failure()
+        True
+        >>>
+        >>> # Invalid: non-base64url encoding
+        >>> parse_jwt('not-base64!.eyJzdWIiOiIxMjM0In0.sig').is_failure()
+        True
+        >>>
+        >>> # Invalid: non-JSON header/payload
+        >>> parse_jwt('bm90anNvbg==.eyJzdWIiOiIxMjM0In0.sig').is_failure()
+        True
     """
     # Strip whitespace
     text = text.strip()
