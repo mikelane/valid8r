@@ -266,12 +266,12 @@ Feature: Web-Focused Parsers
     And the parsed value is the original JWT string
 
   Scenario: Parse JWT and verify header is valid JSON
-    Given I have the JWT string "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature"
+    Given I have the JWT string "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig"
     When I parse it with parse_jwt
     Then the result is a Success
 
   Scenario: Parse JWT and verify payload is valid JSON
-    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.signature"
+    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.sig"
     When I parse it with parse_jwt
     Then the result is a Success
 
@@ -300,25 +300,25 @@ Feature: Web-Focused Parsers
     And the error message contains "three parts"
 
   Scenario: Reject JWT with non-base64 header
-    Given I have the JWT string "not-base64!.eyJzdWIiOiIxMjM0In0.signature"
+    Given I have the JWT string "not-base64!.eyJzdWIiOiIxMjM0In0.sig"
     When I parse it with parse_jwt
     Then the result is a Failure
     And the error message contains "header"
 
   Scenario: Reject JWT with non-base64 payload
-    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.not-base64!.signature"
+    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.not-base64!.sig"
     When I parse it with parse_jwt
     Then the result is a Failure
     And the error message contains "payload"
 
   Scenario: Reject JWT with non-JSON header
-    Given I have the JWT string "bm90anNvbg==.eyJzdWIiOiIxMjM0In0.signature"
+    Given I have the JWT string "bm90anNvbg==.eyJzdWIiOiIxMjM0In0.sig"
     When I parse it with parse_jwt
     Then the result is a Failure
     And the error message contains "header"
 
   Scenario: Reject JWT with non-JSON payload
-    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.bm90anNvbg==.signature"
+    Given I have the JWT string "eyJhbGciOiJIUzI1NiJ9.bm90anNvbg==.sig"
     When I parse it with parse_jwt
     Then the result is a Failure
     And the error message contains "payload"

@@ -68,9 +68,13 @@ def step_have_json_string(context: Context, json_string: str) -> None:
 
 @given('I have the base64 string "{b64_string}"')
 def step_have_base64_string(context: Context, b64_string: str) -> None:
-    """Store the base64 string for parsing."""
+    r"""Store the base64 string for parsing.
+
+    Decodes escape sequences like \n to actual newlines.
+    """
     ctx = get_custom_context(context)
-    ctx.base64_input = b64_string
+    # Decode escape sequences (e.g., \n -> newline)
+    ctx.base64_input = b64_string.encode().decode('unicode_escape')
 
 
 @given('I have the base64 string ""')
