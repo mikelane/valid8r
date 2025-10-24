@@ -213,12 +213,12 @@ Feature: Web-Focused Parsers
     And the decoded bytes represent "Hello World"
 
   Scenario: Parse URL-safe base64 with hyphens
-    Given I have the base64 string "SGVs-bG8t-V29ybGQ="
+    Given I have the base64 string "A-A="
     When I parse it with parse_base64
     Then the result is a Success
 
   Scenario: Parse URL-safe base64 with underscores
-    Given I have the base64 string "SGVs_bG8t_V29ybGQ="
+    Given I have the base64 string "Pz8_"
     When I parse it with parse_base64
     Then the result is a Success
 

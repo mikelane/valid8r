@@ -58,8 +58,10 @@ def step_have_json_string(context: Context, json_string: str) -> None:
     if json_string == "''":
         ctx.json_input = ''
     else:
-        # Remove outer single quotes if present (Gherkin captures them)
-        if json_string.startswith("'") and json_string.endswith("'"):
+        # Remove outer quotes (either single or double) if present
+        if (json_string.startswith("'") and json_string.endswith("'")) or (
+            json_string.startswith('"') and json_string.endswith('"')
+        ):
             json_string = json_string[1:-1]
         ctx.json_input = json_string
 
