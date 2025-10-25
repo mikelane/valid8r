@@ -117,10 +117,11 @@ Contents
    :maxdepth: 2
    :caption: Examples
 
-   examples/basic_examples
+   examples/basic_example
    examples/chaining_validators
    examples/custom_validators
    examples/interactive_prompts
+   examples/fastapi_integration
 
 .. toctree::
    :maxdepth: 2

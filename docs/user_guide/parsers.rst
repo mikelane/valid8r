@@ -220,6 +220,72 @@ Complex Number Parser
        case Failure(_):
            print("This won't happen")
 
+Decimal Parser
+~~~~~~~~~~~~~~
+
+The ``parse_decimal`` parser provides arbitrary-precision decimal arithmetic using Python's ``Decimal`` type, which avoids floating-point precision issues:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from decimal import Decimal
+
+   # Parse a decimal value
+   result = parsers.parse_decimal("99.99")
+   match result:
+       case Success(value):
+           print(value)  # Decimal('99.99')
+           print(type(value))  # <class 'decimal.Decimal'>
+       case Failure(_):
+           print("This won't happen")
+
+   # Precise decimal arithmetic (no floating-point errors)
+   result = parsers.parse_decimal("0.1")
+   match result:
+       case Success(value):
+           # With Decimal: 0.1 + 0.1 + 0.1 = 0.3 (exact)
+           total = value + value + value
+           print(total == Decimal('0.3'))  # True
+       case Failure(_):
+           print("This won't happen")
+
+   # Compare with float precision issue
+   float_result = 0.1 + 0.1 + 0.1
+   print(float_result == 0.3)  # False (floating-point error)
+
+   # Scientific notation support
+   result = parsers.parse_decimal("1.23E-4")
+   match result:
+       case Success(value):
+           print(value)  # Decimal('0.000123')
+       case Failure(_):
+           print("This won't happen")
+
+   # Very large numbers with precision
+   result = parsers.parse_decimal("123456789012345678901234567890.123456789")
+   match result:
+       case Success(value):
+           print(value)  # Full precision maintained
+       case Failure(_):
+           print("This won't happen")
+
+   # Use with financial calculations
+   def calculate_total_with_tax(price_str: str, tax_rate_str: str):
+       price_result = parsers.parse_decimal(price_str)
+       tax_result = parsers.parse_decimal(tax_rate_str)
+
+       match (price_result, tax_result):
+           case (Success(price), Success(rate)):
+               total = price * (Decimal('1') + rate)
+               return f"Total: ${total:.2f}"
+           case (Failure(error), _):
+               return f"Invalid price: {error}"
+           case (_, Failure(error)):
+               return f"Invalid tax rate: {error}"
+
+   print(calculate_total_with_tax("99.99", "0.0825"))  # Total: $108.24
+
 Enum Parser
 ~~~~~~~~~~~
 
@@ -250,6 +316,72 @@ Enum Parser
            print("This won't happen")
        case Failure(error):
            print(error)  # "Input must be a valid enumeration value"
+
+UUID Parser
+~~~~~~~~~~~
+
+The ``parse_uuid`` parser converts string representations into UUID objects with optional version validation:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from uuid import UUID
+
+   # Parse a UUID string (any version)
+   result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000")
+   match result:
+       case Success(uuid_obj):
+           print(f"UUID: {uuid_obj}")
+           print(f"Version: {uuid_obj.version}")  # Version: 4
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse with version validation (strict mode - default)
+   result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000", version=4)
+   match result:
+       case Success(uuid_obj):
+           print(f"Valid UUID v4: {uuid_obj}")
+       case Failure(_):
+           print("This won't happen")
+
+   # Version mismatch in strict mode
+   result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000", version=1, strict=True)
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "UUID version mismatch: expected v1, got v4"
+
+   # Non-strict mode allows version mismatch
+   result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000", version=1, strict=False)
+   match result:
+       case Success(uuid_obj):
+           print(f"Parsed UUID (ignoring version mismatch): {uuid_obj}")
+       case Failure(_):
+           print("This won't happen")
+
+   # Supported UUID versions: 1, 3, 4, 5, 6, 7, 8
+   result = parsers.parse_uuid("invalid-uuid")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Input must be a valid UUID"
+
+   # Use case: Validating API identifiers
+   def validate_resource_id(id_str: str):
+       result = parsers.parse_uuid(id_str, version=4)
+       match result:
+           case Success(uuid_obj):
+               return {"valid": True, "id": str(uuid_obj)}
+           case Failure(error) if "version mismatch" in error:
+               return {"valid": False, "error": "Must be a UUID v4"}
+           case Failure(error):
+               return {"valid": False, "error": error}
+
+   print(validate_resource_id("550e8400-e29b-41d4-a716-446655440000"))
+   # {'valid': True, 'id': '550e8400-e29b-41d4-a716-446655440000'}
 
 Collection Type Parsing
 -----------------------
@@ -347,6 +479,186 @@ Error messages are short and deterministic:
 - "not a valid IP address" for generic IP failures
 - "not a valid network" for invalid CIDR/prefix formats
 - "has host bits set" when strict CIDR parsing is enabled and input contains host bits
+
+URL Parser with Structured Results
+-----------------------------------
+
+The ``parse_url`` parser validates and decomposes URLs into a structured ``UrlParts`` dataclass:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   # Parse a complete URL
+   result = parsers.parse_url("https://user:pass@api.example.com:8080/v1/users?active=true#section")
+   match result:
+       case Success(url):
+           print(f"Scheme: {url.scheme}")       # https
+           print(f"Host: {url.host}")           # api.example.com
+           print(f"Port: {url.port}")           # 8080
+           print(f"Path: {url.path}")           # /v1/users
+           print(f"Query: {url.query}")         # active=true
+           print(f"Fragment: {url.fragment}")   # section
+           print(f"Username: {url.username}")   # user
+           print(f"Password: {url.password}")   # pass
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Simple URL without credentials
+   result = parsers.parse_url("https://example.com/page")
+   match result:
+       case Success(url):
+           print(f"Clean URL: {url.scheme}://{url.host}{url.path}")
+           # username and password are None
+           print(url.username)  # None
+       case Failure(_):
+           print("This won't happen")
+
+   # URL validation use case
+   def validate_api_endpoint(url_str: str):
+       result = parsers.parse_url(url_str)
+       match result:
+           case Success(url) if url.scheme in ('http', 'https'):
+               return {"valid": True, "secure": url.scheme == 'https'}
+           case Success(url):
+               return {"valid": False, "error": f"Unsupported scheme: {url.scheme}"}
+           case Failure(error):
+               return {"valid": False, "error": error}
+
+   print(validate_api_endpoint("https://api.example.com/users"))
+   # {'valid': True, 'secure': True}
+
+Email Parser with Structured Results
+-------------------------------------
+
+The ``parse_email`` parser validates email addresses and returns an ``EmailAddress`` dataclass with normalized components:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   # Parse an email address
+   result = parsers.parse_email("User.Name+tag@Example.COM")
+   match result:
+       case Success(email):
+           print(f"Local part: {email.local}")     # User.Name+tag (case preserved)
+           print(f"Domain: {email.domain}")        # example.com (normalized lowercase)
+           print(f"Full: {email.local}@{email.domain}")
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Email validation for user registration
+   def validate_registration_email(email_str: str):
+       result = parsers.parse_email(email_str)
+       match result:
+           case Success(email) if email.domain in ('gmail.com', 'yahoo.com', 'outlook.com'):
+               return {"valid": True, "provider": email.domain}
+           case Success(email):
+               return {"valid": True, "provider": "other"}
+           case Failure(error):
+               return {"valid": False, "error": error}
+
+   print(validate_registration_email("user@gmail.com"))
+   # {'valid': True, 'provider': 'gmail.com'}
+
+   # Invalid email
+   result = parsers.parse_email("not-an-email")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Invalid email format"
+
+Phone Number Parser (North American)
+-------------------------------------
+
+The ``parse_phone`` parser handles North American Numbering Plan (NANP) phone numbers and returns a structured ``PhoneNumber`` dataclass:
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   # Parse a formatted phone number
+   result = parsers.parse_phone("(415) 555-2671")
+   match result:
+       case Success(phone):
+           print(f"Area code: {phone.area_code}")      # 415
+           print(f"Exchange: {phone.exchange}")        # 555
+           print(f"Subscriber: {phone.subscriber}")    # 2671
+           print(f"E.164 format: {phone.e164}")        # +14155552671
+           print(f"National format: {phone.national}") # (415) 555-2671
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse with extension
+   result = parsers.parse_phone("415-555-2671 ext 123")
+   match result:
+       case Success(phone):
+           print(f"Extension: {phone.extension}")  # 123
+       case Failure(_):
+           print("This won't happen")
+
+   # Different input formats - all valid
+   formats = [
+       "(415) 555-2671",
+       "415-555-2671",
+       "415.555.2671",
+       "4155552671",
+       "+1 415 555 2671",
+       "+1-415-555-2671"
+   ]
+
+   for fmt in formats:
+       result = parsers.parse_phone(fmt)
+       match result:
+           case Success(phone):
+               print(f"{fmt} -> {phone.national}")
+           case Failure(_):
+               print(f"{fmt} -> INVALID")
+
+   # Canadian phone number
+   result = parsers.parse_phone("+1 604 555 1234", region='CA')
+   match result:
+       case Success(phone):
+           print(f"Region: {phone.region}")  # CA
+           print(f"E.164: {phone.e164}")     # +16045551234
+       case Failure(_):
+           print("This won't happen")
+
+   # Strict mode requires formatting characters
+   result = parsers.parse_phone("4155552671", strict=True)
+   match result:
+       case Success(_):
+           print("This won't happen in strict mode")
+       case Failure(error):
+           print(error)  # "Strict mode requires formatting characters"
+
+   # Properly formatted passes strict mode
+   result = parsers.parse_phone("(415) 555-2671", strict=True)
+   match result:
+       case Success(phone):
+           print(f"Valid in strict mode: {phone.national}")
+       case Failure(_):
+           print("This won't happen")
+
+   # Validation with pattern matching guards
+   def validate_business_phone(phone_str: str):
+       result = parsers.parse_phone(phone_str)
+       match result:
+           case Success(phone) if phone.area_code in ('800', '888', '877', '866'):
+               return {"valid": True, "type": "toll-free"}
+           case Success(phone) if phone.area_code == '555':
+               return {"valid": False, "error": "555 is not a real area code"}
+           case Success(phone):
+               return {"valid": True, "type": "standard", "area": phone.area_code}
+           case Failure(error):
+               return {"valid": False, "error": error}
+
+   print(validate_business_phone("(800) 555-1234"))
+   # {'valid': True, 'type': 'toll-free'}
 
 Creating Custom Parsers
 ------------------------
