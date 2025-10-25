@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "valid8r"
-version = "0.6.0"
+version = "0.6.1"
 description = "Clean, flexible input validation for Python applications"
 authors = ["Mike Lane <mikelane@gmail.com>"]
 license = "MIT"
