@@ -5,7 +5,7 @@ robust API validation. Valid8r's Maybe monad pattern integrates seamlessly
 with Pydantic's validation system.
 
 Usage:
-    1. Install dependencies: pip install fastapi pydantic uvicorn
+    1. Install dependencies: pip install -r examples/requirements.txt
     2. Run the server: uvicorn examples.fastapi_integration:app --reload
     3. Visit http://localhost:8000/docs for interactive API documentation
 """

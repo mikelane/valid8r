@@ -1,0 +1,10 @@
+# Requirements for running Valid8r examples
+# Install with: pip install -r examples/requirements.txt
+
+# FastAPI integration example (examples/fastapi_integration.py)
+fastapi>=0.119.0
+uvicorn>=0.37.0
+
+# The valid8r library itself (install in development mode from parent directory)
+# For development: pip install -e .
+# Or install from PyPI: pip install valid8r
