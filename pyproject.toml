@@ -41,7 +41,7 @@ python-semantic-release = "^9.21.1"
 
 [tool.poetry.group.lint.dependencies]
 isort = "^6.0.1"
-ruff = "^0.12.8"
+ruff = ">=0.12.8,<0.15.0"
 
 [tool.poetry.group.docs.dependencies]
 myst-parser = "^4.0.1"
