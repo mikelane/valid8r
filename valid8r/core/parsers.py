@@ -80,7 +80,30 @@ _PHONE_DIGIT_EXTRACTION_PATTERN = re.compile(r'\D')
 
 
 def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
-    """Parse a string to an integer."""
+    """Parse a string to an integer.
+
+    Converts string representations of integers to Python int values.
+    Handles whitespace trimming and accepts whole numbers in float notation (e.g., "42.0").
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[int]: Success(int) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_int("42")
+        Success(42)
+        >>> parse_int("  -17  ")
+        Success(-17)
+        >>> parse_int("42.0")
+        Success(42)
+        >>> parse_int("42.5").is_failure()
+        True
+        >>> parse_int("not a number").is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -102,7 +125,28 @@ def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
 
 
 def parse_float(input_value: str, error_message: str | None = None) -> Maybe[float]:
-    """Parse a string to a float."""
+    """Parse a string to a floating-point number.
+
+    Converts string representations of numbers to Python float values.
+    Handles whitespace trimming and scientific notation.
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[float]: Success(float) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_float("3.14")
+        Success(3.14)
+        >>> parse_float("  -2.5  ")
+        Success(-2.5)
+        >>> parse_float("1e-3")
+        Success(0.001)
+        >>> parse_float("not a number").is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -114,7 +158,33 @@ def parse_float(input_value: str, error_message: str | None = None) -> Maybe[flo
 
 
 def parse_bool(input_value: str, error_message: str | None = None) -> Maybe[bool]:
-    """Parse a string to a boolean."""
+    """Parse a string to a boolean value.
+
+    Accepts various common representations of true/false values.
+    Case-insensitive and handles whitespace.
+
+    Recognized true values: 'true', 't', 'yes', 'y', '1'
+    Recognized false values: 'false', 'f', 'no', 'n', '0'
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped, case-insensitive)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[bool]: Success(bool) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_bool("true")
+        Success(True)
+        >>> parse_bool("YES")
+        Success(True)
+        >>> parse_bool("n")
+        Success(False)
+        >>> parse_bool("  0  ")
+        Success(False)
+        >>> parse_bool("maybe").is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -133,7 +203,27 @@ def parse_bool(input_value: str, error_message: str | None = None) -> Maybe[bool
 
 
 def parse_date(input_value: str, date_format: str | None = None, error_message: str | None = None) -> Maybe[date]:
-    """Parse a string to a date."""
+    """Parse a string to a date object.
+
+    Parses date strings using ISO 8601 format (YYYY-MM-DD) by default,
+    or a custom format if specified.
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped)
+        date_format: Optional strftime format string (e.g., '%Y-%m-%d', '%m/%d/%Y')
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[date]: Success(date) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_date("2025-01-15")
+        Success(datetime.date(2025, 1, 15))
+        >>> parse_date("01/15/2025", date_format="%m/%d/%Y")
+        Success(datetime.date(2025, 1, 15))
+        >>> parse_date("invalid").is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -157,7 +247,30 @@ def parse_date(input_value: str, date_format: str | None = None, error_message: 
 
 
 def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[complex]:
-    """Parse a string to a complex number."""
+    """Parse a string to a complex number.
+
+    Accepts various complex number representations including both 'j' and 'i' notation.
+    Handles parentheses and spaces in the input.
+
+    Args:
+        input_value: String to parse (whitespace is stripped, both 'i' and 'j' accepted)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[complex]: Success(complex) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_complex("3+4j")
+        Success((3+4j))
+        >>> parse_complex("3 + 4i")
+        Success((3+4j))
+        >>> parse_complex("(2-3j)")
+        Success((2-3j))
+        >>> parse_complex("5j")
+        Success(5j)
+        >>> parse_complex("invalid").is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -187,7 +300,10 @@ def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[c
 
 
 def parse_decimal(input_value: str, error_message: str | None = None) -> Maybe[Decimal]:
-    """Parse a string to a Decimal.
+    """Parse a string to a Decimal for precise decimal arithmetic.
+
+    Uses Python's Decimal type for arbitrary-precision decimal arithmetic,
+    avoiding floating-point rounding errors. Ideal for financial calculations.
 
     Args:
         input_value: String representation of a decimal number
@@ -196,6 +312,15 @@ def parse_decimal(input_value: str, error_message: str | None = None) -> Maybe[D
     Returns:
         Maybe[Decimal]: Success with Decimal value or Failure with an error message
 
+    Examples:
+        >>> parse_decimal("3.14159")
+        Success(Decimal('3.14159'))
+        >>> parse_decimal("  0.1  ")
+        Success(Decimal('0.1'))
+        >>> parse_decimal("-99.99")
+        Success(Decimal('-99.99'))
+        >>> parse_decimal("not a number").is_failure()
+        True
     """
     if not input_value:
         return Maybe.failure('Input must not be empty')
@@ -229,7 +354,34 @@ def _find_enum_by_name(enum_class: type[E], value: str) -> E | None:
 
 
 def parse_enum(input_value: str, enum_class: type[E], error_message: str | None = None) -> Maybe[object]:
-    """Parse a string to an enum value."""
+    """Parse a string to an enum member.
+
+    Matches input against enum member values and names (case-insensitive for names).
+    Handles whitespace trimming and supports enums with empty string values.
+
+    Args:
+        input_value: String to parse (whitespace is stripped for non-exact matches)
+        enum_class: The Enum class to parse into
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[object]: Success with enum member if valid, Failure(str) with error message otherwise
+
+    Examples:
+        >>> from enum import Enum
+        >>> class Color(Enum):
+        ...     RED = 'red'
+        ...     GREEN = 'green'
+        ...     BLUE = 'blue'
+        >>> parse_enum("red", Color)
+        Success(<Color.RED: 'red'>)
+        >>> parse_enum("RED", Color)
+        Success(<Color.RED: 'red'>)
+        >>> parse_enum("  green  ", Color)
+        Success(<Color.GREEN: 'green'>)
+        >>> parse_enum("yellow", Color).is_failure()
+        True
+    """
     if not isinstance(enum_class, type) or not issubclass(enum_class, Enum):
         return Maybe.failure(error_message or 'Invalid enum class provided')
 
@@ -269,15 +421,27 @@ def parse_list(
 ) -> Maybe[list[T]]:
     """Parse a string to a list using the specified element parser and separator.
 
+    Splits the input string by the separator and parses each element using the element parser.
+    If no element parser is provided, elements are returned as trimmed strings.
+
     Args:
         input_value: The string to parse
-        element_parser: A function that parses individual elements
-        separator: The string that separates elements
+        element_parser: A function that parses individual elements (default: strips whitespace)
+        separator: The string that separates elements (default: ',')
         error_message: Custom error message for parsing failures
 
     Returns:
-        A Maybe containing the parsed list or an error message
+        Maybe[list[T]]: Success with parsed list or Failure with error message
 
+    Examples:
+        >>> parse_list("a,b,c")
+        Success(['a', 'b', 'c'])
+        >>> parse_list("1, 2, 3", element_parser=parse_int)
+        Success([1, 2, 3])
+        >>> parse_list("apple|banana|cherry", separator="|")
+        Success(['apple', 'banana', 'cherry'])
+        >>> parse_list("1,2,invalid", element_parser=parse_int).is_failure()
+        True
     """
     if not input_value:
         return Maybe.failure('Input must not be empty')
@@ -358,7 +522,32 @@ def parse_dict(  # noqa: PLR0913
     key_value_separator: str = ':',
     error_message: str | None = None,
 ) -> Maybe[dict[K, V]]:
-    """Parse a string to a dictionary using the specified parsers and separators."""
+    """Parse a string to a dictionary using the specified parsers and separators.
+
+    Splits the input string by pair_separator, then splits each pair by key_value_separator.
+    Parses keys and values using the provided parsers (defaults to trimmed strings).
+
+    Args:
+        input_value: The string to parse
+        key_parser: A function that parses keys (default: strips whitespace)
+        value_parser: A function that parses values (default: strips whitespace)
+        pair_separator: The string that separates key-value pairs (default: ',')
+        key_value_separator: The string that separates keys from values (default: ':')
+        error_message: Custom error message for parsing failures
+
+    Returns:
+        Maybe[dict[K, V]]: Success with parsed dictionary or Failure with error message
+
+    Examples:
+        >>> parse_dict("a:1,b:2,c:3")
+        Success({'a': '1', 'b': '2', 'c': '3'})
+        >>> parse_dict("x:10, y:20", value_parser=parse_int)
+        Success({'x': 10, 'y': 20})
+        >>> parse_dict("name=Alice|age=30", pair_separator="|", key_value_separator="=")
+        Success({'name': 'Alice', 'age': '30'})
+        >>> parse_dict("a:1,b:invalid", value_parser=parse_int).is_failure()
+        True
+    """
     if not input_value:
         return Maybe.failure('Input must not be empty')
 
@@ -402,15 +591,33 @@ def parse_set(
 ) -> Maybe[set[T]]:
     """Parse a string to a set using the specified element parser and separator.
 
+    Splits the input string by the separator and parses each element using the element parser.
+    Automatically removes duplicate values. If no element parser is provided, elements are
+    returned as trimmed strings.
+
     Args:
         input_value: The string to parse
-        element_parser: A function that parses individual elements
-        separator: The string that separates elements
+        element_parser: A function that parses individual elements (default: strips whitespace)
+        separator: The string that separates elements (default: ',')
         error_message: Custom error message for parsing failures
 
     Returns:
-        A Maybe containing the parsed set or an error message
+        Maybe[set[T]]: Success with parsed set or Failure with error message
 
+    Examples:
+        >>> result = parse_set("a,b,c")
+        >>> result.is_success()
+        True
+        >>> sorted(result.value_or(set()))
+        ['a', 'b', 'c']
+        >>> result = parse_set("1, 2, 3, 2, 1", element_parser=parse_int)
+        >>> sorted(result.value_or(set()))
+        [1, 2, 3]
+        >>> result = parse_set("red|blue|green|red", separator="|")
+        >>> sorted(result.value_or(set()))
+        ['blue', 'green', 'red']
+        >>> parse_set("1,2,invalid", element_parser=parse_int).is_failure()
+        True
     """
     if separator is None:
         separator = ','
@@ -433,7 +640,10 @@ def parse_int_with_validation(
     max_value: int | None = None,
     error_message: str | None = None,
 ) -> Maybe[int]:
-    """Parse a string to an integer with validation.
+    """Parse a string to an integer with range validation.
+
+    Combines parsing and validation in a single step. First parses the string to an integer,
+    then validates it falls within the specified range.
 
     Args:
         input_value: The string to parse
@@ -442,8 +652,17 @@ def parse_int_with_validation(
         error_message: Custom error message for parsing failures
 
     Returns:
-        A Maybe containing the parsed integer or an error message
+        Maybe[int]: Success with validated integer or Failure with error message
 
+    Examples:
+        >>> parse_int_with_validation("42", min_value=0, max_value=100)
+        Success(42)
+        >>> parse_int_with_validation("5", min_value=10).is_failure()
+        True
+        >>> parse_int_with_validation("150", max_value=100).is_failure()
+        True
+        >>> parse_int_with_validation("50", min_value=0, max_value=100)
+        Success(50)
     """
     result = parse_int(input_value, error_message)
     if result.is_failure():
@@ -469,7 +688,10 @@ def parse_list_with_validation(  # noqa: PLR0913
     max_length: int | None = None,
     error_message: str | None = None,
 ) -> Maybe[list[T]]:
-    """Parse a string to a list with validation.
+    """Parse a string to a list with length validation.
+
+    Combines parsing and validation in a single step. First parses the string to a list,
+    then validates it has an acceptable number of elements.
 
     Args:
         input_value: The string to parse
@@ -480,8 +702,17 @@ def parse_list_with_validation(  # noqa: PLR0913
         error_message: Custom error message for parsing failures
 
     Returns:
-        A Maybe containing the parsed list or an error message
+        Maybe[list[T]]: Success with validated list or Failure with error message
 
+    Examples:
+        >>> parse_list_with_validation("a,b,c", min_length=2, max_length=5)
+        Success(['a', 'b', 'c'])
+        >>> parse_list_with_validation("1,2", element_parser=parse_int, min_length=3).is_failure()
+        True
+        >>> parse_list_with_validation("1,2,3,4,5,6", max_length=5).is_failure()
+        True
+        >>> parse_list_with_validation("10,20,30", element_parser=parse_int, min_length=1)
+        Success([10, 20, 30])
     """
     result = parse_list(input_value, element_parser, separator, error_message)
     if result.is_failure():
@@ -508,7 +739,10 @@ def parse_dict_with_validation(  # noqa: PLR0913
     required_keys: list[str] | None = None,
     error_message: str | None = None,
 ) -> Maybe[dict[K, V]]:
-    """Parse a string to a dictionary with validation.
+    """Parse a string to a dictionary with required keys validation.
+
+    Combines parsing and validation in a single step. First parses the string to a dictionary,
+    then validates that all required keys are present.
 
     Args:
         input_value: The string to parse
@@ -520,8 +754,16 @@ def parse_dict_with_validation(  # noqa: PLR0913
         error_message: Custom error message for parsing failures
 
     Returns:
-        A Maybe containing the parsed dictionary or an error message
+        Maybe[dict[K, V]]: Success with validated dictionary or Failure with error message
 
+    Examples:
+        >>> parse_dict_with_validation("name:Alice,age:30", required_keys=["name", "age"])
+        Success({'name': 'Alice', 'age': '30'})
+        >>> parse_dict_with_validation("name:Bob", required_keys=["name", "age"]).is_failure()
+        True
+        >>> result = parse_dict_with_validation("x:10,y:20", value_parser=parse_int, required_keys=["x"])
+        >>> result.value_or({})
+        {'x': 10, 'y': 20}
     """
     result = parse_dict(input_value, key_parser, value_parser, pair_separator, key_value_separator, error_message)
     if result.is_failure():
@@ -705,13 +947,24 @@ def parse_uuid(text: str, version: int | None = None, strict: bool = True) -> Ma
 def parse_ipv4(text: str) -> Maybe[IPv4Address]:
     """Parse an IPv4 address string.
 
-    Trims surrounding whitespace only. Returns Success with a concrete
-    IPv4Address on success, or Failure with a deterministic error message.
+    Validates and parses IPv4 addresses in dotted-decimal notation.
+    Trims surrounding whitespace.
 
-    Error messages:
-    - value must be a string
-    - value is empty
-    - not a valid IPv4 address
+    Args:
+        text: String containing an IPv4 address (whitespace is stripped)
+
+    Returns:
+        Maybe[IPv4Address]: Success(IPv4Address) if valid, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_ipv4("192.168.1.1")
+        Success(IPv4Address('192.168.1.1'))
+        >>> parse_ipv4("  10.0.0.1  ")
+        Success(IPv4Address('10.0.0.1'))
+        >>> parse_ipv4("256.1.1.1").is_failure()
+        True
+        >>> parse_ipv4("not an ip").is_failure()
+        True
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')
@@ -734,13 +987,24 @@ def parse_ipv4(text: str) -> Maybe[IPv4Address]:
 def parse_ipv6(text: str) -> Maybe[IPv6Address]:
     """Parse an IPv6 address string.
 
-    Trims surrounding whitespace only. Returns Success with a concrete
-    IPv6Address on success, or Failure with a deterministic error message.
+    Validates and parses IPv6 addresses in standard notation.
+    Rejects scope IDs (e.g., %eth0). Trims surrounding whitespace.
 
-    Error messages:
-    - value must be a string
-    - value is empty
-    - not a valid IPv6 address
+    Args:
+        text: String containing an IPv6 address (whitespace is stripped)
+
+    Returns:
+        Maybe[IPv6Address]: Success(IPv6Address) if valid, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_ipv6("::1")
+        Success(IPv6Address('::1'))
+        >>> parse_ipv6("2001:0db8:85a3::8a2e:0370:7334")
+        Success(IPv6Address('2001:db8:85a3::8a2e:370:7334'))
+        >>> parse_ipv6("  fe80::1  ")
+        Success(IPv6Address('fe80::1'))
+        >>> parse_ipv6("192.168.1.1").is_failure()
+        True
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')
@@ -767,12 +1031,27 @@ def parse_ipv6(text: str) -> Maybe[IPv6Address]:
 def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
     """Parse a string as either an IPv4 or IPv6 address.
 
-    Trims surrounding whitespace only.
+    Automatically detects and parses either IPv4 or IPv6 addresses.
+    Trims surrounding whitespace.
 
-    Error messages:
-    - value must be a string
-    - value is empty
-    - not a valid IP address
+    Args:
+        text: String containing an IP address (IPv4 or IPv6, whitespace is stripped)
+
+    Returns:
+        Maybe[IPv4Address | IPv6Address]: Success with IPv4Address or IPv6Address if valid,
+            Failure(str) with error message otherwise
+
+    Examples:
+        >>> result = parse_ip("192.168.1.1")
+        >>> result.is_success()
+        True
+        >>> result = parse_ip("::1")
+        >>> result.is_success()
+        True
+        >>> parse_ip("  10.0.0.1  ")
+        Success(IPv4Address('10.0.0.1'))
+        >>> parse_ip("not an ip").is_failure()
+        True
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')
@@ -799,14 +1078,32 @@ def parse_ip(text: str) -> Maybe[IPv4Address | IPv6Address]:
 def parse_cidr(text: str, *, strict: bool = True) -> Maybe[IPv4Network | IPv6Network]:
     """Parse a CIDR network string (IPv4 or IPv6).
 
-    Uses ipaddress.ip_network under the hood. By default ``strict=True``
-    so host bits set will fail. With ``strict=False``, host bits are masked.
+    Validates and parses network addresses in CIDR notation (e.g., 192.168.1.0/24).
+    By default, validates that host bits are not set (strict mode).
+    With strict=False, host bits are masked to the network address.
 
-    Error messages:
-    - value must be a string
-    - value is empty
-    - has host bits set (when strict and host bits are present)
-    - not a valid network (all other parsing failures)
+    Args:
+        text: String containing a CIDR network (whitespace is stripped)
+        strict: If True, reject networks with host bits set; if False, mask them (default: True)
+
+    Returns:
+        Maybe[IPv4Network | IPv6Network]: Success with IPv4Network or IPv6Network if valid,
+            Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_cidr("192.168.1.0/24")
+        Success(IPv4Network('192.168.1.0/24'))
+        >>> parse_cidr("10.0.0.0/8")
+        Success(IPv4Network('10.0.0.0/8'))
+        >>> parse_cidr("2001:db8::/32")
+        Success(IPv6Network('2001:db8::/32'))
+        >>> # Strict mode rejects host bits
+        >>> parse_cidr("192.168.1.5/24").is_failure()
+        True
+        >>> # Non-strict mode masks host bits
+        >>> result = parse_cidr("192.168.1.5/24", strict=False)
+        >>> str(result.value_or(None))
+        '192.168.1.0/24'
     """
     if not isinstance(text, str):
         return Maybe.failure('Input must be a string')

@@ -102,11 +102,25 @@ def minimum(min_value: N, error_message: str | None = None) -> Validator[N]:
     """Create a validator that ensures a value is at least the minimum.
 
     Args:
-        min_value: The minimum allowed value
+        min_value: The minimum allowed value (inclusive)
         error_message: Optional custom error message
 
     Returns:
-        A validator function
+        Validator[N]: A validator function that accepts values >= min_value
+
+    Examples:
+        >>> from valid8r.core.validators import minimum
+        >>> validator = minimum(0)
+        >>> validator(5)
+        Success(5)
+        >>> validator(0)
+        Success(0)
+        >>> validator(-1).is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = minimum(18, error_message="Must be an adult")
+        >>> validator(17).error_or("")
+        'Must be an adult'
 
     """
 
@@ -122,11 +136,25 @@ def maximum(max_value: N, error_message: str | None = None) -> Validator[N]:
     """Create a validator that ensures a value is at most the maximum.
 
     Args:
-        max_value: The maximum allowed value
+        max_value: The maximum allowed value (inclusive)
         error_message: Optional custom error message
 
     Returns:
-        A validator function
+        Validator[N]: A validator function that accepts values <= max_value
+
+    Examples:
+        >>> from valid8r.core.validators import maximum
+        >>> validator = maximum(100)
+        >>> validator(50)
+        Success(50)
+        >>> validator(100)
+        Success(100)
+        >>> validator(101).is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = maximum(120, error_message="Age too high")
+        >>> validator(150).error_or("")
+        'Age too high'
 
     """
 
@@ -142,12 +170,30 @@ def between(min_value: N, max_value: N, error_message: str | None = None) -> Val
     """Create a validator that ensures a value is between minimum and maximum (inclusive).
 
     Args:
-        min_value: The minimum allowed value
-        max_value: The maximum allowed value
+        min_value: The minimum allowed value (inclusive)
+        max_value: The maximum allowed value (inclusive)
         error_message: Optional custom error message
 
     Returns:
-        A validator function
+        Validator[N]: A validator function that accepts values where min_value <= value <= max_value
+
+    Examples:
+        >>> from valid8r.core.validators import between
+        >>> validator = between(0, 100)
+        >>> validator(50)
+        Success(50)
+        >>> validator(0)
+        Success(0)
+        >>> validator(100)
+        Success(100)
+        >>> validator(-1).is_failure()
+        True
+        >>> validator(101).is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = between(1, 10, error_message="Rating must be 1-10")
+        >>> validator(11).error_or("")
+        'Rating must be 1-10'
 
     """
 
@@ -162,12 +208,30 @@ def between(min_value: N, max_value: N, error_message: str | None = None) -> Val
 def predicate(pred: Callable[[T], bool], error_message: str) -> Validator[T]:
     """Create a validator using a custom predicate function.
 
+    Allows creating custom validators for any validation logic by providing
+    a predicate function that returns True for valid values.
+
     Args:
-        pred: A function that takes a value and returns a boolean
-        error_message: Error message when validation fails
+        pred: A function that takes a value and returns True if valid, False otherwise
+        error_message: Error message to return when validation fails
 
     Returns:
-        A validator function
+        Validator[T]: A validator function that applies the predicate
+
+    Examples:
+        >>> from valid8r.core.validators import predicate
+        >>> # Validate even numbers
+        >>> is_even = predicate(lambda x: x % 2 == 0, "Must be even")
+        >>> is_even(4)
+        Success(4)
+        >>> is_even(3).is_failure()
+        True
+        >>> # Validate string patterns
+        >>> starts_with_a = predicate(lambda s: s.startswith('a'), "Must start with 'a'")
+        >>> starts_with_a("apple")
+        Success('apple')
+        >>> starts_with_a("banana").error_or("")
+        "Must start with 'a'"
 
     """
 
@@ -183,12 +247,30 @@ def length(min_length: int, max_length: int, error_message: str | None = None) -
     """Create a validator that ensures a string's length is within bounds.
 
     Args:
-        min_length: Minimum length of the string
-        max_length: Maximum length of the string
+        min_length: Minimum length of the string (inclusive)
+        max_length: Maximum length of the string (inclusive)
         error_message: Optional custom error message
 
     Returns:
-        A validator function
+        Validator[str]: A validator function that checks string length
+
+    Examples:
+        >>> from valid8r.core.validators import length
+        >>> validator = length(3, 10)
+        >>> validator("hello")
+        Success('hello')
+        >>> validator("abc")
+        Success('abc')
+        >>> validator("abcdefghij")
+        Success('abcdefghij')
+        >>> validator("ab").is_failure()
+        True
+        >>> validator("abcdefghijk").is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = length(8, 20, error_message="Password must be 8-20 characters")
+        >>> validator("short").error_or("")
+        'Password must be 8-20 characters'
 
     """
 
