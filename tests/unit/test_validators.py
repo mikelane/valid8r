@@ -20,6 +20,7 @@ from valid8r.core.validators import (
     minimum,
     non_empty_string,
     predicate,
+    unique_items,
 )
 
 if TYPE_CHECKING:
@@ -238,3 +239,25 @@ class DescribeNonEmptyString:
 
         assert result.is_failure()
         assert 'must not be empty' in result.error_or('').lower()
+
+
+class DescribeUniqueItems:
+    """Tests for the unique_items validator."""
+
+    def it_accepts_list_with_unique_items(self) -> None:
+        """Test unique_items accepts a list where all items are unique."""
+        validator = unique_items()
+
+        result = validator([1, 2, 3, 4, 5])
+
+        assert result.is_success()
+        assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+    def it_rejects_list_with_duplicate_items(self) -> None:
+        """Test unique_items rejects a list with duplicate items."""
+        validator = unique_items()
+
+        result = validator([1, 2, 2, 3, 4])
+
+        assert result.is_failure()
+        assert 'must be unique' in result.error_or('').lower()

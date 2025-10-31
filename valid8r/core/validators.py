@@ -341,3 +341,22 @@ def non_empty_string(error_message: str | None = None) -> Validator[str]:
         return Maybe.failure(error_message or 'String must not be empty')
 
     return Validator(validator)
+
+
+def unique_items(error_message: str | None = None) -> Validator[list[T]]:
+    """Create a validator that ensures all items in a list are unique.
+
+    Args:
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[list[T]]: A validator function that checks for unique items
+
+    """
+
+    def validator(value: list[T]) -> Maybe[list[T]]:
+        if len(value) == len(set(value)):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or 'All items must be unique')
+
+    return Validator(validator)
