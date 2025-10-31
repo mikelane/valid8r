@@ -20,6 +20,8 @@ from valid8r.core.validators import (
     minimum,
     non_empty_string,
     predicate,
+    subset_of,
+    superset_of,
     unique_items,
 )
 
@@ -261,3 +263,47 @@ class DescribeUniqueItems:
 
         assert result.is_failure()
         assert 'must be unique' in result.error_or('').lower()
+
+
+class DescribeSubsetOf:
+    """Tests for the subset_of validator."""
+
+    def it_accepts_set_that_is_subset(self) -> None:
+        """Test subset_of accepts a set that is a subset of the allowed set."""
+        validator = subset_of({1, 2, 3, 4, 5})
+
+        result = validator({1, 2, 3})
+
+        assert result.is_success()
+        assert result.value_or(set()) == {1, 2, 3}
+
+    def it_rejects_set_that_is_not_subset(self) -> None:
+        """Test subset_of rejects a set that is not a subset of the allowed set."""
+        validator = subset_of({1, 2, 3})
+
+        result = validator({1, 2, 3, 4, 5})
+
+        assert result.is_failure()
+        assert 'subset' in result.error_or('').lower()
+
+
+class DescribeSupersetOf:
+    """Tests for the superset_of validator."""
+
+    def it_accepts_set_that_is_superset(self) -> None:
+        """Test superset_of accepts a set that is a superset of the required set."""
+        validator = superset_of({1, 2, 3})
+
+        result = validator({1, 2, 3, 4, 5})
+
+        assert result.is_success()
+        assert result.value_or(set()) == {1, 2, 3, 4, 5}
+
+    def it_rejects_set_that_is_not_superset(self) -> None:
+        """Test superset_of rejects a set that is not a superset of the required set."""
+        validator = superset_of({1, 2, 3, 4, 5})
+
+        result = validator({1, 2, 3})
+
+        assert result.is_failure()
+        assert 'superset' in result.error_or('').lower()

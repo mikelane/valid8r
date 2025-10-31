@@ -360,3 +360,43 @@ def unique_items(error_message: str | None = None) -> Validator[list[T]]:
         return Maybe.failure(error_message or 'All items must be unique')
 
     return Validator(validator)
+
+
+def subset_of(allowed_set: set[T], error_message: str | None = None) -> Validator[set[T]]:
+    """Create a validator that ensures a set is a subset of allowed values.
+
+    Args:
+        allowed_set: The set of allowed values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[set[T]]: A validator function that checks subset relationship
+
+    """
+
+    def validator(value: set[T]) -> Maybe[set[T]]:
+        if value.issubset(allowed_set):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be a subset of {allowed_set}')
+
+    return Validator(validator)
+
+
+def superset_of(required_set: set[T], error_message: str | None = None) -> Validator[set[T]]:
+    """Create a validator that ensures a set is a superset of required values.
+
+    Args:
+        required_set: The set of required values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[set[T]]: A validator function that checks superset relationship
+
+    """
+
+    def validator(value: set[T]) -> Maybe[set[T]]:
+        if value.issuperset(required_set):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be a superset of {required_set}')
+
+    return Validator(validator)
