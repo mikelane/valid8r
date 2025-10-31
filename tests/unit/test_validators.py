@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,6 +14,7 @@ from valid8r.core.validators import (
     Validator,
     between,
     length,
+    matches_regex,
     maximum,
     minimum,
     predicate,
@@ -131,3 +133,44 @@ class DescribeValidators:
         else:
             assert result.is_failure()
             assert f'String length must be between {min_len} and {max_len}' in result.error_or('')
+
+
+class DescribeMatchesRegex:
+    """Tests for the matches_regex validator."""
+
+    def it_validates_string_matching_pattern(self) -> None:
+        """Test matches_regex accepts a string matching the pattern."""
+        validator = matches_regex(r'^\d{3}-\d{2}-\d{4}$')
+
+        result = validator('123-45-6789')
+
+        assert result.is_success()
+        assert result.value_or('') == '123-45-6789'
+
+    def it_rejects_string_not_matching_pattern(self) -> None:
+        """Test matches_regex rejects a string that doesn't match the pattern."""
+        validator = matches_regex(r'^\d{3}-\d{2}-\d{4}$')
+
+        result = validator('abc-de-fghi')
+
+        assert result.is_failure()
+        assert 'must match pattern' in result.error_or('').lower()
+
+    def it_accepts_compiled_regex_pattern(self) -> None:
+        """Test matches_regex works with pre-compiled regex patterns."""
+        pattern = re.compile(r'^\d{3}-\d{3}-\d{4}$')
+        validator = matches_regex(pattern)
+
+        result = validator('123-456-7890')
+
+        assert result.is_success()
+        assert result.value_or('') == '123-456-7890'
+
+    def it_supports_custom_error_messages(self) -> None:
+        """Test matches_regex uses custom error message when provided."""
+        validator = matches_regex(r'^\d{5}$', error_message='Must be a 5-digit ZIP code')
+
+        result = validator('1234')
+
+        assert result.is_failure()
+        assert result.error_or('') == 'Must be a 5-digit ZIP code'

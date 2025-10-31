@@ -7,6 +7,7 @@ that either contains the validated value or an error message.
 
 from __future__ import annotations
 
+import re
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -278,5 +279,26 @@ def length(min_length: int, max_length: int, error_message: str | None = None) -
         if min_length <= len(value) <= max_length:
             return Maybe.success(value)
         return Maybe.failure(error_message or f'String length must be between {min_length} and {max_length}')
+
+    return Validator(validator)
+
+
+def matches_regex(pattern: str | re.Pattern[str], error_message: str | None = None) -> Validator[str]:
+    """Create a validator that ensures a string matches a regular expression pattern.
+
+    Args:
+        pattern: Regular expression pattern (string or compiled Pattern object)
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[str]: A validator function that checks pattern matching
+
+    """
+    compiled_pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
+
+    def validator(value: str) -> Maybe[str]:
+        if compiled_pattern.match(value):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must match pattern {compiled_pattern.pattern}')
 
     return Validator(validator)
