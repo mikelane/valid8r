@@ -108,6 +108,10 @@ class Success(Maybe[T]):
         """Get a string representation."""
         return f'Success({self.value})'
 
+    def __repr__(self) -> str:
+        """Get a repr representation for debugging and doctests."""
+        return f'Success({self.value!r})'
+
 
 class Failure(Maybe[T]):
     """Represents a failed computation with an error message."""
@@ -160,3 +164,7 @@ class Failure(Maybe[T]):
     def __str__(self) -> str:
         """Get a string representation."""
         return f'Failure({self.error})'
+
+    def __repr__(self) -> str:
+        """Get a repr representation for debugging and doctests."""
+        return f'Failure({self.error!r})'

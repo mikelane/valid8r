@@ -85,29 +85,68 @@ def ask(  # noqa: PLR0913
     retry: bool | int = False,
     _test_mode: bool = False,
 ) -> Maybe[T]:
-    """Prompt the user for input with validation.
+    """Prompt the user for input with parsing and validation.
+
+    Displays a prompt to the user, parses their input using the provided parser,
+    validates the result, and optionally retries on failure. Returns a Maybe monad
+    containing either the validated input or an error message.
 
     Args:
-        prompt_text: The prompt to display to the user
-        parser: Function to convert string to desired type
-        validator: Function to validate the parsed value
-        error_message: Custom error message for invalid input
-        default: Default value to use if input is empty
-        retry: If True or an integer, retry on invalid input
-        _test_mode: Hidden parameter for testing the final return path
+        prompt_text: The prompt message to display to the user
+        parser: Function to convert string input to desired type (default: returns string as-is)
+        validator: Function to validate the parsed value (default: accepts any value)
+        error_message: Custom error message to display on validation failure
+        default: Default value to use if user provides empty input (displays in prompt)
+        retry: Enable retry on failure - True for unlimited, integer for max attempts, False to disable
+        _test_mode: Internal testing parameter (do not use)
 
     Returns:
-        A Maybe containing the validated input or an error
+        Maybe[T]: Success with validated input, or Failure with error message
 
     Examples:
-        >>> # This would prompt the user and validate their input
         >>> from valid8r.core import parsers, validators
-        >>> age = ask(
+        >>> from valid8r.prompt import ask
+        >>>
+        >>> # Basic integer input with validation
+        >>> result = ask(
         ...     "Enter your age: ",
         ...     parser=parsers.parse_int,
-        ...     validator=validators.minimum(0),
+        ...     validator=validators.between(0, 120),
         ...     retry=True
         ... )
+        >>> # User enters "25" -> Success(25)
+        >>> # User enters "invalid" -> prompts again with error message
+        >>>
+        >>> # Input with default value
+        >>> result = ask(
+        ...     "Enter port: ",
+        ...     parser=parsers.parse_int,
+        ...     default=8080
+        ... )
+        >>> # User presses Enter -> Success(8080)
+        >>> # User enters "3000" -> Success(3000)
+        >>>
+        >>> # Limited retries with custom error
+        >>> result = ask(
+        ...     "Email: ",
+        ...     parser=parsers.parse_email,
+        ...     error_message="Invalid email format",
+        ...     retry=3
+        ... )
+        >>> # User has 3 attempts to enter valid email
+        >>>
+        >>> # Boolean input with retry
+        >>> result = ask(
+        ...     "Continue? (yes/no): ",
+        ...     parser=parsers.parse_bool,
+        ...     retry=True
+        ... )
+        >>> # User enters "yes" -> Success(True)
+        >>> # User enters "maybe" -> error, retry prompt
+
+    Note:
+        The returned Maybe must be unwrapped to access the value.
+        Use pattern matching or .value_or() to extract the result.
 
     """
     # Create a config object from the parameters

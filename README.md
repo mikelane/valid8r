@@ -137,21 +137,21 @@ from valid8r.core.maybe import Success, Failure
 from valid8r.core import parsers
 
 # Phone number parsing with NANP validation (PhoneNumber)
-match parsers.parse_phone("+1 (555) 123-4567"):
+match parsers.parse_phone("+1 (415) 555-2671"):
     case Success(phone):
         print(f"Country: {phone.country_code}")  # 1
-        print(f"Area: {phone.area_code}")        # 555
-        print(f"Exchange: {phone.exchange}")     # 123
-        print(f"Subscriber: {phone.subscriber}") # 4567
+        print(f"Area: {phone.area_code}")        # 415
+        print(f"Exchange: {phone.exchange}")     # 555
+        print(f"Subscriber: {phone.subscriber}") # 2671
 
         # Format for display using properties
-        print(f"E.164: {phone.e164}")           # +15551234567
-        print(f"National: {phone.national}")    # (555) 123-4567
+        print(f"E.164: {phone.e164}")           # +14155552671
+        print(f"National: {phone.national}")    # (415) 555-2671
     case Failure(err):
         print("Error:", err)
 
 # Also accepts various formats
-for number in ["5551234567", "(555) 123-4567", "555-123-4567"]:
+for number in ["4155552671", "(415) 555-2671", "415-555-2671"]:
     result = parsers.parse_phone(number)
     assert result.is_success()
 ```
@@ -181,24 +181,26 @@ assert assert_maybe_failure(result, "at least 0")
 
 # Test prompts with mock input
 with MockInputContext(["yes", "42", "invalid", "25"]):
-    # First prompt
+    # First prompt - returns Maybe, unwrap with value_or()
     result = prompt.ask("Continue? ", parser=parsers.parse_bool)
     assert result.value_or(False) == True
 
-    # Second prompt
-    age = prompt.ask(
+    # Second prompt - unwrap the Maybe result
+    result = prompt.ask(
         "Age? ",
         parser=parsers.parse_int,
         validator=validate_age
     )
+    age = result.value_or(None)
     assert age == 42
 
-    # Third prompt will fail, fourth succeeds
-    age = prompt.ask(
+    # Third prompt will fail, fourth succeeds - unwrap result
+    result = prompt.ask(
         "Age again? ",
         parser=parsers.parse_int,
-        retries=1  # Retry once after failure
+        retry=1  # Retry once after failure
     )
+    age = result.value_or(None)
     assert age == 25
 ```
 
