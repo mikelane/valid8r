@@ -13,6 +13,7 @@ import pytest
 from valid8r.core.validators import (
     Validator,
     between,
+    in_set,
     length,
     matches_regex,
     maximum,
@@ -174,3 +175,34 @@ class DescribeMatchesRegex:
 
         assert result.is_failure()
         assert result.error_or('') == 'Must be a 5-digit ZIP code'
+
+
+class DescribeInSet:
+    """Tests for the in_set validator."""
+
+    def it_accepts_value_in_allowed_set(self) -> None:
+        """Test in_set accepts a value that is in the allowed set."""
+        validator = in_set({'red', 'green', 'blue'})
+
+        result = validator('red')
+
+        assert result.is_success()
+        assert result.value_or('') == 'red'
+
+    def it_rejects_value_not_in_allowed_set(self) -> None:
+        """Test in_set rejects a value that is not in the allowed set."""
+        validator = in_set({'red', 'green', 'blue'})
+
+        result = validator('yellow')
+
+        assert result.is_failure()
+        assert 'must be one of' in result.error_or('').lower()
+
+    def it_supports_custom_error_messages(self) -> None:
+        """Test in_set uses custom error message when provided."""
+        validator = in_set({'small', 'medium', 'large'}, error_message='Size must be S, M, or L')
+
+        result = validator('extra-large')
+
+        assert result.is_failure()
+        assert result.error_or('') == 'Size must be S, M, or L'

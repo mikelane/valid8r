@@ -302,3 +302,23 @@ def matches_regex(pattern: str | re.Pattern[str], error_message: str | None = No
         return Maybe.failure(error_message or f'Value must match pattern {compiled_pattern.pattern}')
 
     return Validator(validator)
+
+
+def in_set(allowed_values: set[T], error_message: str | None = None) -> Validator[T]:
+    """Create a validator that ensures a value is in a set of allowed values.
+
+    Args:
+        allowed_values: Set of allowed values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[T]: A validator function that checks membership
+
+    """
+
+    def validator(value: T) -> Maybe[T]:
+        if value in allowed_values:
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be one of {allowed_values}')
+
+    return Validator(validator)
