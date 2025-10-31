@@ -18,6 +18,7 @@ from valid8r.core.validators import (
     matches_regex,
     maximum,
     minimum,
+    non_empty_string,
     predicate,
 )
 
@@ -206,3 +207,34 @@ class DescribeInSet:
 
         assert result.is_failure()
         assert result.error_or('') == 'Size must be S, M, or L'
+
+
+class DescribeNonEmptyString:
+    """Tests for the non_empty_string validator."""
+
+    def it_accepts_non_empty_string(self) -> None:
+        """Test non_empty_string accepts a string with content."""
+        validator = non_empty_string()
+
+        result = validator('hello')
+
+        assert result.is_success()
+        assert result.value_or('') == 'hello'
+
+    def it_rejects_empty_string(self) -> None:
+        """Test non_empty_string rejects an empty string."""
+        validator = non_empty_string()
+
+        result = validator('')
+
+        assert result.is_failure()
+        assert 'must not be empty' in result.error_or('').lower()
+
+    def it_rejects_whitespace_only_string(self) -> None:
+        """Test non_empty_string rejects a string with only whitespace."""
+        validator = non_empty_string()
+
+        result = validator('   ')
+
+        assert result.is_failure()
+        assert 'must not be empty' in result.error_or('').lower()

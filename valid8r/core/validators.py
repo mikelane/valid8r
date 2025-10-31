@@ -322,3 +322,22 @@ def in_set(allowed_values: set[T], error_message: str | None = None) -> Validato
         return Maybe.failure(error_message or f'Value must be one of {allowed_values}')
 
     return Validator(validator)
+
+
+def non_empty_string(error_message: str | None = None) -> Validator[str]:
+    """Create a validator that ensures a string is not empty.
+
+    Args:
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[str]: A validator function that checks for non-empty strings
+
+    """
+
+    def validator(value: str) -> Maybe[str]:
+        if value.strip():
+            return Maybe.success(value)
+        return Maybe.failure(error_message or 'String must not be empty')
+
+    return Validator(validator)
