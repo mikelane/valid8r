@@ -101,31 +101,21 @@ Custom validators for common string validation scenarios:
    from valid8r.core.maybe import Success, Failure
    import re
 
-   # Email validation
+   # Email validation using matches_regex
    def email_validator(error_message=None):
-       pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+       return validators.matches_regex(
+           r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+           error_message=error_message or "Invalid email format"
+       )
 
-       def validator(value):
-           if re.match(pattern, value):
-               return Maybe.success(value)
-           return Maybe.failure(
-               error_message or "Invalid email format"
-           )
-       return validators.Validator(validator)
-
-   # URL validation
+   # URL validation using matches_regex
    def url_validator(error_message=None):
-       pattern = r"^https?://(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)$"
+       return validators.matches_regex(
+           r"^https?://(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)$",
+           error_message=error_message or "Invalid URL format"
+       )
 
-       def validator(value):
-           if re.match(pattern, value):
-               return Maybe.success(value)
-           return Maybe.failure(
-               error_message or "Invalid URL format"
-           )
-       return validators.Validator(validator)
-
-   # Phone number validation
+   # Phone number validation using matches_regex
    def phone_validator(country="international", error_message=None):
        patterns = {
            "us": r"^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$",
@@ -134,13 +124,10 @@ Custom validators for common string validation scenarios:
 
        pattern = patterns.get(country.lower(), patterns["international"])
 
-       def validator(value):
-           if re.match(pattern, value):
-               return Maybe.success(value)
-           return Maybe.failure(
-               error_message or f"Invalid phone number for {country} format"
-           )
-       return validators.Validator(validator)
+       return validators.matches_regex(
+           pattern,
+           error_message=error_message or f"Invalid phone number for {country} format"
+       )
 
    # Validate contact information with pattern matching
    def validate_contact_info(email, url, phone):

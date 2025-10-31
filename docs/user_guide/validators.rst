@@ -192,16 +192,49 @@ The most flexible validator is the predicate validator, which uses a custom func
        case Failure(error):
            print(error)  # "Number must be even"
 
-   # More complex example - validate email format
+Matches Regex Validator
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Validate that a string matches a regular expression pattern:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
    import re
 
-   def is_valid_email(email):
-       pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-       return bool(re.match(pattern, email))
+   # Basic usage with string pattern
+   ssn_validator = validators.matches_regex(r'^\d{3}-\d{2}-\d{4}$')
 
-   email_validator = validators.predicate(
-       is_valid_email,
-       "Invalid email format"
+   result = ssn_validator("123-45-6789")  # Valid
+   match result:
+       case Success(value):
+           print(value)  # "123-45-6789"
+       case Failure(_):
+           print("This won't happen")
+
+   result = ssn_validator("123456789")  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Value must match pattern ^\d{3}-\d{2}-\d{4}$"
+
+   # With compiled regex pattern
+   pattern = re.compile(r'^[A-Z]{2}\d{4}$')
+   code_validator = validators.matches_regex(pattern)
+
+   result = code_validator("AB1234")  # Valid
+   match result:
+       case Success(value):
+           print(value)  # "AB1234"
+       case Failure(_):
+           print("This won't happen")
+
+   # With custom error message
+   email_validator = validators.matches_regex(
+       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+       error_message="Invalid email format"
    )
 
    result = email_validator("user@example.com")  # Valid
@@ -217,6 +250,266 @@ The most flexible validator is the predicate validator, which uses a custom func
            print("This won't happen")
        case Failure(error):
            print(error)  # "Invalid email format"
+
+In Set Validator
+~~~~~~~~~~~~~~~~
+
+Validate that a value is in a set of allowed values:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage
+   color_validator = validators.in_set({'red', 'green', 'blue'})
+
+   result = color_validator("red")  # Valid
+   match result:
+       case Success(value):
+           print(value)  # "red"
+       case Failure(_):
+           print("This won't happen")
+
+   result = color_validator("yellow")  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Value must be one of: blue, green, red"
+
+   # With custom error message
+   size_validator = validators.in_set(
+       {'S', 'M', 'L', 'XL'},
+       error_message="Size must be S, M, L, or XL"
+   )
+
+   result = size_validator("XXL")  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Size must be S, M, L, or XL"
+
+Non-Empty String Validator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Validate that a string is not empty or whitespace-only:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage
+   name_validator = validators.non_empty_string()
+
+   result = name_validator("Alice")  # Valid
+   match result:
+       case Success(value):
+           print(value)  # "Alice"
+       case Failure(_):
+           print("This won't happen")
+
+   result = name_validator("")  # Invalid - empty string
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "String must not be empty"
+
+   result = name_validator("   ")  # Invalid - whitespace only
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "String must not be empty"
+
+   # With custom error message
+   username_validator = validators.non_empty_string("Username is required")
+
+   result = username_validator("")  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Username is required"
+
+Unique Items Validator
+~~~~~~~~~~~~~~~~~~~~~~
+
+Validate that all items in a list are unique:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage
+   unique_validator = validators.unique_items()
+
+   result = unique_validator([1, 2, 3, 4, 5])  # Valid
+   match result:
+       case Success(value):
+           print(value)  # [1, 2, 3, 4, 5]
+       case Failure(_):
+           print("This won't happen")
+
+   result = unique_validator([1, 2, 2, 3, 4])  # Invalid - duplicate 2
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "All items must be unique"
+
+   # With custom error message
+   tag_validator = validators.unique_items("Tags must not contain duplicates")
+
+   result = tag_validator(["python", "valid8r", "python"])  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Tags must not contain duplicates"
+
+Subset Of Validator
+~~~~~~~~~~~~~~~~~~~
+
+Validate that a set is a subset of allowed values:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage
+   allowed_tags = {'python', 'javascript', 'typescript', 'rust', 'go'}
+   tag_validator = validators.subset_of(allowed_tags)
+
+   result = tag_validator({'python', 'rust'})  # Valid
+   match result:
+       case Success(value):
+           print(value)  # {'python', 'rust'}
+       case Failure(_):
+           print("This won't happen")
+
+   result = tag_validator({'python', 'java', 'c++'})  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Value must be a subset of: go, javascript, python, rust, typescript"
+
+   # With custom error message
+   permissions_validator = validators.subset_of(
+       {'read', 'write', 'delete'},
+       error_message="Invalid permissions specified"
+   )
+
+   result = permissions_validator({'read', 'execute'})  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Invalid permissions specified"
+
+Superset Of Validator
+~~~~~~~~~~~~~~~~~~~~~
+
+Validate that a set is a superset of required values:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage
+   required_fields = {'id', 'name', 'email'}
+   fields_validator = validators.superset_of(required_fields)
+
+   result = fields_validator({'id', 'name', 'email', 'phone'})  # Valid
+   match result:
+       case Success(value):
+           print(value)  # {'id', 'name', 'email', 'phone'}
+       case Failure(_):
+           print("This won't happen")
+
+   result = fields_validator({'id', 'name'})  # Invalid - missing 'email'
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Value must be a superset of: email, id, name"
+
+   # With custom error message
+   features_validator = validators.superset_of(
+       {'authentication', 'logging'},
+       error_message="Must include authentication and logging features"
+   )
+
+   result = features_validator({'authentication'})  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Must include authentication and logging features"
+
+Is Sorted Validator
+~~~~~~~~~~~~~~~~~~~
+
+Validate that a list is sorted in ascending or descending order:
+
+.. code-block:: python
+
+   from valid8r import validators
+   from valid8r.core.maybe import Success, Failure
+
+   # Basic usage - ascending order
+   sorted_validator = validators.is_sorted()
+
+   result = sorted_validator([1, 2, 3, 4, 5])  # Valid
+   match result:
+       case Success(value):
+           print(value)  # [1, 2, 3, 4, 5]
+       case Failure(_):
+           print("This won't happen")
+
+   result = sorted_validator([3, 1, 4, 2, 5])  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "List must be sorted in ascending order"
+
+   # Descending order (use keyword-only parameter)
+   reverse_sorted_validator = validators.is_sorted(reverse=True)
+
+   result = reverse_sorted_validator([5, 4, 3, 2, 1])  # Valid
+   match result:
+       case Success(value):
+           print(value)  # [5, 4, 3, 2, 1]
+       case Failure(_):
+           print("This won't happen")
+
+   result = reverse_sorted_validator([1, 2, 3])  # Invalid
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "List must be sorted in descending order"
+
+   # With custom error message
+   priority_validator = validators.is_sorted(
+       reverse=True,
+       error_message="Priorities must be in descending order"
+   )
+
+   result = priority_validator([10, 8, 5, 3])  # Valid
+   match result:
+       case Success(value):
+           print(value)  # [10, 8, 5, 3]
+       case Failure(_):
+           print("This won't happen")
 
 Combining Validators
 --------------------

@@ -192,12 +192,10 @@ You can build domain-specific validation libraries on top of Valid8r:
        @staticmethod
        def username(min_length=3, max_length=20):
            """Validate a username."""
-           pattern = r"^[a-zA-Z0-9_]+$"
-
            length_check = validators.length(min_length, max_length)
-           format_check = validators.predicate(
-               lambda s: bool(re.match(pattern, s)),
-               "Username must contain only letters, numbers, and underscores"
+           format_check = validators.matches_regex(
+               r"^[a-zA-Z0-9_]+$",
+               error_message="Username must contain only letters, numbers, and underscores"
            )
 
            return length_check & format_check
@@ -205,11 +203,9 @@ You can build domain-specific validation libraries on top of Valid8r:
        @staticmethod
        def email():
            """Validate an email address."""
-           pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-
-           return validators.predicate(
-               lambda s: bool(re.match(pattern, s)),
-               "Invalid email format"
+           return validators.matches_regex(
+               r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$",
+               error_message="Invalid email format"
            )
 
        @staticmethod
@@ -223,10 +219,7 @@ You can build domain-specific validation libraries on top of Valid8r:
                pattern = r"^\+\d{1,3}-\d{3,14}$"
                message = "International phone number must be in format: +XX-XXXXXXXXXX"
 
-           return validators.predicate(
-               lambda s: bool(re.match(pattern, s)),
-               message
-           )
+           return validators.matches_regex(pattern, error_message=message)
 
    # Usage with pattern matching
    username_validator = UserValidators.username()

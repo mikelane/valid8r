@@ -237,8 +237,8 @@ Use validator chaining to validate form fields:
    # Username validation: 3-20 chars, alphanumeric with underscores
    username_validator = (
        validators.length(3, 20, "Username must be between 3 and 20 characters") &
-       validators.predicate(
-           lambda s: bool(re.match(r'^[a-zA-Z0-9_]+$', s)),
+       validators.matches_regex(
+           r'^[a-zA-Z0-9_]+$',
            "Username can only contain letters, numbers, and underscores"
        )
    )
