@@ -47,6 +47,30 @@ A clean, flexible input validation library for Python applications.
 - **Enums**: `parse_enum` (type-safe enum parsing)
 - **Custom**: `create_parser`, `make_parser`, `validated_parser` (parser factories)
 
+## Available Validators
+
+### Numeric Validators
+- **`minimum(min_value)`** - Ensures value is at least the minimum (inclusive)
+- **`maximum(max_value)`** - Ensures value is at most the maximum (inclusive)
+- **`between(min_value, max_value)`** - Ensures value is within range (inclusive)
+
+### String Validators
+- **`non_empty_string()`** - Rejects empty strings and whitespace-only strings
+- **`matches_regex(pattern)`** - Validates string matches regex pattern (string or compiled)
+- **`length(min_length, max_length)`** - Validates string length within bounds
+
+### Collection Validators
+- **`in_set(allowed_values)`** - Ensures value is in set of allowed values
+- **`unique_items()`** - Ensures all items in a list are unique
+- **`subset_of(allowed_set)`** - Validates set is subset of allowed values
+- **`superset_of(required_set)`** - Validates set is superset of required values
+- **`is_sorted(reverse=False)`** - Ensures list is sorted (ascending or descending)
+
+### Custom Validators
+- **`predicate(func, error_message)`** - Create custom validator from any predicate function
+
+**Note**: All validators support custom error messages and can be combined using `&` (and), `|` (or), and `~` (not) operators.
+
 ## Installation
 
 **Requirements**: Python 3.11 or higher

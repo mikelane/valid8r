@@ -7,6 +7,7 @@ that either contains the validated value or an error message.
 
 from __future__ import annotations
 
+import re
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -278,5 +279,287 @@ def length(min_length: int, max_length: int, error_message: str | None = None) -
         if min_length <= len(value) <= max_length:
             return Maybe.success(value)
         return Maybe.failure(error_message or f'String length must be between {min_length} and {max_length}')
+
+    return Validator(validator)
+
+
+def matches_regex(pattern: str | re.Pattern[str], error_message: str | None = None) -> Validator[str]:
+    r"""Create a validator that ensures a string matches a regular expression pattern.
+
+    Args:
+        pattern: Regular expression pattern (string or compiled Pattern object)
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[str]: A validator function that checks pattern matching
+
+    Examples:
+        >>> from valid8r.core.validators import matches_regex
+        >>> import re
+        >>> # String pattern
+        >>> validator = matches_regex(r'^\\d{3}-\\d{2}-\\d{4}$')
+        >>> validator('123-45-6789')
+        Success('123-45-6789')
+        >>> validator('invalid').is_failure()
+        True
+        >>> # Compiled regex pattern
+        >>> pattern = re.compile(r'^[A-Z][a-z]+$')
+        >>> validator = matches_regex(pattern)
+        >>> validator('Hello')
+        Success('Hello')
+        >>> validator('hello').is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = matches_regex(r'^\\d{5}$', error_message='Must be a 5-digit ZIP code')
+        >>> validator('1234').error_or('')
+        'Must be a 5-digit ZIP code'
+
+    """
+    compiled_pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
+
+    def validator(value: str) -> Maybe[str]:
+        if compiled_pattern.match(value):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must match pattern {compiled_pattern.pattern}')
+
+    return Validator(validator)
+
+
+def in_set(allowed_values: set[T], error_message: str | None = None) -> Validator[T]:
+    """Create a validator that ensures a value is in a set of allowed values.
+
+    Args:
+        allowed_values: Set of allowed values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[T]: A validator function that checks membership
+
+    Examples:
+        >>> from valid8r.core.validators import in_set
+        >>> # String values
+        >>> validator = in_set({'red', 'green', 'blue'})
+        >>> validator('red')
+        Success('red')
+        >>> validator('yellow').is_failure()
+        True
+        >>> # Numeric values
+        >>> validator = in_set({1, 2, 3, 4, 5})
+        >>> validator(3)
+        Success(3)
+        >>> validator(10).is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = in_set({'small', 'medium', 'large'}, error_message='Size must be S, M, or L')
+        >>> validator('extra-large').error_or('')
+        'Size must be S, M, or L'
+
+    """
+
+    def validator(value: T) -> Maybe[T]:
+        if value in allowed_values:
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be one of {allowed_values}')
+
+    return Validator(validator)
+
+
+def non_empty_string(error_message: str | None = None) -> Validator[str]:
+    """Create a validator that ensures a string is not empty.
+
+    Validates that a string contains at least one non-whitespace character.
+    Both empty strings and whitespace-only strings are rejected.
+
+    Args:
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[str]: A validator function that checks for non-empty strings
+
+    Examples:
+        >>> from valid8r.core.validators import non_empty_string
+        >>> validator = non_empty_string()
+        >>> validator('hello')
+        Success('hello')
+        >>> validator('  hello  ')
+        Success('  hello  ')
+        >>> validator('').is_failure()
+        True
+        >>> validator('   ').is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = non_empty_string(error_message='Name is required')
+        >>> validator('').error_or('')
+        'Name is required'
+
+    """
+
+    def validator(value: str) -> Maybe[str]:
+        if value.strip():
+            return Maybe.success(value)
+        return Maybe.failure(error_message or 'String must not be empty')
+
+    return Validator(validator)
+
+
+def unique_items(error_message: str | None = None) -> Validator[list[T]]:
+    """Create a validator that ensures all items in a list are unique.
+
+    Validates that a list contains no duplicate elements by comparing
+    the list length to the set length.
+
+    Args:
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[list[T]]: A validator function that checks for unique items
+
+    Examples:
+        >>> from valid8r.core.validators import unique_items
+        >>> validator = unique_items()
+        >>> validator([1, 2, 3, 4, 5])
+        Success([1, 2, 3, 4, 5])
+        >>> validator([1, 2, 2, 3]).is_failure()
+        True
+        >>> # Works with strings
+        >>> validator(['a', 'b', 'c'])
+        Success(['a', 'b', 'c'])
+        >>> validator(['a', 'b', 'a']).is_failure()
+        True
+        >>> # With custom error message
+        >>> validator = unique_items(error_message='Duplicate items found')
+        >>> validator([1, 1, 2]).error_or('')
+        'Duplicate items found'
+
+    """
+
+    def validator(value: list[T]) -> Maybe[list[T]]:
+        if len(value) == len(set(value)):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or 'All items must be unique')
+
+    return Validator(validator)
+
+
+def subset_of(allowed_set: set[T], error_message: str | None = None) -> Validator[set[T]]:
+    """Create a validator that ensures a set is a subset of allowed values.
+
+    Validates that all elements in the input set are contained within
+    the allowed set. An empty set is always a valid subset.
+
+    Args:
+        allowed_set: The set of allowed values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[set[T]]: A validator function that checks subset relationship
+
+    Examples:
+        >>> from valid8r.core.validators import subset_of
+        >>> validator = subset_of({1, 2, 3, 4, 5})
+        >>> validator({1, 2, 3})
+        Success({1, 2, 3})
+        >>> validator({1, 2, 3, 4, 5, 6}).is_failure()
+        True
+        >>> # Empty set is valid subset
+        >>> validator(set())
+        Success(set())
+        >>> # With custom error message
+        >>> validator = subset_of({'a', 'b', 'c'}, error_message='Invalid characters')
+        >>> validator({'a', 'd'}).error_or('')
+        'Invalid characters'
+
+    """
+
+    def validator(value: set[T]) -> Maybe[set[T]]:
+        if value.issubset(allowed_set):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be a subset of {allowed_set}')
+
+    return Validator(validator)
+
+
+def superset_of(required_set: set[T], error_message: str | None = None) -> Validator[set[T]]:
+    """Create a validator that ensures a set is a superset of required values.
+
+    Validates that the input set contains all elements from the required set.
+    The input set may contain additional elements beyond those required.
+
+    Args:
+        required_set: The set of required values
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[set[T]]: A validator function that checks superset relationship
+
+    Examples:
+        >>> from valid8r.core.validators import superset_of
+        >>> validator = superset_of({1, 2, 3})
+        >>> validator({1, 2, 3, 4, 5})
+        Success({1, 2, 3, 4, 5})
+        >>> validator({1, 2}).is_failure()
+        True
+        >>> # Exact match is valid
+        >>> validator({1, 2, 3})
+        Success({1, 2, 3})
+        >>> # With custom error message
+        >>> validator = superset_of({'read', 'write'}, error_message='Missing required permissions')
+        >>> validator({'read'}).error_or('')
+        'Missing required permissions'
+
+    """
+
+    def validator(value: set[T]) -> Maybe[set[T]]:
+        if value.issuperset(required_set):
+            return Maybe.success(value)
+        return Maybe.failure(error_message or f'Value must be a superset of {required_set}')
+
+    return Validator(validator)
+
+
+def is_sorted(*, reverse: bool = False, error_message: str | None = None) -> Validator[list[N]]:
+    """Create a validator that ensures a list is sorted.
+
+    Validates that a list is sorted in either ascending or descending order.
+    Uses keyword-only parameters to avoid boolean trap anti-pattern.
+
+    Args:
+        reverse: If True, checks for descending order; otherwise ascending (default)
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[list[N]]: A validator function that checks if list is sorted
+
+    Examples:
+        >>> from valid8r.core.validators import is_sorted
+        >>> # Ascending order (default)
+        >>> validator = is_sorted()
+        >>> validator([1, 2, 3, 4, 5])
+        Success([1, 2, 3, 4, 5])
+        >>> validator([3, 1, 4, 2]).is_failure()
+        True
+        >>> # Descending order
+        >>> validator = is_sorted(reverse=True)
+        >>> validator([5, 4, 3, 2, 1])
+        Success([5, 4, 3, 2, 1])
+        >>> validator([1, 2, 3]).is_failure()
+        True
+        >>> # Works with strings
+        >>> validator = is_sorted()
+        >>> validator(['a', 'b', 'c'])
+        Success(['a', 'b', 'c'])
+        >>> # With custom error message
+        >>> validator = is_sorted(error_message='List must be in order')
+        >>> validator([3, 1, 2]).error_or('')
+        'List must be in order'
+
+    """
+
+    def validator(value: list[N]) -> Maybe[list[N]]:
+        sorted_value = sorted(value, reverse=reverse)
+        if value == sorted_value:
+            return Maybe.success(value)
+        direction = 'descending' if reverse else 'ascending'
+        return Maybe.failure(error_message or f'List must be sorted in {direction} order')
 
     return Validator(validator)

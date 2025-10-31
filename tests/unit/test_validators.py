@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -12,10 +13,17 @@ import pytest
 from valid8r.core.validators import (
     Validator,
     between,
+    in_set,
+    is_sorted,
     length,
+    matches_regex,
     maximum,
     minimum,
+    non_empty_string,
     predicate,
+    subset_of,
+    superset_of,
+    unique_items,
 )
 
 if TYPE_CHECKING:
@@ -131,3 +139,203 @@ class DescribeValidators:
         else:
             assert result.is_failure()
             assert f'String length must be between {min_len} and {max_len}' in result.error_or('')
+
+
+class DescribeMatchesRegex:
+    """Tests for the matches_regex validator."""
+
+    def it_validates_string_matching_pattern(self) -> None:
+        """Test matches_regex accepts a string matching the pattern."""
+        validator = matches_regex(r'^\d{3}-\d{2}-\d{4}$')
+
+        result = validator('123-45-6789')
+
+        assert result.is_success()
+        assert result.value_or('') == '123-45-6789'
+
+    def it_rejects_string_not_matching_pattern(self) -> None:
+        """Test matches_regex rejects a string that doesn't match the pattern."""
+        validator = matches_regex(r'^\d{3}-\d{2}-\d{4}$')
+
+        result = validator('abc-de-fghi')
+
+        assert result.is_failure()
+        assert 'must match pattern' in result.error_or('').lower()
+
+    def it_accepts_compiled_regex_pattern(self) -> None:
+        """Test matches_regex works with pre-compiled regex patterns."""
+        pattern = re.compile(r'^\d{3}-\d{3}-\d{4}$')
+        validator = matches_regex(pattern)
+
+        result = validator('123-456-7890')
+
+        assert result.is_success()
+        assert result.value_or('') == '123-456-7890'
+
+    def it_supports_custom_error_messages(self) -> None:
+        """Test matches_regex uses custom error message when provided."""
+        validator = matches_regex(r'^\d{5}$', error_message='Must be a 5-digit ZIP code')
+
+        result = validator('1234')
+
+        assert result.is_failure()
+        assert result.error_or('') == 'Must be a 5-digit ZIP code'
+
+
+class DescribeInSet:
+    """Tests for the in_set validator."""
+
+    def it_accepts_value_in_allowed_set(self) -> None:
+        """Test in_set accepts a value that is in the allowed set."""
+        validator = in_set({'red', 'green', 'blue'})
+
+        result = validator('red')
+
+        assert result.is_success()
+        assert result.value_or('') == 'red'
+
+    def it_rejects_value_not_in_allowed_set(self) -> None:
+        """Test in_set rejects a value that is not in the allowed set."""
+        validator = in_set({'red', 'green', 'blue'})
+
+        result = validator('yellow')
+
+        assert result.is_failure()
+        assert 'must be one of' in result.error_or('').lower()
+
+    def it_supports_custom_error_messages(self) -> None:
+        """Test in_set uses custom error message when provided."""
+        validator = in_set({'small', 'medium', 'large'}, error_message='Size must be S, M, or L')
+
+        result = validator('extra-large')
+
+        assert result.is_failure()
+        assert result.error_or('') == 'Size must be S, M, or L'
+
+
+class DescribeNonEmptyString:
+    """Tests for the non_empty_string validator."""
+
+    def it_accepts_non_empty_string(self) -> None:
+        """Test non_empty_string accepts a string with content."""
+        validator = non_empty_string()
+
+        result = validator('hello')
+
+        assert result.is_success()
+        assert result.value_or('') == 'hello'
+
+    def it_rejects_empty_string(self) -> None:
+        """Test non_empty_string rejects an empty string."""
+        validator = non_empty_string()
+
+        result = validator('')
+
+        assert result.is_failure()
+        assert 'must not be empty' in result.error_or('').lower()
+
+    def it_rejects_whitespace_only_string(self) -> None:
+        """Test non_empty_string rejects a string with only whitespace."""
+        validator = non_empty_string()
+
+        result = validator('   ')
+
+        assert result.is_failure()
+        assert 'must not be empty' in result.error_or('').lower()
+
+
+class DescribeUniqueItems:
+    """Tests for the unique_items validator."""
+
+    def it_accepts_list_with_unique_items(self) -> None:
+        """Test unique_items accepts a list where all items are unique."""
+        validator = unique_items()
+
+        result = validator([1, 2, 3, 4, 5])
+
+        assert result.is_success()
+        assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+    def it_rejects_list_with_duplicate_items(self) -> None:
+        """Test unique_items rejects a list with duplicate items."""
+        validator = unique_items()
+
+        result = validator([1, 2, 2, 3, 4])
+
+        assert result.is_failure()
+        assert 'must be unique' in result.error_or('').lower()
+
+
+class DescribeSubsetOf:
+    """Tests for the subset_of validator."""
+
+    def it_accepts_set_that_is_subset(self) -> None:
+        """Test subset_of accepts a set that is a subset of the allowed set."""
+        validator = subset_of({1, 2, 3, 4, 5})
+
+        result = validator({1, 2, 3})
+
+        assert result.is_success()
+        assert result.value_or(set()) == {1, 2, 3}
+
+    def it_rejects_set_that_is_not_subset(self) -> None:
+        """Test subset_of rejects a set that is not a subset of the allowed set."""
+        validator = subset_of({1, 2, 3})
+
+        result = validator({1, 2, 3, 4, 5})
+
+        assert result.is_failure()
+        assert 'subset' in result.error_or('').lower()
+
+
+class DescribeSupersetOf:
+    """Tests for the superset_of validator."""
+
+    def it_accepts_set_that_is_superset(self) -> None:
+        """Test superset_of accepts a set that is a superset of the required set."""
+        validator = superset_of({1, 2, 3})
+
+        result = validator({1, 2, 3, 4, 5})
+
+        assert result.is_success()
+        assert result.value_or(set()) == {1, 2, 3, 4, 5}
+
+    def it_rejects_set_that_is_not_superset(self) -> None:
+        """Test superset_of rejects a set that is not a superset of the required set."""
+        validator = superset_of({1, 2, 3, 4, 5})
+
+        result = validator({1, 2, 3})
+
+        assert result.is_failure()
+        assert 'superset' in result.error_or('').lower()
+
+
+class DescribeIsSorted:
+    """Tests for the is_sorted validator."""
+
+    def it_accepts_ascending_sorted_list(self) -> None:
+        """Test is_sorted accepts a list sorted in ascending order."""
+        validator = is_sorted()
+
+        result = validator([1, 2, 3, 4, 5])
+
+        assert result.is_success()
+        assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+    def it_rejects_unsorted_list(self) -> None:
+        """Test is_sorted rejects an unsorted list."""
+        validator = is_sorted()
+
+        result = validator([3, 1, 4, 2, 5])
+
+        assert result.is_failure()
+        assert 'sorted' in result.error_or('').lower()
+
+    def it_accepts_descending_sorted_list_when_reverse_true(self) -> None:
+        """Test is_sorted accepts descending order when reverse=True."""
+        validator = is_sorted(reverse=True)
+
+        result = validator([5, 4, 3, 2, 1])
+
+        assert result.is_success()
+        assert result.value_or([]) == [5, 4, 3, 2, 1]
