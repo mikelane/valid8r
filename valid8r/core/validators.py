@@ -400,3 +400,25 @@ def superset_of(required_set: set[T], error_message: str | None = None) -> Valid
         return Maybe.failure(error_message or f'Value must be a superset of {required_set}')
 
     return Validator(validator)
+
+
+def is_sorted(*, reverse: bool = False, error_message: str | None = None) -> Validator[list[N]]:
+    """Create a validator that ensures a list is sorted.
+
+    Args:
+        reverse: If True, checks for descending order; otherwise ascending (default)
+        error_message: Optional custom error message
+
+    Returns:
+        Validator[list[N]]: A validator function that checks if list is sorted
+
+    """
+
+    def validator(value: list[N]) -> Maybe[list[N]]:
+        sorted_value = sorted(value, reverse=reverse)
+        if value == sorted_value:
+            return Maybe.success(value)
+        direction = 'descending' if reverse else 'ascending'
+        return Maybe.failure(error_message or f'List must be sorted in {direction} order')
+
+    return Validator(validator)

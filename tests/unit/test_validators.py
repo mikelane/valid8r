@@ -14,6 +14,7 @@ from valid8r.core.validators import (
     Validator,
     between,
     in_set,
+    is_sorted,
     length,
     matches_regex,
     maximum,
@@ -307,3 +308,34 @@ class DescribeSupersetOf:
 
         assert result.is_failure()
         assert 'superset' in result.error_or('').lower()
+
+
+class DescribeIsSorted:
+    """Tests for the is_sorted validator."""
+
+    def it_accepts_ascending_sorted_list(self) -> None:
+        """Test is_sorted accepts a list sorted in ascending order."""
+        validator = is_sorted()
+
+        result = validator([1, 2, 3, 4, 5])
+
+        assert result.is_success()
+        assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+    def it_rejects_unsorted_list(self) -> None:
+        """Test is_sorted rejects an unsorted list."""
+        validator = is_sorted()
+
+        result = validator([3, 1, 4, 2, 5])
+
+        assert result.is_failure()
+        assert 'sorted' in result.error_or('').lower()
+
+    def it_accepts_descending_sorted_list_when_reverse_true(self) -> None:
+        """Test is_sorted accepts descending order when reverse=True."""
+        validator = is_sorted(reverse=True)
+
+        result = validator([5, 4, 3, 2, 1])
+
+        assert result.is_success()
+        assert result.value_or([]) == [5, 4, 3, 2, 1]
