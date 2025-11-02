@@ -49,11 +49,11 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 If using pyenv, install the required Python versions:
 
 ```bash
-pyenv install 3.11.11
-pyenv install 3.12.9
-pyenv install 3.13.5
 pyenv install 3.14.0
-pyenv local 3.11.11 3.12.9 3.13.5 3.14.0
+pyenv install 3.13.9
+pyenv install 3.12.12
+pyenv install 3.11.14
+pyenv local 3.14.0 3.13.9 3.12.12 3.11.14
 ```
 
 ### 2. Install uv
