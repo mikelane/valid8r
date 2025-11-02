@@ -26,18 +26,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+          python-version: '3.12'
 
       - name: Get package version
         id: get_version
         run: |
-          VERSION=$(poetry version -s)
+          VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Package version: $VERSION"
 
@@ -68,22 +71,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Install dependencies
-        run: poetry install --no-interaction
+          python-version: '3.12'
 
       - name: Build package
-        run: poetry build
+        run: uv build
 
       - name: List built files
         run: |
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
 
     steps:
       - name: Checkout code
