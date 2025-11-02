@@ -1,0 +1,30 @@
+# Codecov configuration for valid8r
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: 90%  # Target 90% overall coverage
+        threshold: 2%  # Allow 2% drop before failing
+    patch:
+      default:
+        target: 80%  # New code should have 80%+ coverage
+        threshold: 5%
+
+  precision: 2
+  round: down
+  range: 80..100  # Green zone starts at 80%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default  # Post comment on every PR
+  require_changes: false
+
+ignore:
+  - "tests/**"
+  - "docs/**"
+  - "scripts/**"
+  - "smoke_test.py"
+  - "**/__init__.py"
+  - "**/conftest.py"
