@@ -199,6 +199,22 @@ class DescribeParsePhone:
 
     # Strict Mode
 
+    def it_rejects_unformatted_number_in_strict_mode(self) -> None:
+        """Test parse_phone rejects plain digits in strict mode."""
+        match parse_phone('4155552671', strict=True):
+            case Success(phone):
+                pytest.fail(f'Unexpected success in strict mode: {phone}')
+            case Failure(err):
+                assert 'strict mode requires formatting' in err.lower()
+
+    def it_accepts_formatted_number_in_strict_mode(self) -> None:
+        """Test parse_phone accepts formatted numbers in strict mode."""
+        match parse_phone('(415) 555-2671', strict=True):
+            case Success(phone):
+                assert phone.area_code == '415'
+            case Failure(err):
+                pytest.fail(f'Unexpected failure in strict mode: {err}')
+
     def it_allows_non_strict_mode(self) -> None:
         """Test parse_phone with strict=False."""
         match parse_phone('4155552671', strict=False):

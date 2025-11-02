@@ -1231,6 +1231,10 @@ def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[
         extension = ext_match.group(1)
         s = s[: ext_match.start()]
 
+    # In strict mode, require formatting characters (parentheses, dashes, dots, or spaces)
+    # Store original for strict mode check
+    original_without_ext = s.strip()
+
     # Extract country code if present and validate it's North American
     country_code = '1'
     if s.startswith('+'):
@@ -1251,6 +1255,16 @@ def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[
 
     # Extract all digits
     digits = re.sub(r'\D', '', s)
+
+    # Strict mode: require formatting (parentheses, dashes, dots, or spaces)
+    # If the string is just digits after removing country code, reject it
+    if strict:
+        # Check if original (without extension) contains only digits, +, and whitespace
+        # Valid formatting should have at least one of: ( ) - .
+        has_formatting = any(char in original_without_ext for char in '()-./')
+        # Allow +1 prefix as valid formatting
+        if not has_formatting and not original_without_ext.startswith('+'):
+            return Maybe.failure('strict mode requires formatting (e.g., parentheses, dashes, or dots)')
 
     # NANP numbers must have exactly 10 digits
     if len(digits) != 10:
