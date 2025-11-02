@@ -7,90 +7,14 @@
 [![codecov](https://codecov.io/gh/mikelane/valid8r/branch/main/graph/badge.svg)](https://codecov.io/gh/mikelane/valid8r)
 [![Documentation](https://img.shields.io/readthedocs/valid8r.svg)](https://valid8r.readthedocs.io/)
 
-[![PyPI downloads](https://img.shields.io/pypi/dm/valid8r.svg)](https://pypi.org/project/valid8r/)
-[![GitHub stars](https://img.shields.io/github/stars/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/stargazers)
-[![GitHub contributors](https://img.shields.io/github/contributors/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/graphs/contributors)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Semantic Release](https://img.shields.io/badge/semantic--release-python-blue)](https://github.com/python-semantic-release/python-semantic-release)
+**Clean, composable input validation for Python using functional programming patterns.**
 
-A clean, flexible input validation library for Python applications.
-
-## Features
-
-- **Clean Type Parsing**: Parse strings to various Python types with robust error handling
-- **Flexible Validation**: Chain validators and create custom validation rules
-- **Monadic Error Handling**: Use Maybe monad for clean error propagation
-- **Input Prompting**: Prompt users for input with built-in validation
-- **Structured Results**: Network parsers return rich dataclasses with parsed components
-
-## Available Parsers
-
-### Basic Types
-- **Numbers**: `parse_int`, `parse_float`, `parse_complex`, `parse_decimal`
-- **Text**: `parse_bool` (flexible true/false parsing)
-- **Dates**: `parse_date` (ISO 8601 format)
-- **UUIDs**: `parse_uuid` (with optional version validation)
-
-### Collections
-- **Lists**: `parse_list` (with element parser)
-- **Dictionaries**: `parse_dict` (with key/value parsers)
-- **Sets**: `parse_set` (with element parser)
-
-### Network & Communication
-- **IP Addresses**: `parse_ipv4`, `parse_ipv6`, `parse_ip` (either v4 or v6)
-- **Networks**: `parse_cidr` (IPv4/IPv6 CIDR notation)
-- **Phone Numbers**: `parse_phone` → PhoneNumber (NANP validation)
-- **URLs**: `parse_url` → UrlParts (scheme, host, port, path, query, etc.)
-- **Email**: `parse_email` → EmailAddress (normalized case)
-
-### Advanced
-- **Enums**: `parse_enum` (type-safe enum parsing)
-- **Custom**: `create_parser`, `make_parser`, `validated_parser` (parser factories)
-
-## Available Validators
-
-### Numeric Validators
-- **`minimum(min_value)`** - Ensures value is at least the minimum (inclusive)
-- **`maximum(max_value)`** - Ensures value is at most the maximum (inclusive)
-- **`between(min_value, max_value)`** - Ensures value is within range (inclusive)
-
-### String Validators
-- **`non_empty_string()`** - Rejects empty strings and whitespace-only strings
-- **`matches_regex(pattern)`** - Validates string matches regex pattern (string or compiled)
-- **`length(min_length, max_length)`** - Validates string length within bounds
-
-### Collection Validators
-- **`in_set(allowed_values)`** - Ensures value is in set of allowed values
-- **`unique_items()`** - Ensures all items in a list are unique
-- **`subset_of(allowed_set)`** - Validates set is subset of allowed values
-- **`superset_of(required_set)`** - Validates set is superset of required values
-- **`is_sorted(reverse=False)`** - Ensures list is sorted (ascending or descending)
-
-### Custom Validators
-- **`predicate(func, error_message)`** - Create custom validator from any predicate function
-
-**Note**: All validators support custom error messages and can be combined using `&` (and), `|` (or), and `~` (not) operators.
-
-## Installation
-
-**Requirements**: Python 3.11 or higher
-
-```bash
-pip install valid8r
-```
-
-Valid8r supports Python 3.11, 3.12, 3.13, and 3.14.
-
-## Quick Start
+Valid8r makes input validation elegant and type-safe by using the Maybe monad for error handling. No more try-except blocks or boolean validation chains—just clean, composable parsers that tell you exactly what went wrong.
 
 ```python
-from valid8r import (
-    parsers,
-    prompt,
-    validators,
-)
+from valid8r import parsers, validators, prompt
 
-# Simple validation
+# Parse and validate user input with rich error messages
 age = prompt.ask(
     "Enter your age: ",
     parser=parsers.parse_int,
@@ -100,168 +24,251 @@ age = prompt.ask(
 print(f"Your age is {age}")
 ```
 
-### IP parsing helpers
+## Why Valid8r?
 
-```python
-from valid8r.core.maybe import Success, Failure
-from valid8r.core import parsers
+**Type-Safe Parsing**: Every parser returns `Maybe[T]` (Success or Failure), making error handling explicit and composable.
 
-# IPv4 / IPv6 / generic IP
-for text in ["192.168.0.1", "::1", " 10.0.0.1 "]:
-    match parsers.parse_ip(text):
-        case Success(addr):
-            print("Parsed:", addr)
-        case Failure(err):
-            print("Error:", err)
+**Rich Structured Results**: Network parsers return dataclasses with parsed components—no more manual URL/email splitting.
 
-# CIDR (strict by default)
-match parsers.parse_cidr("10.0.0.0/8"):
-    case Success(net):
-        print("Network:", net)  # 10.0.0.0/8
-    case Failure(err):
-        print("Error:", err)
+**Chainable Validators**: Combine validators using `&` (and), `|` (or), and `~` (not) operators for complex validation logic.
 
-# Non-strict masks host bits
-match parsers.parse_cidr("10.0.0.1/24", strict=False):
-    case Success(net):
-        assert str(net) == "10.0.0.0/24"
+**Zero Dependencies**: Core library uses only Python's standard library (with optional `uuid-utils` for faster UUID parsing).
+
+**Interactive Prompts**: Built-in user input prompting with automatic retry and validation.
+
+## Quick Start
+
+### Installation
+
+```bash
+pip install valid8r
 ```
 
-### URL and Email helpers
+**Requirements**: Python 3.11 or higher
+
+### Basic Parsing
 
 ```python
+from valid8r import parsers
 from valid8r.core.maybe import Success, Failure
-from valid8r.core import parsers
 
-# URL parsing with structured result (UrlParts)
-match parsers.parse_url("https://alice:pw@example.com:8443/x?q=1#top"):
-    case Success(u):
-        print(f"Scheme: {u.scheme}")     # https
-        print(f"Host: {u.host}")         # example.com
-        print(f"Port: {u.port}")         # 8443
-        print(f"Path: {u.path}")         # /x
-        print(f"Query: {u.query}")       # {'q': '1'}
-        print(f"Fragment: {u.fragment}") # top
-    case Failure(err):
-        print("Error:", err)
+# Parse integers with automatic error handling
+match parsers.parse_int("42"):
+    case Success(value):
+        print(f"Parsed: {value}")  # Parsed: 42
+    case Failure(error):
+        print(f"Error: {error}")
 
-# Email parsing with normalized case (EmailAddress)
-match parsers.parse_email("First.Last+tag@Example.COM"):
-    case Success(e):
-        print(f"Local: {e.local}")   # First.Last+tag
-        print(f"Domain: {e.domain}") # example.com (normalized)
-    case Failure(err):
-        print("Error:", err)
+# Parse dates (ISO 8601 format)
+result = parsers.parse_date("2025-01-15")
+assert result.is_success()
+
+# Parse UUIDs with version validation
+result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000", version=4)
+assert result.is_success()
 ```
 
-### Phone Number Parsing
+### Validation with Combinators
 
 ```python
-from valid8r.core.maybe import Success, Failure
-from valid8r.core import parsers
+from valid8r import validators
 
-# Phone number parsing with NANP validation (PhoneNumber)
+# Combine validators using operators
+age_validator = validators.minimum(0) & validators.maximum(120)
+result = age_validator(42)
+assert result.is_success()
+
+# String validation
+password_validator = (
+    validators.length(8, 128) &
+    validators.matches_regex(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]')
+)
+
+# Set validation
+tags_validator = validators.subset_of({'python', 'rust', 'go', 'typescript'})
+```
+
+### Structured Network Parsing
+
+```python
+from valid8r import parsers
+
+# Parse URLs into structured components
+match parsers.parse_url("https://user:pass@example.com:8443/path?query=1#fragment"):
+    case Success(url):
+        print(f"Scheme: {url.scheme}")      # https
+        print(f"Host: {url.host}")          # example.com
+        print(f"Port: {url.port}")          # 8443
+        print(f"Path: {url.path}")          # /path
+        print(f"Query: {url.query}")        # {'query': '1'}
+        print(f"Fragment: {url.fragment}")  # fragment
+
+# Parse emails with normalized domains
+match parsers.parse_email("User@Example.COM"):
+    case Success(email):
+        print(f"Local: {email.local}")    # User
+        print(f"Domain: {email.domain}")  # example.com (normalized)
+
+# Parse phone numbers (NANP format)
 match parsers.parse_phone("+1 (415) 555-2671"):
     case Success(phone):
-        print(f"Country: {phone.country_code}")  # 1
-        print(f"Area: {phone.area_code}")        # 415
-        print(f"Exchange: {phone.exchange}")     # 555
-        print(f"Subscriber: {phone.subscriber}") # 2671
+        print(f"E.164: {phone.e164}")      # +14155552671
+        print(f"National: {phone.national}")  # (415) 555-2671
+```
 
-        # Format for display using properties
-        print(f"E.164: {phone.e164}")           # +14155552671
-        print(f"National: {phone.national}")    # (415) 555-2671
-    case Failure(err):
-        print("Error:", err)
+### Collection Parsing
 
-# Also accepts various formats
-for number in ["4155552671", "(415) 555-2671", "415-555-2671"]:
-    result = parsers.parse_phone(number)
+```python
+from valid8r import parsers
+
+# Parse lists with element validation
+result = parsers.parse_list("1,2,3,4,5", element_parser=parsers.parse_int)
+assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+# Parse dictionaries with key/value parsers
+result = parsers.parse_dict(
+    "name=Alice,age=30",
+    key_parser=lambda x: Success(x),
+    value_parser=lambda x: parsers.parse_int(x) if x.isdigit() else Success(x)
+)
+```
+
+### Interactive Prompting
+
+```python
+from valid8r import prompt, parsers, validators
+
+# Prompt with validation and automatic retry
+email = prompt.ask(
+    "Email address: ",
+    parser=parsers.parse_email,
+    retry=2  # Retry twice on invalid input
+)
+
+# Combine parsing and validation
+port = prompt.ask(
+    "Server port: ",
+    parser=parsers.parse_int,
+    validator=validators.between(1024, 65535),
+    retry=3
+)
+```
+
+## Features
+
+### Parsers
+
+**Basic Types**:
+- `parse_int`, `parse_float`, `parse_bool`, `parse_decimal`, `parse_complex`
+- `parse_date` (ISO 8601), `parse_uuid` (with version validation)
+
+**Collections**:
+- `parse_list`, `parse_dict`, `parse_set` (with element parsers)
+
+**Network & Communication**:
+- `parse_ipv4`, `parse_ipv6`, `parse_ip`, `parse_cidr`
+- `parse_url` → `UrlParts` (structured URL components)
+- `parse_email` → `EmailAddress` (normalized domain)
+- `parse_phone` → `PhoneNumber` (NANP validation with E.164 formatting)
+
+**Advanced**:
+- `parse_enum` (type-safe enum parsing)
+- `create_parser`, `make_parser`, `validated_parser` (custom parser factories)
+
+### Validators
+
+**Numeric**: `minimum`, `maximum`, `between`
+
+**String**: `non_empty_string`, `matches_regex`, `length`
+
+**Collection**: `in_set`, `unique_items`, `subset_of`, `superset_of`, `is_sorted`
+
+**Custom**: `predicate` (create validators from any function)
+
+**Combinators**: Combine validators using `&` (and), `|` (or), `~` (not)
+
+### Testing Utilities
+
+```python
+from valid8r.testing import (
+    assert_maybe_success,
+    assert_maybe_failure,
+    MockInputContext,
+)
+
+# Test validation logic
+result = validators.minimum(0)(42)
+assert assert_maybe_success(result, 42)
+
+result = validators.minimum(0)(-5)
+assert assert_maybe_failure(result, "at least 0")
+
+# Mock user input for testing prompts
+with MockInputContext(["invalid", "valid@example.com"]):
+    result = prompt.ask("Email: ", parser=parsers.parse_email, retry=1)
     assert result.is_success()
 ```
 
-## Testing Support
+## Documentation
 
-Valid8r includes comprehensive testing utilities to help you verify your validation logic:
+**Full documentation**: [valid8r.readthedocs.io](https://valid8r.readthedocs.io/)
 
-```python
-from valid8r import Maybe, validators, parsers, prompt
-from valid8r.testing import (
-    MockInputContext,
-    assert_maybe_success,
-    assert_maybe_failure,
-)
+- [API Reference](https://valid8r.readthedocs.io/en/latest/api.html)
+- [Parser Guide](https://valid8r.readthedocs.io/en/latest/parsers.html)
+- [Validator Guide](https://valid8r.readthedocs.io/en/latest/validators.html)
+- [Testing Guide](https://valid8r.readthedocs.io/en/latest/testing.html)
 
-def validate_age(age: int) -> Maybe[int]:
-    """Validate age is between 0 and 120."""
-    return (validators.minimum(0) & validators.maximum(120))(age)
+## Contributing
 
-# Test validation functions with assert helpers
-result = validate_age(42)
-assert assert_maybe_success(result, 42)
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-result = validate_age(-5)
-assert assert_maybe_failure(result, "at least 0")
+**Quick links**:
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Development Setup](CONTRIBUTING.md#development-setup)
+- [Commit Message Format](CONTRIBUTING.md#commit-messages)
+- [Pull Request Process](CONTRIBUTING.md#pull-request-process)
 
-# Test prompts with mock input
-with MockInputContext(["yes", "42", "invalid", "25"]):
-    # First prompt - returns Maybe, unwrap with value_or()
-    result = prompt.ask("Continue? ", parser=parsers.parse_bool)
-    assert result.value_or(False) == True
-
-    # Second prompt - unwrap the Maybe result
-    result = prompt.ask(
-        "Age? ",
-        parser=parsers.parse_int,
-        validator=validate_age
-    )
-    age = result.value_or(None)
-    assert age == 42
-
-    # Third prompt will fail, fourth succeeds - unwrap result
-    result = prompt.ask(
-        "Age again? ",
-        parser=parsers.parse_int,
-        retry=1  # Retry once after failure
-    )
-    age = result.value_or(None)
-    assert age == 25
-```
-
-### Testing Utilities Reference
-
-- **`assert_maybe_success(result, expected_value)`**: Assert that a Maybe is Success with the expected value
-- **`assert_maybe_failure(result, error_substring)`**: Assert that a Maybe is Failure containing the error substring
-- **`MockInputContext(inputs)`**: Context manager for mocking user input in tests
-
-For more examples, see the [documentation](https://valid8r.readthedocs.io/).
-
-## Development
-
-This project uses Poetry for dependency management and Tox for testing.
-
-### Setup
+### Development Quick Start
 
 ```bash
-# Install Poetry
-curl -sSL https://install.python-poetry.org | python3 -
+# Install uv (fast dependency manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
-poetry install
+# Clone and install dependencies
+git clone https://github.com/mikelane/valid8r
+cd valid8r
+uv sync
+
+# Run tests
+uv run tox
+
+# Run linters
+uv run ruff check .
+uv run ruff format .
+uv run mypy valid8r
 ```
 
-### Running Tests
+## Project Status
 
-```bash
-# Run all tests
-poetry run tox
+Valid8r is in active development (v0.7.x). The API is stabilizing but may change before v1.0.0.
 
-# Run BDD tests
-poetry run tox -e bdd
-```
+- ✅ Core parsers and validators
+- ✅ Maybe monad error handling
+- ✅ Interactive prompting
+- ✅ Network parsers (URL, Email, IP, Phone)
+- ✅ Collection parsers
+- ✅ Comprehensive testing utilities
+- 🚧 Additional validators (in progress)
+- 🚧 Custom error types (planned)
+
+See [ROADMAP.md](ROADMAP.md) for planned features.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 Copyright (c) 2025 Mike Lane
+
+---
+
+**Made with ❤️ for the Python community**
