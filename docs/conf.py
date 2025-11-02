@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path('..').resolve()))
 _pyproject_path = Path(__file__).parent.parent / 'pyproject.toml'
 with _pyproject_path.open('rb') as f:
     _pyproject_data = tomllib.load(f)
-    _version = _pyproject_data['tool']['poetry']['version']
+    _version = _pyproject_data['project']['version']
 
 # -- Project information -----------------------------------------------------
 project = 'Valid8r'
