@@ -240,7 +240,7 @@ vim valid8r/core/parsers.py
 vim tests/unit/test_parsers.py
 
 # Run tests locally
-poetry run pytest
+uv run pytest
 
 # Commit with conventional format
 git add .
@@ -386,11 +386,11 @@ gh workflow run version-and-release.yml -f version_bump=patch
 1. Check workflow run logs in GitHub Actions tab
 2. Run same checks locally:
    ```bash
-   poetry run ruff check .
-   poetry run ruff format --check .
-   poetry run mypy valid8r
-   poetry run pytest
-   poetry run behave tests/bdd/features
+   uv run ruff check .
+   uv run ruff format --check .
+   uv run mypy valid8r
+   uv run pytest
+   uv run behave tests/bdd/features
    ```
 3. Fix issues and push again
 

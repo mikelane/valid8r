@@ -25,7 +25,7 @@ This is a quick reference guide for writing conventional commits for the valid8r
 | `test` | 🔼 **patch** | Adding or updating tests | `test: add edge cases for validators` |
 | `chore` | 🔼 **patch** | Maintenance tasks | `chore: update dependencies` |
 | `ci` | ⚪ **none** | CI/CD changes | `ci: add Python 3.13 to matrix` |
-| `build` | ⚪ **none** | Build system changes | `build: update poetry config` |
+| `build` | ⚪ **none** | Build system changes | `build: update uv config` |
 
 ## Breaking Changes (Major Bump)
 
@@ -268,9 +268,9 @@ Before committing, check:
 
 ```bash
 # Run checks before committing
-poetry run ruff check .
-poetry run mypy valid8r
-poetry run pytest
+uv run ruff check .
+uv run mypy valid8r
+uv run pytest
 
 # Then commit
 git commit -m "feat(parsers): add parse_phone_number"

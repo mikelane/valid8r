@@ -77,7 +77,11 @@ All new features MUST follow this exact workflow using the specialized agents de
 
 ## Common Development Commands
 
-**Note**: This project uses `uv` for dependency management (not Poetry). Install it with:
+**Note**: This project uses `uv` for dependency management. The migration from Poetry to uv was completed in November 2025 (PR #48), bringing 60% faster CI pipelines and 300x+ faster dependency resolution.
+
+See `docs/migration-poetry-to-uv.md` for the complete migration guide, including command comparisons and troubleshooting.
+
+**Install uv:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -156,14 +160,21 @@ uv run python smoke_test.py
 
 ### Dependency Management
 ```bash
-# Add a new dependency
+# Add a production dependency
 uv add requests
 
 # Add a dev dependency
-uv add --dev pytest-timeout
+uv add --group dev pytest-timeout
+
+# Add to specific dependency groups
+uv add --group test pytest-mock
+uv add --group docs sphinx-theme
 
 # Update all dependencies
 uv lock --upgrade
+
+# Update a specific package
+uv lock --upgrade-package requests
 
 # Export requirements for other tools
 uv export > requirements.txt

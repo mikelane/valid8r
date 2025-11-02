@@ -31,7 +31,7 @@ Fixes #
 
 - [ ] Unit tests added/updated
 - [ ] BDD tests added/updated (if applicable)
-- [ ] All tests pass locally (`poetry run tox`)
+- [ ] All tests pass locally (`uv run tox`)
 - [ ] Test coverage maintained or improved
 
 ## Test Evidence
@@ -40,7 +40,7 @@ Fixes #
 
 ```
 # Example:
-$ poetry run pytest tests/unit/test_my_feature.py
+$ uv run pytest tests/unit/test_my_feature.py
 ================================ test session starts =================================
 collected 15 items
 
@@ -52,9 +52,9 @@ tests/unit/test_my_feature.py ............... [100%]
 
 ## Checklist
 
-- [ ] Code follows the project's style guidelines (`poetry run ruff check .`)
-- [ ] Code is formatted properly (`poetry run ruff format .`)
-- [ ] Type hints are complete and pass mypy (`poetry run mypy valid8r`)
+- [ ] Code follows the project's style guidelines (`uv run ruff check .`)
+- [ ] Code is formatted properly (`uv run ruff format .`)
+- [ ] Type hints are complete and pass mypy (`uv run mypy valid8r`)
 - [ ] Docstrings added/updated for public API
 - [ ] `__all__` exports updated if public API changed
 - [ ] CLAUDE.md updated if architecture/patterns changed
@@ -72,7 +72,7 @@ N/A
 - [ ] README.md updated (if needed)
 - [ ] API documentation updated (docstrings)
 - [ ] Usage examples added (if new feature)
-- [ ] Sphinx docs build successfully (`poetry run docs-build`)
+- [ ] Sphinx docs build successfully (`uv run docs-build`)
 
 # Additional Notes
 

@@ -121,17 +121,16 @@ Create `test-pypi` environment (optional):
 
 ```bash
 # Ensure version is 0.1.0 in pyproject.toml
-poetry version 0.1.0
+# Version is managed by semantic-release, but for first publish verify it's set correctly
 
 # Build the package
-poetry build
+uv build
 
 # Publish to Test PyPI first (to verify)
-poetry config repositories.testpypi https://test.pypi.org/legacy/
-poetry publish -r testpypi --username __token__ --password pypi-...
+uv publish --publish-url https://test.pypi.org/legacy/ --token pypi-...
 
 # If test publish succeeds, publish to production PyPI
-poetry publish --username __token__ --password pypi-...
+uv publish --token pypi-...
 ```
 
 **Option B: Trusted Publisher** (More secure, no tokens needed)
@@ -219,8 +218,9 @@ Final verification checklist:
 **Expected behavior**: The workflow skips publishing if version exists.
 
 **If you need to republish**:
-1. Bump version manually: `poetry version patch`
-2. Commit and push to trigger new release
+1. Version bump happens automatically via semantic-release based on conventional commits
+2. Commit with appropriate conventional commit type and push to trigger new release
+3. Or manually trigger version bump: `gh workflow run semantic-release.yml`
 
 ### Issue: Required checks not appearing in branch protection
 

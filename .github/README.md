@@ -184,9 +184,9 @@ git checkout -b feat/add-parser
 # ... edit code ...
 
 # 3. Run tests locally
-poetry run pytest
-poetry run mypy valid8r
-poetry run ruff check .
+uv run pytest
+uv run mypy valid8r
+uv run ruff check .
 
 # 4. Commit with conventional format
 git commit -m "feat(parsers): add phone number parser"
@@ -284,11 +284,11 @@ gh workflow run stale.yml
 
 **Run locally**:
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy valid8r
-poetry run pytest
-poetry run behave tests/bdd/features
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy valid8r
+uv run pytest
+uv run behave tests/bdd/features
 ```
 
 Fix issues and push again.

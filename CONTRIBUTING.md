@@ -24,8 +24,8 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- [Poetry](https://python-poetry.org/) for dependency management
+- Python 3.11 or higher (3.11-3.14 supported)
+- [uv](https://docs.astral.sh/uv/) for dependency management (10-100x faster than Poetry)
 - [pyenv](https://github.com/pyenv/pyenv) (recommended for managing Python versions)
 - Git
 
@@ -56,24 +56,32 @@ pyenv install 3.14.0
 pyenv local 3.11.11 3.12.9 3.13.5 3.14.0
 ```
 
-### 2. Install Poetry
+### 2. Install uv
 
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Verify installation:**
+```bash
+uv --version
+# Should show: uv 0.9.x or later
 ```
 
 ### 3. Install Dependencies
 
 ```bash
-poetry install
+uv sync
 ```
 
 This installs all dependencies including dev, test, lint, and docs groups.
 
+**Note**: If you previously used Poetry, see [docs/migration-poetry-to-uv.md](../docs/migration-poetry-to-uv.md) for migration instructions.
+
 ### 4. Set Up Pre-commit Hooks
 
 ```bash
-poetry run pre-commit install
+uv run pre-commit install
 ```
 
 Pre-commit hooks automatically:
@@ -101,16 +109,16 @@ Write clean, well-tested code following our style guidelines.
 
 ```bash
 # Run all tests with coverage
-poetry run tox
+uv run tox
 
 # Run only unit tests
-poetry run pytest tests/unit
+uv run pytest tests/unit
 
 # Run BDD tests
-poetry run tox -e bdd
+uv run tox -e bdd
 
 # Run linting
-poetry run tox -e lint
+uv run tox -e lint
 ```
 
 ### 4. Commit Your Changes
@@ -145,13 +153,13 @@ Then create a Pull Request on GitHub.
 
 ```bash
 # Format code with ruff
-poetry run ruff format .
+uv run ruff format .
 
 # Check and fix linting issues
-poetry run ruff check . --fix
+uv run ruff check . --fix
 
 # Check type hints
-poetry run mypy valid8r
+uv run mypy valid8r
 ```
 
 ### Code Patterns
@@ -312,7 +320,7 @@ See [.github/CONVENTIONAL_COMMITS.md](.github/CONVENTIONAL_COMMITS.md) for more 
 
 ### Before Submitting
 
-1. Ensure all tests pass: `poetry run tox`
+1. Ensure all tests pass: `uv run tox`
 2. Update documentation if needed
 3. Add changelog entry if applicable
 4. Verify your commits follow the conventional commit format
@@ -403,10 +411,10 @@ def parse_email(text: str) -> Maybe[EmailAddress]:
 
 ```bash
 # Build documentation
-poetry run docs-build
+uv run docs-build
 
 # Serve with live reload
-poetry run docs-serve
+uv run docs-serve
 ```
 
 View at http://localhost:8000
@@ -431,17 +439,17 @@ View at http://localhost:8000
 
 ```bash
 # Run smoke test
-python smoke_test.py
+uv run python smoke_test.py
 
 # Check coverage
-poetry run pytest --cov=valid8r --cov-report=html tests/unit
+uv run pytest --cov=valid8r --cov-report=html tests/unit
 # View at htmlcov/index.html
 
 # Run specific test
-poetry run pytest tests/unit/test_parsers.py::DescribeParseInt::it_parses_positive_integers
+uv run pytest tests/unit/test_parsers.py::DescribeParseInt::it_parses_positive_integers
 
 # Watch mode (requires pytest-watch)
-poetry run ptw tests/unit
+uv run ptw tests/unit
 ```
 
 ### Debugging

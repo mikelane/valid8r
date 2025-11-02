@@ -17,23 +17,26 @@ Setting Up Your Development Environment
       git clone https://github.com/your-username/valid8r.git
       cd valid8r
 
-3. **Set up Poetry**
+3. **Set up uv**
 
-   Valid8r uses Poetry for dependency management. Make sure you have Poetry installed:
+   Valid8r uses uv for fast dependency management. Make sure you have uv installed:
 
    .. code-block:: bash
 
-      # Install Poetry if you don't have it
-      curl -sSL https://install.python-poetry.org | python3 -
+      # Install uv if you don't have it
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      # Verify installation
+      uv --version
 
       # Install dependencies
-      poetry install
+      uv sync
 
 4. **Set up pre-commit hooks**
 
    .. code-block:: bash
 
-      poetry run pre-commit install
+      uv run pre-commit install
 
 Development Workflow
 --------------------
@@ -58,26 +61,26 @@ Development Workflow
    .. code-block:: bash
 
       # Run unit tests
-      poetry run pytest tests/unit
+      uv run pytest tests/unit
 
       # Run BDD tests
-      poetry run behave tests/bdd/features
+      uv run behave tests/bdd/features
 
       # Run all tests with tox (multiple Python versions)
-      poetry run tox
+      uv run tox
 
 4. **Check code quality**
 
    .. code-block:: bash
 
       # Run ruff for linting
-      poetry run ruff check .
+      uv run ruff check .
 
       # Run isort to check imports
-      poetry run isort --check-only valid8r tests
+      uv run isort --check-only valid8r tests
 
       # Run mypy for type checking
-      poetry run mypy valid8r
+      uv run mypy valid8r
 
 5. **Commit your changes**
 
@@ -151,10 +154,10 @@ Documentation is a crucial part of Valid8r:
    .. code-block:: bash
 
       # Build documentation
-      poetry run docs-build
+      uv run docs-build
 
       # Serve documentation locally
-      poetry run docs-serve
+      uv run docs-serve
 
 Pull Request Process
 --------------------
