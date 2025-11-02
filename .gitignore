@@ -57,3 +57,4 @@ CHANGELOG.md
 
 # Claude Code
 .claude/settings.local.json
+.github/.claude/settings.local.json
