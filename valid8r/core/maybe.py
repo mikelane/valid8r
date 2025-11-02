@@ -20,7 +20,7 @@ T = TypeVar('T')
 U = TypeVar('U')
 
 
-class Maybe(Generic[T], ABC):
+class Maybe(ABC, Generic[T]):
     """Base class for the Maybe monad."""
 
     @staticmethod

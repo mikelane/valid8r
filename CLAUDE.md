@@ -77,62 +77,96 @@ All new features MUST follow this exact workflow using the specialized agents de
 
 ## Common Development Commands
 
+**Note**: This project uses `uv` for dependency management (not Poetry). Install it with:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Setup
+```bash
+# Clone and install dependencies
+git clone https://github.com/mikelane/valid8r
+cd valid8r
+uv sync
+
+# Install specific dependency groups
+uv sync --group test      # Just test dependencies
+uv sync --group dev       # Just dev dependencies
+uv sync --group lint      # Just linting tools
+uv sync --group docs      # Just documentation tools
+```
+
 ### Testing
 ```bash
 # Run all tests (unit + BDD) with coverage
-poetry run tox
+uv run tox
 
 # Run only unit tests
-poetry run pytest tests/unit
+uv run pytest tests/unit
 
 # Run a single test file
-poetry run pytest tests/unit/test_parsers.py
+uv run pytest tests/unit/test_parsers.py
 
 # Run a single test class
-poetry run pytest tests/unit/test_parsers.py::DescribeParseInt
+uv run pytest tests/unit/test_parsers.py::DescribeParseInt
 
 # Run a single test method
-poetry run pytest tests/unit/test_parsers.py::DescribeParseInt::it_parses_positive_integers
+uv run pytest tests/unit/test_parsers.py::DescribeParseInt::it_parses_positive_integers
 
 # Run BDD tests only
-poetry run tox -e bdd
+uv run tox -e bdd
 
 # Run with coverage report
-poetry run pytest --cov=valid8r --cov-report=term tests/unit
+uv run pytest --cov=valid8r --cov-report=term tests/unit
 ```
 
 ### Linting and Type Checking
 ```bash
 # Run all linters and formatters
-poetry run tox -e lint
+uv run tox -e lint
 
 # Run ruff (linter + formatter)
-poetry run ruff check .
-poetry run ruff format .
+uv run ruff check .
+uv run ruff format .
 
 # Run mypy type checking
-poetry run mypy valid8r
+uv run mypy valid8r
 
 # Run isort (import sorting)
-poetry run isort valid8r tests
+uv run isort valid8r tests
 ```
 
 ### Documentation
 ```bash
 # Build docs
-poetry run tox -e docs
+uv run tox -e docs
 
-# Or use the poetry script
-poetry run docs-build
+# Or use the project script
+uv run docs-build
 
 # Serve docs with live reload
-poetry run docs-serve
+uv run docs-serve
 ```
 
 ### Quick Smoke Test
 ```bash
-# Run the smoke test without pytest
-python smoke_test.py
+# Run the smoke test
+uv run python smoke_test.py
+```
+
+### Dependency Management
+```bash
+# Add a new dependency
+uv add requests
+
+# Add a dev dependency
+uv add --dev pytest-timeout
+
+# Update all dependencies
+uv lock --upgrade
+
+# Export requirements for other tools
+uv export > requirements.txt
 ```
 
 ## Code Architecture
