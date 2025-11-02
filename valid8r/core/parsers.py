@@ -1140,12 +1140,12 @@ class PhoneNumber:
 
     Examples:
         >>> from valid8r.core.maybe import Success
-        >>> match parse_phone('(555) 123-4567'):
+        >>> match parse_phone('(415) 555-2671'):
         ...     case Success(phone):
         ...         (phone.area_code, phone.exchange, phone.subscriber, phone.e164)
         ...     case _:
         ...         ()
-        ('555', '123', '4567', '+15551234567')
+        ('415', '555', '2671', '+14155552671')
 
     """
 
@@ -1186,7 +1186,7 @@ class PhoneNumber:
         return f'{self.country_code}{self.area_code}{self.exchange}{self.subscriber}'
 
 
-def parse_phone(text: str, *, region: str = 'US', strict: bool = False) -> Maybe[PhoneNumber]:  # noqa: PLR0912
+def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -> Maybe[PhoneNumber]:  # noqa: PLR0912
     """Parse a North American phone number (NANP).
 
     Supports formats:
