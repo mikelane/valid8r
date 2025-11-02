@@ -258,7 +258,7 @@ class DescribePhoneNumber:
         assert phone.national == '(415) 555-2671'
 
     def it_provides_national_format_with_extension(self) -> None:
-        """Test PhoneNumber.national includes extension."""
+        """Test PhoneNumber.national includes extension with ext. prefix."""
         phone = PhoneNumber(
             country_code='1',
             area_code='415',
@@ -267,7 +267,7 @@ class DescribePhoneNumber:
             extension='456',
             region='US',
         )
-        assert phone.national == '(415) 555-2671 x456'
+        assert phone.national == '(415) 555-2671 ext. 456'
 
     def it_provides_international_format(self) -> None:
         """Test PhoneNumber.international property returns correct format."""
@@ -282,7 +282,7 @@ class DescribePhoneNumber:
         assert phone.international == '+1 415-555-2671'
 
     def it_provides_international_format_with_extension(self) -> None:
-        """Test PhoneNumber.international includes extension."""
+        """Test PhoneNumber.international includes extension with ext. prefix."""
         phone = PhoneNumber(
             country_code='1',
             area_code='415',
@@ -291,7 +291,7 @@ class DescribePhoneNumber:
             extension='789',
             region='US',
         )
-        assert phone.international == '+1 415-555-2671 x789'
+        assert phone.international == '+1 415-555-2671 ext. 789'
 
     def it_provides_raw_digits(self) -> None:
         """Test PhoneNumber.raw_digits property."""
