@@ -1186,7 +1186,7 @@ class PhoneNumber:
         return f'{self.country_code}{self.area_code}{self.exchange}{self.subscriber}'
 
 
-def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[PhoneNumber]:  # noqa: PLR0912
+def parse_phone(text: str, *, region: str = 'US', strict: bool = False) -> Maybe[PhoneNumber]:  # noqa: PLR0912
     """Parse a North American phone number (NANP).
 
     Supports formats:
@@ -1200,11 +1200,12 @@ def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[
     NANP validation rules:
     - Area code: Cannot start with 0 or 1, cannot be 555 (reserved)
     - Exchange: Cannot start with 0 or 1, cannot be 911 (emergency)
+    - Strict mode: Requires formatting characters (parentheses, dashes, dots)
 
     Args:
         text: The phone number string to parse.
         region: Region code (default 'US').
-        strict: Enable strict validation (default True).
+        strict: Enable strict validation requiring formatted input (default False).
 
     Returns:
         Maybe[PhoneNumber]: Success with PhoneNumber or Failure with error message.
@@ -1280,7 +1281,7 @@ def parse_phone(text: str, *, region: str = 'US', strict: bool = True) -> Maybe[
     # Validate area code (NANP rules)
     if area_code[0] in ('0', '1'):
         return Maybe.failure('invalid area code')
-    if strict and area_code == '555':
+    if area_code == '555':
         return Maybe.failure('area code 555 is reserved')
 
     # Validate exchange (NANP rules)
