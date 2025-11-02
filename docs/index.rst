@@ -60,7 +60,13 @@ Installation
 
    pip install valid8r
 
-Alternatively, if you use Poetry:
+Alternatively, if you use uv:
+
+.. code-block:: bash
+
+   uv add valid8r
+
+Or if you use Poetry:
 
 .. code-block:: bash
 

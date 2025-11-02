@@ -10,14 +10,12 @@ build:
   tools:
     python: "3.11"
   commands:
-    # Install poetry
-    - pip install poetry
-    # Configure poetry to not create virtualenvs
-    - poetry config virtualenvs.create false
+    # Install uv
+    - pip install uv
     # Install all dependencies including the project itself
-    - poetry install --with docs --no-interaction
-    # Let Poetry run Sphinx to avoid dependency conflicts
-    - poetry run sphinx-build -b html docs $READTHEDOCS_OUTPUT/html
+    - uv sync --group docs
+    # Let uv run Sphinx to avoid dependency conflicts
+    - uv run sphinx-build -b html docs $READTHEDOCS_OUTPUT/html
 
 # Build documentation formats
 formats:
