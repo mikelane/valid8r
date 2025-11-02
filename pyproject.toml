@@ -1,6 +1,6 @@
 [project]
 name = "valid8r"
-version = "0.7.2"
+version = "0.7.3"
 description = "Clean, flexible input validation for Python applications"
 authors = [
     {name = "Mike Lane", email = "mikelane@gmail.com"}
