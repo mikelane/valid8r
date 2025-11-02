@@ -1166,18 +1166,18 @@ class PhoneNumber:
 
     @property
     def national(self) -> str:
-        """National format: ({area_code}) {exchange}-{subscriber} [x{extension}]."""
+        """National format: ({area_code}) {exchange}-{subscriber} [ext. {extension}]."""
         base = f'({self.area_code}) {self.exchange}-{self.subscriber}'
         if self.extension:
-            return f'{base} x{self.extension}'
+            return f'{base} ext. {self.extension}'
         return base
 
     @property
     def international(self) -> str:
-        """International format: +{country_code} {area_code}-{exchange}-{subscriber} [x{extension}]."""
+        """International format: +{country_code} {area_code}-{exchange}-{subscriber} [ext. {extension}]."""
         base = f'+{self.country_code} {self.area_code}-{self.exchange}-{self.subscriber}'
         if self.extension:
-            return f'{base} x{self.extension}'
+            return f'{base} ext. {self.extension}'
         return base
 
     @property
