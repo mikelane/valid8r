@@ -238,27 +238,35 @@ For more examples, see the [documentation](https://valid8r.readthedocs.io/).
 
 ## Development
 
-This project uses Poetry for dependency management and Tox for testing.
+This project uses `uv` for fast dependency management and `tox` for testing across Python versions.
 
 ### Setup
 
 ```bash
-# Install Poetry
-curl -sSL https://install.python-poetry.org | python3 -
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies
-poetry install
+uv sync
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-poetry run tox
+uv run tox
+
+# Run unit tests only
+uv run pytest tests/unit
 
 # Run BDD tests
-poetry run tox -e bdd
+uv run tox -e bdd
+
+# Run with coverage
+uv run pytest --cov=valid8r tests/unit
 ```
+
+See [docs/migration-poetry-to-uv.md](docs/migration-poetry-to-uv.md) for the complete migration guide and command reference.
 
 ## License
 

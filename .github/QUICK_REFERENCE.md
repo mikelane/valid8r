@@ -31,9 +31,9 @@ git commit -m "feat(parsers): add phone validation"
 gh pr create --fill
 
 # Run checks locally
-poetry run pytest
-poetry run mypy valid8r
-poetry run ruff check .
+uv run pytest
+uv run mypy valid8r
+uv run ruff check .
 ```
 
 ### Manual Workflow Triggers
