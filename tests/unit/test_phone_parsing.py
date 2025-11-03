@@ -170,6 +170,30 @@ class DescribeParsePhone:
             case Success(value):
                 pytest.fail(f'Expected failure but got success: {value}')
 
+    def it_rejects_excessively_long_input(self) -> None:
+        """Reject extremely long input to prevent DoS attacks."""
+        import time
+
+        from valid8r.core.parsers import parse_phone
+
+        # Create input longer than 100 characters (DoS mitigation threshold)
+        malicious_input = '4' * 1000
+
+        # Measure time to ensure fast rejection
+        start = time.perf_counter()
+        result = parse_phone(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Should reject with appropriate error message
+        match result:
+            case Failure(err):
+                assert 'too long' in err.lower()
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+
+        # Should reject quickly (< 10ms for DoS protection)
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
 
 class DescribeParsePhoneExtensions:
     """Tests for extension parsing."""

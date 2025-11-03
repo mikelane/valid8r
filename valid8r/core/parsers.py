@@ -1632,6 +1632,10 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
     if s == '':
         return Maybe.failure('Phone number cannot be empty')
 
+    # Early length guard (DoS mitigation) - check BEFORE regex operations
+    if len(text) > 100:
+        return Maybe.failure('Invalid format: phone number is too long')
+
     # Extract extension if present
     extension = None
     extension_match = _PHONE_EXTENSION_PATTERN.search(s)
@@ -1673,10 +1677,6 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
         return Maybe.failure(f'Phone number must have 10 digits, got {len(digits)}')
     elif len(digits) != 10:
         return Maybe.failure(f'Phone number must have 10 digits, got {len(digits)}')
-
-    # Check for extremely long input (security)
-    if len(text) > 100:
-        return Maybe.failure('Invalid format: phone number is too long')
 
     # Extract components
     area_code = digits[0:3]

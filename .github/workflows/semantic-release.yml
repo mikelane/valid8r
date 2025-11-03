@@ -55,7 +55,7 @@ jobs:
           git_committer_name: "github-actions[bot]"
           git_committer_email: "github-actions[bot]@users.noreply.github.com"
           # Build already completed, so skip it in PSR
-          build_command: "echo 'Build completed in previous step'"
+          build: false
           vcs_release: false
 
       # Only publish if a release was created
