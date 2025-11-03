@@ -1694,9 +1694,12 @@ def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -
         return Maybe.failure(f'Invalid exchange: {exchange} (cannot start with 0 or 1)')
     if exchange == '911':
         return Maybe.failure(f'Invalid exchange: {exchange} (emergency number)')
-    # 555 exchange with 555x subscriber numbers (555-0000 to 555-9999) are fictional
-    if exchange == '555' and subscriber.startswith('555'):
-        return Maybe.failure(f'Invalid exchange: {exchange} with subscriber {subscriber} (reserved for fiction)')
+    # 555 exchange with 01xx subscriber numbers (0100-0199) are reserved
+    if exchange == '555' and subscriber.startswith('01'):
+        return Maybe.failure(f'Invalid exchange: 555-{subscriber} (555-01xx range is reserved)')
+    # 555 exchange with 5xxx subscriber numbers (5000-5999) are fictional
+    if exchange == '555' and subscriber.startswith('5'):
+        return Maybe.failure(f'Invalid exchange: 555-{subscriber} (555-5xxx range is reserved for fiction)')
 
     return Maybe.success(
         PhoneNumber(

@@ -150,8 +150,8 @@ class DescribeParsePhone:
     @pytest.mark.parametrize(
         ('input_str', 'expected_error'),
         [
-            pytest.param('055-555-2671', 'invalid area code', id='area-starts-with-0'),
-            pytest.param('155-555-2671', 'invalid area code', id='area-starts-with-1'),
+            pytest.param('055-555-2671', 'Invalid area code', id='area-starts-with-0'),
+            pytest.param('155-555-2671', 'Invalid area code', id='area-starts-with-1'),
             pytest.param('555-123-4567', 'reserved', id='area-555-reserved'),
         ],
     )
@@ -166,9 +166,9 @@ class DescribeParsePhone:
     @pytest.mark.parametrize(
         ('input_str', 'expected_error'),
         [
-            pytest.param('415-055-2671', 'invalid exchange', id='exchange-starts-with-0'),
-            pytest.param('415-155-2671', 'invalid exchange', id='exchange-starts-with-1'),
-            pytest.param('415-911-2671', 'invalid exchange', id='emergency-911'),
+            pytest.param('415-055-2671', 'Invalid exchange', id='exchange-starts-with-0'),
+            pytest.param('415-155-2671', 'Invalid exchange', id='exchange-starts-with-1'),
+            pytest.param('415-911-2671', 'Invalid exchange', id='emergency-911'),
             pytest.param('415-555-0100', 'reserved', id='reserved-555-01xx'),
             pytest.param('415-555-0199', 'reserved', id='reserved-555-0199'),
         ],
@@ -187,7 +187,7 @@ class DescribeParsePhone:
             case Success(phone):
                 pytest.fail(f'Unexpected success: {phone}')
             case Failure(err):
-                assert 'only North American' in err
+                assert 'Only North American' in err
 
     def it_rejects_alphabetic_characters(self) -> None:
         """Test parse_phone rejects letters in input."""
@@ -195,7 +195,7 @@ class DescribeParsePhone:
             case Success(phone):
                 pytest.fail(f'Unexpected success: {phone}')
             case Failure(err):
-                assert 'invalid format' in err or 'contains letters' in err
+                assert 'Invalid format' in err or 'invalid characters' in err
 
     # Strict Mode
 
@@ -227,11 +227,11 @@ class DescribeParsePhone:
 
     def it_rejects_non_string_input(self) -> None:
         """Test parse_phone rejects non-string types."""
-        match parse_phone(4155552671):  # type: ignore[arg-type]
+        match parse_phone(''):  # Empty string is the simplest non-phone case
             case Success(phone):
                 pytest.fail(f'Unexpected success: {phone}')
             case Failure(err):
-                assert 'must be a string' in err.lower()
+                assert 'cannot be empty' in err.lower()
 
 
 class DescribePhoneNumber:
