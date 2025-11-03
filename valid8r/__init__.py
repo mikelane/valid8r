@@ -14,11 +14,19 @@ from .core import (
     validators,
 )
 from .core.maybe import Maybe
+from .core.parsers import (
+    EmailAddress,
+    PhoneNumber,
+    UrlParts,
+)
 
 # Types
 
 __all__ = [
+    'EmailAddress',
     'Maybe',
+    'PhoneNumber',
+    'UrlParts',
     '__version__',
     'combinators',
     'parsers',
