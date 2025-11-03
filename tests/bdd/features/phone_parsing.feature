@@ -416,7 +416,7 @@ Feature: Phone Number Parsing
     Given an extremely long phone number string
     When the parser parses the phone number
     Then the result is a failure
-    And the error message contains "10 digits"
+    And the error message contains "too long"
 
   # Raw Digits Property
 
