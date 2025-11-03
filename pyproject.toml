@@ -210,7 +210,7 @@ ignore_errors = true
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 branch = "main"
-build_command = "uv build"
+build_command = ""  # Build handled by workflow
 dist_path = "dist/"
 upload_to_release = false
 upload_to_pypi = false

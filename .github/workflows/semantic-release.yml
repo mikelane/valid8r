@@ -39,6 +39,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
+      # Build BEFORE semantic release runs
+      - name: Build distributions
+        run: |
+          echo "Building Python distributions with uv..."
+          uv build
+          echo "Built distributions:"
+          ls -lh dist/
+
       - name: Python Semantic Release
         id: release
         uses: python-semantic-release/python-semantic-release@v9.21.1
@@ -46,8 +54,11 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions[bot]"
           git_committer_email: "github-actions[bot]@users.noreply.github.com"
+          # Build already completed, so skip it in PSR
+          build_command: "echo 'Build completed in previous step'"
           vcs_release: false
 
+      # Only publish if a release was created
       - name: Publish to PyPI
         if: steps.release.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
