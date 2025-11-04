@@ -224,13 +224,15 @@ Valid8r uses the Maybe monad (`Success[T]` and `Failure[T]`) for all parsing and
 1. **Basic Type Parsers**: `parse_int`, `parse_float`, `parse_bool`, `parse_date`, `parse_complex`, `parse_decimal`
 2. **Collection Parsers**: `parse_list`, `parse_dict`, `parse_set` (with element parsers)
 3. **Network Parsers**: `parse_ipv4`, `parse_ipv6`, `parse_ip`, `parse_cidr`, `parse_url`, `parse_email`
-4. **Advanced Parsers**: `parse_enum`, `parse_uuid` (with version validation)
-5. **Validated Parsers**: `parse_int_with_validation`, `parse_list_with_validation`, `parse_dict_with_validation`
-6. **Parser Factories**: `create_parser`, `make_parser`, `validated_parser`
+4. **Communication Parsers**: `parse_phone` (North American Number Plan - NANP)
+5. **Advanced Parsers**: `parse_enum`, `parse_uuid` (with version validation)
+6. **Validated Parsers**: `parse_int_with_validation`, `parse_list_with_validation`, `parse_dict_with_validation`
+7. **Parser Factories**: `create_parser`, `make_parser`, `validated_parser`
 
 **Structured Result Types**:
 - `UrlParts`: Decomposed URL components (scheme, username, password, host, port, path, query, fragment)
 - `EmailAddress`: Email components (local, domain with normalized case)
+- `PhoneNumber`: Phone components (country_code, area_code, exchange, subscriber, extension, region)
 
 ### Public API Maintenance
 
@@ -379,9 +381,176 @@ API documentation is auto-generated using sphinx-autoapi. Docstrings must be com
 ### BDD Tests
 Gherkin feature files live in `tests/bdd/features/` with step definitions in `tests/bdd/steps/`. BDD tests complement unit tests by describing user-facing behavior.
 
+## Security Considerations
+
+### DoS Protection Through Input Length Validation
+
+**Critical Pattern**: Always validate input length BEFORE expensive operations (regex, parsing, computation).
+
+**Example - Phone Parser DoS Protection (v0.9.1)**:
+```python
+def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -> Maybe[PhoneNumber]:
+    # Handle None or empty input
+    if text is None or not isinstance(text, str):
+        return Maybe.failure('Phone number cannot be empty')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('Phone number cannot be empty')
+
+    # CRITICAL: Early length guard (DoS mitigation)
+    # Reject oversized inputs BEFORE regex operations
+    if len(text) > 100:
+        return Maybe.failure('Invalid format: phone number is too long')
+
+    # Now safe to perform expensive regex operations
+    # ...
+```
+
+**Performance Impact**:
+- Without guard: 1MB input takes ~48ms to reject (after regex operations)
+- With guard: 1MB input takes <1ms to reject (immediate rejection)
+
+**Testing DoS Protection**:
+```python
+def it_rejects_excessively_long_input(self) -> None:
+    """Reject extremely long input to prevent DoS attacks."""
+    import time
+    malicious_input = '4' * 1000
+
+    start = time.perf_counter()
+    result = parse_phone(malicious_input)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    # Verify both correctness AND performance
+    assert result.is_failure()
+    assert 'too long' in result.error_or('').lower()
+    assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+```
+
+**General Guidelines**:
+1. Add length checks immediately after null/empty validation
+2. Test both correctness (error message) AND performance (< 10ms)
+3. Use reasonable limits (e.g., 100 chars for phone, 1000 for URLs)
+4. Document the limit and rationale in code comments
+
+### OWASP Top 10 Awareness
+
+When implementing parsers, consider:
+- **Injection**: Sanitize inputs that will be used in SQL, OS commands, etc.
+- **Broken Access Control**: Validate authorization before parsing sensitive data
+- **Cryptographic Failures**: Use secure defaults (e.g., case-insensitive email domains)
+- **Security Misconfiguration**: Fail securely (return Failure, never raise exceptions to users)
+
+See `SECURITY.md` for reporting vulnerabilities and security best practices.
+
 ## Performance Considerations
 
 - Parsers should be fast (avoid regex when simple string operations suffice)
+- **Always validate input length BEFORE expensive operations** (see Security Considerations)
 - Validate at boundaries; keep core logic working on trusted data
 - Mark slow tests with `@pytest.mark.slow`
 - Use `@pytest.mark.integration` for external integrations
+
+## Release Process
+
+### Automated Semantic Versioning
+
+Valid8r uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) for automated versioning and releases. The workflow is fully automated via GitHub Actions.
+
+**How It Works**:
+1. You push commits to `main` using [Conventional Commits](https://www.conventionalcommits.org/)
+2. Semantic-release analyzes commit messages
+3. Version is bumped based on commit types:
+   - `feat:` → MINOR version bump (0.X.0)
+   - `fix:`, `perf:` → PATCH version bump (0.0.X)
+   - `feat!:` or `BREAKING CHANGE:` → MAJOR version bump (X.0.0)
+   - `docs:`, `chore:`, `ci:` → No version bump
+4. Changelog is auto-generated from commits
+5. Git tag is created (e.g., `v0.9.1`)
+6. Package is built and published to PyPI
+
+**Workflow**: `.github/workflows/semantic-release.yml`
+
+### Conventional Commit Format
+
+```bash
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Common Types**:
+- `feat`: New feature (MINOR bump)
+- `fix`: Bug fix (PATCH bump)
+- `perf`: Performance improvement (PATCH bump)
+- `docs`: Documentation only (no bump)
+- `refactor`: Code refactoring (no bump)
+- `test`: Test changes (no bump)
+- `ci`: CI/CD changes (no bump)
+- `chore`: Maintenance tasks (no bump)
+
+**Examples**:
+```bash
+# Feature (0.8.0 → 0.9.0)
+feat: add parse_uuid function with version validation
+
+# Bug fix (0.8.0 → 0.8.1)
+fix: correct email domain normalization case handling
+
+# Performance (0.8.0 → 0.8.1)
+perf: add input length guard to phone parser for DoS protection
+
+# Breaking change (0.8.0 → 1.0.0)
+feat!: change Maybe.bind signature to accept keyword arguments
+
+BREAKING CHANGE: Maybe.bind now requires parser functions to accept
+keyword arguments instead of positional arguments.
+
+# No version bump
+docs: update README with phone parser examples
+```
+
+### Manual Release (Emergency Only)
+
+If semantic-release fails, you can manually trigger a release:
+
+```bash
+# Manually trigger the publish-pypi workflow
+gh workflow run publish-pypi.yml
+```
+
+**Note**: This should only be used in emergencies. The semantic-release workflow is the preferred method.
+
+### Release Checklist
+
+Before merging to `main`:
+- [ ] All tests pass (`uv run tox`)
+- [ ] Commits follow Conventional Commits format
+- [ ] PR description includes summary of changes
+- [ ] Breaking changes are clearly documented
+- [ ] CHANGELOG.md will be auto-updated (no manual edits needed)
+
+### Monitoring Releases
+
+```bash
+# Check latest release
+gh release list
+
+# View workflow runs
+gh run list --workflow=semantic-release.yml
+
+# Check PyPI versions
+pip index versions valid8r
+```
+
+### Branch Protection and PAT Configuration
+
+The `main` branch is protected by repository rulesets. The semantic-release workflow uses a Personal Access Token (PAT) stored in `SEMANTIC_RELEASE_TOKEN` secret to bypass branch protection when creating version bump commits and tags.
+
+**Configuration**:
+- Repository ruleset: Requires review for all PRs
+- Bypass actor: Repository administrators (using Classic PAT with `repo` scope)
+- Secret: `SEMANTIC_RELEASE_TOKEN` (Classic PAT, not fine-grained)

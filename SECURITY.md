@@ -6,9 +6,10 @@ We release security updates for the following versions of Valid8r:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
-| 0.2.x   | :x:                |
-| < 0.2.0 | :x:                |
+| 0.9.x   | :white_check_mark: |
+| 0.8.x   | :white_check_mark: |
+| 0.7.x   | :white_check_mark: |
+| < 0.7.0 | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -120,24 +121,82 @@ match parsers.parse_email(email):
 
 ## Known Security Considerations
 
-### Regular Expressions
+### DoS Protection Through Input Length Validation
 
-Some parsers use regular expressions for validation. While we carefully design these to avoid ReDoS (Regular Expression Denial of Service) attacks, extremely large inputs may still cause performance issues.
+**All parsers include built-in length validation** to prevent Denial of Service attacks. Input length is checked BEFORE expensive operations like regex matching.
 
-**Mitigation**: Implement input length limits before parsing:
+**Example: Phone Parser DoS Protection (Fixed in v0.9.1)**
+
+Prior to v0.9.1, the phone parser performed regex operations before validating input length:
+- ❌ 1MB malicious input: ~48ms to reject (after regex)
+- ✅ v0.9.1+: 1MB input: <1ms to reject (before regex)
+
+**Implementation Pattern**:
+```python
+def parse_phone(text: str | None, *, region: str = 'US', strict: bool = False) -> Maybe[PhoneNumber]:
+    # Handle None or empty
+    if text is None or not isinstance(text, str):
+        return Maybe.failure('Phone number cannot be empty')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('Phone number cannot be empty')
+
+    # CRITICAL: Early length guard (DoS mitigation)
+    if len(text) > 100:
+        return Maybe.failure('Invalid format: phone number is too long')
+
+    # Now safe to perform regex operations
+    # ...
+```
+
+**Why This Matters**:
+- Prevents resource exhaustion from oversized inputs
+- Rejects malicious inputs in microseconds instead of milliseconds
+- Applies to all parsers that use regex (email, URL, IP, phone, etc.)
+
+**Additional Application-Level Protection**:
+
+While Valid8r includes built-in length validation, you can add additional limits for your specific use case:
 
 ```python
-MAX_INPUT_LENGTH = 1000
+from valid8r import parsers
+from valid8r.core.maybe import Maybe, Failure
+
+MAX_EMAIL_LENGTH = 254  # RFC 5321 maximum
 
 def safe_parse_email(text: str) -> Maybe[EmailAddress]:
-    if len(text) > MAX_INPUT_LENGTH:
-        return Failure("Input too long")
+    """Parse email with stricter length limit for your application."""
+    if len(text) > MAX_EMAIL_LENGTH:
+        return Failure("Email address exceeds maximum length")
     return parsers.parse_email(text)
 ```
 
 ### Error Messages
 
 Parser error messages are designed to be user-friendly but may contain details about why validation failed. In security-sensitive contexts, consider sanitizing error messages before displaying to end users.
+
+## Recent Security Fixes
+
+### v0.9.1 - Phone Parser DoS Protection (November 2025)
+
+**Issue**: Phone parser performed regex operations before validating input length, allowing DoS attacks with extremely large inputs.
+
+**Impact**: Medium severity - could cause resource exhaustion with 1MB+ inputs
+- Processing time: ~48ms for 1MB malicious input
+- Attack vector: Requires ability to send oversized POST data
+- Real-world risk: Low (most frameworks limit request size)
+
+**Fix**: Added early length validation before regex operations
+- Rejects oversized inputs in <1ms (48x faster)
+- Limit: 100 characters (reasonable for any phone number format)
+- Error message: "Invalid format: phone number is too long"
+
+**Testing**: Added performance-validated test ensuring <10ms rejection time
+
+**Lesson**: Always validate input length BEFORE expensive operations. This pattern now applies to all new parsers.
+
+**Related**: Issue #131, PR #138
 
 ## Scope
 

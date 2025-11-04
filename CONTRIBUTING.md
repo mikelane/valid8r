@@ -344,11 +344,41 @@ Fill out the PR template completely, including:
 
 ### After Merge
 
-- Your PR will be automatically merged to main
-- Semantic release will analyze commits
-- Version will be bumped automatically based on commit types
-- Release notes will be auto-generated
-- Package will be published to PyPI
+Once your PR is merged to `main`, the automated release process begins:
+
+1. **Semantic Analysis**: The semantic-release workflow analyzes all commits since the last release
+2. **Version Calculation**: Determines version bump based on commit types:
+   - `feat:` commits → MINOR version bump (0.X.0)
+   - `fix:`, `perf:` commits → PATCH version bump (0.0.X)
+   - `feat!:` or `BREAKING CHANGE:` → MAJOR version bump (X.0.0)
+   - `docs:`, `chore:`, `ci:`, `refactor:`, `test:` → No version bump
+3. **If version bump is needed**:
+   - Version in `pyproject.toml` is updated
+   - `CHANGELOG.md` is auto-generated from commit messages
+   - Git tag is created (e.g., `v0.9.1`)
+   - Package is built with `uv build`
+   - Published to PyPI via trusted publishing
+4. **If no version bump is needed**:
+   - Workflow succeeds with no changes
+   - No tag, no publish
+
+**Monitoring Your Release**:
+```bash
+# Watch workflow execution
+gh run list --workflow=semantic-release.yml --limit 5
+
+# Check if version was bumped
+gh release list
+
+# Verify PyPI publication
+pip index versions valid8r
+```
+
+**Typical Timeline**:
+- Merge to main: Immediate
+- Semantic-release workflow starts: ~10 seconds
+- Build and publish: ~60-90 seconds
+- Available on PyPI: ~2-3 minutes total
 
 ## Issue Reporting
 

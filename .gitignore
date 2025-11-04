@@ -28,6 +28,7 @@ poetry.lock
 .coverage
 htmlcov/
 coverage.xml
+coverage.json
 
 # Virtual environments
 venv/
