@@ -1,6 +1,6 @@
 [project]
 name = "valid8r"
-version = "0.9.1"
+dynamic = ["version"]
 description = "Clean, flexible input validation for Python applications"
 authors = [
     {name = "Mike Lane", email = "mikelane@gmail.com"}
@@ -47,7 +47,7 @@ dev = [
     "httpx>=0.28.1",
     "livereload>=2.7.1",
     "pre-commit>=4.3.0",
-    "python-semantic-release>=9.21.1",
+    "python-semantic-release>=10.4.1",
     "uvicorn>=0.37.0",
 ]
 
@@ -78,8 +78,15 @@ test = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "no-guess-dev" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "valid8r/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["valid8r"]
@@ -208,14 +215,15 @@ module = [
 ignore_errors = true
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
+version_variables = ["valid8r/__init__.py:__version__"]
+version_source = "commit"
 branch = "main"
-build_command = ""  # Build handled by workflow
+build_command = "uv build"
 dist_path = "dist/"
-upload_to_release = false
-upload_to_pypi = false
+upload_to_release = true
+upload_to_pypi = false  # Handled by uv publish in workflow
 remove_dist = false
-major_on_zero = false
+major_on_zero = true  # For pre-1.0 projects
 tag_format = "v{version}"
 commit_parser = "angular"
 logging_use_named_masks = false
@@ -225,16 +233,22 @@ match = "main"
 prerelease = false
 
 [tool.semantic_release.changelog]
+template_dir = "templates"
 changelog_file = "CHANGELOG.md"
-exclude_commit_patterns = []
-mode = "init"
-# GitHub auto-generates release notes via .github/release.yml
-# CHANGELOG.md is maintained but not used for GitHub releases
+exclude_commit_patterns = [
+    "^chore(?:\\([^)]+\\))?:",
+    "^ci(?:\\([^)]+\\))?:",
+    "^docs(?:\\([^)]+\\))?:",
+    "^style(?:\\([^)]+\\))?:",
+    "^test(?:\\([^)]+\\))?:",
+    "^build(?:\\([^)]+\\))?:",
+]
+mode = "update"
 
 [tool.semantic_release.commit_parser_options]
-allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
+allowed_tags = ["feat", "fix", "perf", "refactor", "docs", "ci", "chore", "test", "build"]
 minor_tags = ["feat"]
-patch_tags = ["fix", "perf"]
+patch_tags = ["fix", "perf", "refactor"]
 default_bump_level = 0
 
 [tool.semantic_release.remote]
@@ -244,4 +258,4 @@ ignore_token_for_push = false
 
 [tool.semantic_release.publish]
 dist_glob_patterns = ["dist/*"]
-upload_to_vcs_release = false
+upload_to_vcs_release = true

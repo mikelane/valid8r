@@ -12,21 +12,12 @@ jobs:
     name: Lint and Format Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: uv sync --group lint
+          dependency-groups: 'lint'
 
       - name: Run ruff check
         run: uv run ruff check .
@@ -41,21 +32,12 @@ jobs:
     name: Type Check (mypy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: uv sync --group lint
+          dependency-groups: 'lint'
 
       - name: Run mypy
         run: uv run mypy valid8r
@@ -69,27 +51,18 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: uv sync --group test
+          dependency-groups: 'test'
 
       - name: Run unit tests with coverage
         run: uv run pytest tests/unit --cov=valid8r --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@015f24e6818733317a2da2ece29f8fda7a59c6fc  # v4.6.0
         if: matrix.python-version == '3.11'
         with:
           file: ./coverage.xml
@@ -100,21 +73,12 @@ jobs:
     name: BDD Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: uv sync --group test
+          dependency-groups: 'test'
 
       - name: Run BDD tests
         run: uv run behave tests/bdd/features
@@ -123,27 +87,18 @@ jobs:
     name: Build Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: uv sync --group docs
+          dependency-groups: 'docs'
 
       - name: Build documentation
         run: uv run docs-build
 
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b  # v4.5.0
         with:
           name: documentation
           path: docs/_build/html/
@@ -152,16 +107,9 @@ jobs:
     name: Smoke Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
 
@@ -175,21 +123,12 @@ jobs:
     name: Documentation Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: uv sync --group test
+          dependency-groups: 'test'
 
       - name: Run doctests
         run: uv run tox -e doctests
