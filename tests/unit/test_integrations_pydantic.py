@@ -217,3 +217,279 @@ class DescribePydanticBaseModelIntegration:
         # Invalid value
         with pytest.raises(ValidationError):
             OptionalProfile(age='invalid')
+
+
+class DescribeNestedModelValidation:
+    """Test suite for nested model validation with valid8r parsers."""
+
+    def it_validates_nested_model_with_valid8r_parser(self) -> None:
+        """Validate nested model with valid8r parser (Gherkin scenario 1)."""
+        from valid8r.core.parsers import PhoneNumber
+
+        class Address(BaseModel):
+            phone: PhoneNumber
+
+            @field_validator('phone', mode='before')
+            @classmethod
+            def validate_phone(cls, v):
+                return validator_from_parser(parsers.parse_phone)(v)
+
+        class User(BaseModel):
+            name: str
+            address: Address
+
+        # Valid nested data
+        user = User(name='Alice', address={'phone': '(206) 234-5678'})
+        assert user.name == 'Alice'
+        assert isinstance(user.address.phone, PhoneNumber)
+        assert user.address.phone.area_code == '206'
+        assert user.address.phone.exchange == '234'
+        assert user.address.phone.subscriber == '5678'
+
+    def it_includes_field_path_in_nested_validation_errors(self) -> None:
+        """Nested validation errors include field path (Gherkin scenario 2)."""
+        from valid8r.core.parsers import PhoneNumber
+
+        class Address(BaseModel):
+            phone: PhoneNumber
+
+            @field_validator('phone', mode='before')
+            @classmethod
+            def validate_phone(cls, v):
+                return validator_from_parser(parsers.parse_phone)(v)
+
+        class User(BaseModel):
+            name: str
+            address: Address
+
+        # Invalid nested phone number
+        with pytest.raises(ValidationError) as exc_info:
+            User(name='Alice', address={'phone': 'invalid'})
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+
+        # Check field path includes 'address.phone'
+        error_loc = errors[0]['loc']
+        assert 'address' in error_loc
+        assert 'phone' in error_loc
+
+        # Error message contains valid8r parse_phone error
+        error_msg = errors[0]['msg'].lower()
+        assert 'phone' in error_msg or 'invalid' in error_msg
+
+    def it_validates_three_level_nested_models(self) -> None:
+        """Validate three-level nested models."""
+
+        class Contact(BaseModel):
+            email: EmailAddress
+
+            @field_validator('email', mode='before')
+            @classmethod
+            def validate_email(cls, v):
+                return validator_from_parser(parsers.parse_email)(v)
+
+        class Department(BaseModel):
+            name: str
+            contact: Contact
+
+        class Company(BaseModel):
+            name: str
+            department: Department
+
+        # Valid three-level nested data
+        company = Company(
+            name='Acme Corp',
+            department={'name': 'Engineering', 'contact': {'email': 'eng@acme.com'}},
+        )
+        assert company.name == 'Acme Corp'
+        assert company.department.name == 'Engineering'
+        assert company.department.contact.email.local == 'eng'
+        assert company.department.contact.email.domain == 'acme.com'
+
+    def it_includes_full_path_for_deeply_nested_validation_errors(self) -> None:
+        """Deeply nested validation errors include full field path."""
+
+        class Contact(BaseModel):
+            email: EmailAddress
+
+            @field_validator('email', mode='before')
+            @classmethod
+            def validate_email(cls, v):
+                return validator_from_parser(parsers.parse_email)(v)
+
+        class Department(BaseModel):
+            name: str
+            contact: Contact
+
+        class Company(BaseModel):
+            name: str
+            department: Department
+
+        # Invalid email at third level
+        with pytest.raises(ValidationError) as exc_info:
+            Company(name='Acme', department={'name': 'Eng', 'contact': {'email': 'not-an-email'}})
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+
+        # Check full field path
+        error_loc = errors[0]['loc']
+        assert 'department' in error_loc
+        assert 'contact' in error_loc
+        assert 'email' in error_loc
+
+
+class DescribeListOfModelsValidation:
+    """Test suite for validating lists of models with valid8r parsers."""
+
+    def it_validates_list_of_models_with_valid8r_parsers(self) -> None:
+        """Validate list of models with valid8r parsers (Gherkin scenario 3)."""
+
+        class LineItem(BaseModel):
+            quantity: int
+
+            @field_validator('quantity', mode='before')
+            @classmethod
+            def validate_quantity(cls, v):
+                def quantity_parser(value):
+                    return parsers.parse_int(value).bind(validators.minimum(1))
+
+                return validator_from_parser(quantity_parser)(v)
+
+        class Order(BaseModel):
+            items: list[LineItem]
+
+        # Valid list of items
+        order = Order(items=[{'quantity': '5'}, {'quantity': '10'}])
+        assert len(order.items) == 2
+        assert order.items[0].quantity == 5
+        assert order.items[1].quantity == 10
+
+    def it_validates_each_item_in_list_and_reports_index(self) -> None:
+        """Validate each item in list and report index in error (Gherkin scenario 3)."""
+
+        class LineItem(BaseModel):
+            quantity: int
+
+            @field_validator('quantity', mode='before')
+            @classmethod
+            def validate_quantity(cls, v):
+                def quantity_parser(value):
+                    return parsers.parse_int(value).bind(validators.minimum(1))
+
+                return validator_from_parser(quantity_parser)(v)
+
+        class Order(BaseModel):
+            items: list[LineItem]
+
+        # Invalid quantity in second item
+        with pytest.raises(ValidationError) as exc_info:
+            Order(items=[{'quantity': '5'}, {'quantity': '0'}])
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+
+        # Check error location includes items[1].quantity
+        error_loc = errors[0]['loc']
+        assert 'items' in error_loc
+        assert 1 in error_loc  # Index of failing item
+        assert 'quantity' in error_loc
+
+        # Check error message mentions minimum
+        error_msg = errors[0]['msg'].lower()
+        assert 'minimum' in error_msg or 'least' in error_msg
+
+    def it_validates_optional_list_of_models(self) -> None:
+        """Validate optional list of models."""
+
+        class Tag(BaseModel):
+            name: str
+
+        class Post(BaseModel):
+            title: str
+            tags: list[Tag] | None = None
+
+        # With tags
+        post = Post(title='Hello', tags=[{'name': 'python'}, {'name': 'valid8r'}])
+        assert post.title == 'Hello'
+        assert len(post.tags) == 2
+        assert post.tags[0].name == 'python'
+
+        # Without tags
+        post_no_tags = Post(title='World')
+        assert post_no_tags.tags is None
+
+
+class DescribeDictValueValidation:
+    """Test suite for validating dict values with valid8r parsers."""
+
+    def it_validates_dict_values_with_valid8r_parsers(self) -> None:
+        """Validate dict values with valid8r parsers (Gherkin scenario 4)."""
+
+        class Config(BaseModel):
+            ports: dict[str, int]
+
+            @field_validator('ports', mode='before')
+            @classmethod
+            def validate_ports(cls, v):
+                if not isinstance(v, dict):
+                    raise ValueError('ports must be a dict')
+
+                # Validate each value in the dict
+                validated = {}
+                for key, value in v.items():
+                    validated[key] = validator_from_parser(parsers.parse_int)(value)
+                return validated
+
+        # Valid dict with string values parsed to int
+        config = Config(ports={'http': '80', 'https': '443'})
+        assert config.ports == {'http': 80, 'https': 443}
+
+    def it_validates_dict_values_and_reports_key_in_error(self) -> None:
+        """Validate dict values and report key in validation error."""
+
+        class Config(BaseModel):
+            ports: dict[str, int]
+
+            @field_validator('ports', mode='before')
+            @classmethod
+            def validate_ports(cls, v):
+                if not isinstance(v, dict):
+                    raise ValueError('ports must be a dict')
+
+                validated = {}
+                for key, value in v.items():
+                    validated[key] = validator_from_parser(parsers.parse_int)(value)
+                return validated
+
+        # Invalid value in dict
+        with pytest.raises(ValidationError) as exc_info:
+            Config(ports={'http': '80', 'https': 'invalid'})
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+
+        # Error should mention the value being invalid
+        error_msg = errors[0]['msg'].lower()
+        assert 'integer' in error_msg or 'invalid' in error_msg
+
+    def it_validates_dict_with_model_values(self) -> None:
+        """Validate dict with model values."""
+
+        class ContactInfo(BaseModel):
+            email: EmailAddress
+
+            @field_validator('email', mode='before')
+            @classmethod
+            def validate_email(cls, v):
+                return validator_from_parser(parsers.parse_email)(v)
+
+        class Team(BaseModel):
+            contacts: dict[str, ContactInfo]
+
+        # Valid dict with model values
+        team = Team(contacts={'alice': {'email': 'alice@example.com'}, 'bob': {'email': 'bob@example.com'}})
+        assert len(team.contacts) == 2
+        assert team.contacts['alice'].email.local == 'alice'
+        assert team.contacts['bob'].email.domain == 'example.com'
