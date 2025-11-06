@@ -59,3 +59,6 @@ docs/autoapi/
 # Claude Code
 .claude/settings.local.json
 .github/.claude/settings.local.json
+
+# Git worktrees
+.worktrees/
