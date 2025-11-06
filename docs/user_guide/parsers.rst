@@ -31,6 +31,37 @@ Available Parsers
 
 Valid8r includes parsers for several common data types:
 
+Security Considerations
+-----------------------
+
+.. warning::
+   All parsers include built-in DoS protection with early length validation.
+   However, **always enforce application-level size limits** before parsing.
+   See :doc:`/security/production-deployment` for framework-specific examples.
+
+Parser Input Limits
+~~~~~~~~~~~~~~~~~~~
+
+Valid8r parsers reject oversized inputs to prevent resource exhaustion:
+
++------------------+------------+----------------------------------+
+| Parser           | Max Length | Rationale                        |
++==================+============+==================================+
+| parse_email()    | 254 chars  | RFC 5321 maximum                 |
++------------------+------------+----------------------------------+
+| parse_phone()    | 100 chars  | NANP + international extensions  |
++------------------+------------+----------------------------------+
+| parse_url()      | 2048 chars | Common browser URL limit         |
++------------------+------------+----------------------------------+
+| parse_uuid()     | 36 chars   | Standard UUID format             |
++------------------+------------+----------------------------------+
+| parse_ip()       | 45 chars   | IPv6 maximum length              |
++------------------+------------+----------------------------------+
+
+.. seealso::
+   - :doc:`/security/production-deployment` - Framework integration patterns
+   - :doc:`/security/secure-parser-development` - Writing secure custom parsers
+
 Integer Parser
 ~~~~~~~~~~~~~~
 

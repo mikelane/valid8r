@@ -131,6 +131,15 @@ Contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: Security
+
+   security/overview
+   security/production-deployment
+   security/secure-parser-development
+   security/policy
+
+.. toctree::
+   :maxdepth: 2
    :caption: API Reference
 
    api/core

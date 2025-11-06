@@ -159,6 +159,53 @@ Documentation is a crucial part of Valid8r:
       # Serve documentation locally
       uv run docs-serve
 
+Security Guidelines
+-------------------
+
+When contributing parsers or validators:
+
+1. **DoS Protection Required**
+
+   All parsers must include early length validation:
+
+   .. code-block:: python
+
+      def parse_example(text: str) -> Maybe[Example]:
+          # Check length BEFORE expensive operations
+          if len(text) > MAX_LENGTH:
+              return Maybe.failure(f'Input too long (max {MAX_LENGTH})')
+
+          # Now safe to use regex, external libraries, etc.
+          ...
+
+2. **Security Testing Required**
+
+   New parsers must include DoS protection tests:
+
+   .. code-block:: python
+
+      def test_rejects_extremely_long_input():
+          import time
+          malicious = 'x' * 10000
+
+          start = time.perf_counter()
+          result = parse_example(malicious)
+          elapsed_ms = (time.perf_counter() - start) * 1000
+
+          assert result.is_failure()
+          assert 'too long' in result.error_or('').lower()
+          assert elapsed_ms < 10, f'Took {elapsed_ms}ms, should be < 10ms'
+
+3. **Consult Security Documentation**
+
+   - :doc:`/security/secure-parser-development` - DoS prevention guidelines
+   - :doc:`/security/production-deployment` - Real-world security patterns
+   - Review recent security fixes in CHANGELOG.md
+
+.. warning::
+   **Report security vulnerabilities privately** to mikelane@gmail.com.
+   Do not open public GitHub issues for security bugs.
+
 Pull Request Process
 --------------------
 

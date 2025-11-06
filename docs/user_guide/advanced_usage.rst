@@ -624,4 +624,38 @@ When dealing with large datasets or performance-critical code:
    print(summarize_validation_results(inefficient_results))
    print(summarize_validation_results(efficient_results))
 
+Production Security Patterns
+-----------------------------
+
+When deploying Valid8r in production, implement defense in depth:
+
+.. code-block:: python
+
+   from flask import Flask, request, jsonify
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+
+   app = Flask(__name__)
+   app.config['MAX_CONTENT_LENGTH'] = 10 * 1024  # Layer 1: Framework limit
+
+   @app.route('/api/validate', methods=['POST'])
+   def validate_input():
+       data = request.get_json()
+
+       # Layer 2: Application-level pre-validation
+       email_input = data.get('email', '')
+       if len(email_input) > 254:
+           return jsonify({"error": "Email too long"}), 400
+
+       # Layer 3: Valid8r parsing (with built-in DoS protection)
+       match parsers.parse_email(email_input):
+           case Success(email):
+               return jsonify({"email": email.local + "@" + email.domain})
+           case Failure(error):
+               return jsonify({"error": "Invalid email"}), 400
+
+.. seealso::
+   See :doc:`/security/production-deployment` for complete framework-specific guides
+   covering Flask, Django, FastAPI, rate limiting, and monitoring.
+
 In the next sections, we'll explore concrete examples and the complete API reference.
