@@ -62,7 +62,7 @@ jobs:
         run: uv run pytest tests/unit --cov=valid8r --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@015f24e6818733317a2da2ece29f8fda7a59c6fc  # v4.6.0
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # v4
         if: matrix.python-version == '3.11'
         with:
           file: ./coverage.xml
