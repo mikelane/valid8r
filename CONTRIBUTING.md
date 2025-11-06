@@ -9,6 +9,7 @@ Thank you for considering contributing to Valid8r! This document provides guidel
 - [Development Setup](#development-setup)
 - [Development Workflow](#development-workflow)
 - [Code Style](#code-style)
+- [Security Guidelines](#security-guidelines)
 - [Testing](#testing)
 - [Commit Messages](#commit-messages)
 - [Pull Request Process](#pull-request-process)
@@ -175,6 +176,138 @@ uv run mypy valid8r
 - Keep core logic free of I/O and side effects
 - Use dependency injection for testing
 - Mirror test structure to source structure
+
+## Security Guidelines
+
+### Writing Secure Parsers
+
+When adding or modifying parsers, follow these security requirements:
+
+#### 1. Input Length Validation FIRST
+
+Always validate input length BEFORE expensive operations (regex, parsing, computation):
+
+```python
+def parse_foo(text: str) -> Maybe[Foo]:
+    """Parse foo with DoS protection."""
+    if not text or not isinstance(text, str):
+        return Maybe.failure('Input required')
+
+    s = text.strip()
+    if s == '':
+        return Maybe.failure('Input cannot be empty')
+
+    # CRITICAL: Early length guard (DoS mitigation)
+    if len(text) > MAX_LENGTH:
+        return Maybe.failure('Input too long')
+
+    # Now safe to perform expensive operations (regex, etc.)
+    # ...
+```
+
+**Rationale**: Prevents DoS attacks where attackers send extremely large inputs to consume server resources.
+
+**Example**: Without length guard, parsing 1MB input takes ~48ms. With length guard, rejection takes <1ms.
+
+#### 2. Analyze Regex for ReDoS Vulnerabilities
+
+Regular expressions can be vulnerable to catastrophic backtracking:
+
+**❌ Avoid nested quantifiers:**
+```python
+# BAD: Nested quantifiers cause exponential time complexity
+pattern = r'(a+)+'
+pattern = r'(a*)*'
+pattern = r'(a|ab)+'
+```
+
+**✅ Use atomic patterns:**
+```python
+# GOOD: Linear time complexity
+pattern = r'a+'
+pattern = r'(?:a|ab)+'  # Non-capturing group
+```
+
+**Tools to use:**
+- Run `regexploit` on all regex patterns
+- Test with pathological inputs (repeated characters)
+- Consider using `regex` module with timeout
+
+#### 3. Add DoS Regression Tests
+
+Every parser must have a DoS prevention test:
+
+```python
+def it_rejects_excessively_long_input(self) -> None:
+    """Reject extremely long input to prevent DoS attacks."""
+    import time
+
+    malicious_input = 'x' * 1_000_000  # 1MB input
+    start = time.perf_counter()
+    result = parse_foo(malicious_input)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    # Verify both correctness AND performance
+    assert result.is_failure()
+    assert 'too long' in result.error_or('').lower()
+    assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+```
+
+#### 4. Document Security Limits
+
+Include security information in docstrings:
+
+```python
+def parse_foo(text: str) -> Maybe[Foo]:
+    """Parse foo with security protection.
+
+    Args:
+        text: Input string to parse
+
+    Returns:
+        Success containing Foo if valid, Failure with error message otherwise
+
+    Security:
+        - Maximum input length: 100 characters
+        - Time complexity: O(n)
+        - ReDoS-safe regex patterns
+
+    Examples:
+        >>> result = parse_foo("valid-input")
+        >>> assert result.is_success()
+    """
+```
+
+### Security Testing
+
+All parsers must pass security tests before merging:
+
+```bash
+# Run DoS prevention tests
+uv run pytest tests/security/ -v
+
+# Run security-marked tests
+uv run pytest -m security
+```
+
+### Reporting Security Issues
+
+**DO NOT** open public issues for security vulnerabilities.
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting process.
+
+### Security Code Review Checklist
+
+Before submitting a PR that adds/modifies parsers:
+
+- [ ] Input length validated BEFORE expensive operations
+- [ ] All regex patterns analyzed for ReDoS vulnerabilities
+- [ ] DoS regression test added with performance assertion
+- [ ] Maximum input length documented in docstring
+- [ ] Security tests pass locally (`uv run pytest tests/security/`)
+- [ ] No sensitive data (API keys, emails, etc.) in code/tests
+
+See [Secure Parser Development Guide](docs/security/secure-parser-development.md) for comprehensive guidelines.
 
 ## Testing
 

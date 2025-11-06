@@ -119,6 +119,44 @@ match parsers.parse_email(email):
         print("Invalid email format")
 ```
 
+## Security Boundaries
+
+### Input Validation Philosophy
+
+Valid8r is designed as a **parsing and validation library**, not a security boundary:
+
+- **✅ Trusted input**: Best suited for user-generated content in web forms, API requests
+- **⚠️ Untrusted input**: Should be pre-validated at application level (size limits, rate limiting)
+- **❌ Hostile input**: Requires additional defenses (WAF, DDoS protection, sandboxing)
+
+### Parser Input Limits
+
+All parsers include built-in length validation to prevent DoS attacks:
+
+| Parser | Max Input | Rationale |
+|--------|-----------|-----------|
+| `parse_phone()` | 100 chars | Longest international format + extension |
+| `parse_email()` | 254 chars | RFC 5321 maximum email address length |
+| `parse_url()` | 2048 chars | Common browser URL limit |
+| `parse_uuid()` | 36 chars | Standard UUID format (with hyphens) |
+| `parse_ip()` | 45 chars | IPv6 maximum length |
+| `parse_ipv4()` | 15 chars | xxx.xxx.xxx.xxx |
+| `parse_ipv6()` | 45 chars | Full IPv6 notation |
+| `parse_cidr()` | 50 chars | IPv6 + CIDR notation |
+
+**⚠️ Important**: Always enforce application-level size limits BEFORE parsing. Valid8r's limits are defense-in-depth, not your primary defense.
+
+### What Valid8r Does NOT Protect Against
+
+Valid8r provides **input validation**, not:
+
+- ❌ **SQL injection** - Use parameterized queries / ORMs
+- ❌ **XSS** - Use output encoding / template engines
+- ❌ **CSRF** - Use CSRF tokens / SameSite cookies
+- ❌ **Rate limiting** - Implement at framework/WAF level
+- ❌ **Authentication/Authorization** - Use proper auth framework
+- ❌ **DDoS attacks** - Use CDN / cloud provider protection
+
 ## Known Security Considerations
 
 ### DoS Protection Through Input Length Validation
@@ -197,6 +235,146 @@ Parser error messages are designed to be user-friendly but may contain details a
 **Lesson**: Always validate input length BEFORE expensive operations. This pattern now applies to all new parsers.
 
 **Related**: Issue #131, PR #138
+
+## Production Deployment Guidelines
+
+### Defense in Depth Pattern
+
+Always use multiple layers of validation:
+
+```python
+from flask import Flask, request
+from valid8r import parsers
+
+app = Flask(__name__)
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    # Layer 1: Framework-level size limit (FIRST DEFENSE)
+    if len(request.data) > 10_000:  # 10KB max request
+        return "Request too large", 413
+
+    # Layer 2: Application-level validation (SECOND DEFENSE)
+    phone = request.form.get('phone', '')
+    if len(phone) > 100:
+        return "Phone number too long", 400
+
+    # Layer 3: Parser validation (THIRD DEFENSE)
+    result = parsers.parse_phone(phone)
+    if result.is_failure():
+        # Don't expose internal error details to users
+        return "Invalid phone number format", 400
+
+    # Now safe to use validated phone number
+    return process_phone(result.value_or(None))
+```
+
+### Rate Limiting
+
+Protect validation endpoints from abuse:
+
+```python
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["100 per hour"]
+)
+
+@app.route('/validate')
+@limiter.limit("10 per minute")  # Strict limit for validation
+def validate_input():
+    # Validation logic
+    pass
+```
+
+### Error Handling
+
+Don't expose internal validation details:
+
+```python
+from valid8r import parsers
+from valid8r.core.maybe import Success, Failure
+
+result = parsers.parse_email(user_input)
+
+match result:
+    case Success(email):
+        # Log successful validation (info level)
+        logger.info(f"Valid email processed: {email.domain}")
+        return email
+    case Failure(error):
+        # Log failure (warning level) but DON'T expose to user
+        logger.warning(f"Email validation failed: {error}")
+        # Generic user-facing message
+        return "Invalid email address format"
+```
+
+### Batch Processing
+
+Use timeouts and size limits for batch operations:
+
+```python
+from celery import Celery
+from valid8r import parsers
+
+app = Celery('tasks')
+
+@app.task(time_limit=5)  # 5 second timeout per task
+def validate_batch(phone_numbers):
+    # Limit batch size
+    if len(phone_numbers) > 1000:
+        raise ValueError("Batch too large")
+
+    results = []
+    for phone in phone_numbers:
+        # Pre-validation before parsing
+        if len(phone) > 100:
+            results.append({"error": "too long"})
+            continue
+
+        result = parsers.parse_phone(phone)
+        results.append({
+            "success": result.is_success(),
+            "error": None if result.is_success() else "invalid format"
+        })
+
+    return results
+```
+
+### Framework-Specific Configuration
+
+**Flask**:
+```python
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024  # 10KB
+```
+
+**Django**:
+```python
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10240  # 10KB
+```
+
+**FastAPI**:
+```python
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["example.com"]
+)
+```
+
+### Security Testing
+
+Include security tests in your CI/CD:
+
+```bash
+# Run DoS prevention tests
+uv run pytest tests/security/test_dos_prevention.py -v
+
+# Run all security-marked tests
+uv run pytest -m security
+```
 
 ## Scope
 

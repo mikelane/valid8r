@@ -218,6 +218,75 @@ with MockInputContext(["invalid", "valid@example.com"]):
 - [Validator Guide](https://valid8r.readthedocs.io/en/latest/validators.html)
 - [Testing Guide](https://valid8r.readthedocs.io/en/latest/testing.html)
 
+## Security
+
+### Reporting Vulnerabilities
+
+**Please do not report security vulnerabilities through public GitHub issues.**
+
+Report security issues privately to **mikelane@gmail.com** or via [GitHub Security Advisories](https://github.com/mikelane/valid8r/security/advisories/new).
+
+See [SECURITY.md](SECURITY.md) for our complete security policy, supported versions, and response timeline.
+
+### Production Deployment
+
+Valid8r is designed for parsing **trusted user input** in web applications. For production deployments:
+
+1. **Enforce input size limits** at the framework level (recommended: 10KB max request size)
+2. **Implement rate limiting** for validation endpoints (recommended: 10 requests/minute)
+3. **Use defense in depth**: Framework → Application → Parser validation
+4. **Monitor and log** validation failures for security analysis
+
+**Example - Flask Defense in Depth:**
+
+```python
+from flask import Flask, request
+from valid8r import parsers
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024  # Layer 1: Framework limit
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    phone = request.form.get('phone', '')
+
+    # Layer 2: Application validation
+    if len(phone) > 100:
+        return "Phone too long", 400
+
+    # Layer 3: Parser validation
+    result = parsers.parse_phone(phone)
+    if result.is_failure():
+        return "Invalid phone format", 400
+
+    return process_phone(result.value_or(None))
+```
+
+See [Production Deployment Guide](docs/security/production-deployment.md) for framework-specific examples (Flask, Django, FastAPI).
+
+### Security Boundaries
+
+Valid8r provides **input validation**, not protection against:
+
+- ❌ SQL injection - Use parameterized queries / ORMs
+- ❌ XSS attacks - Use output encoding / template engines
+- ❌ CSRF attacks - Use CSRF tokens / SameSite cookies
+- ❌ DDoS attacks - Use rate limiting / CDN / WAF
+
+**Parser Input Limits:**
+
+| Parser | Max Input | Notes |
+|--------|-----------|-------|
+| `parse_email()` | 254 chars | RFC 5321 maximum |
+| `parse_phone()` | 100 chars | International + extension |
+| `parse_url()` | 2048 chars | Browser URL limit |
+| `parse_uuid()` | 36 chars | Standard UUID format |
+| `parse_ip()` | 45 chars | IPv6 maximum |
+
+All parsers include built-in DoS protection with early length validation before expensive operations.
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
