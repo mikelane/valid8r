@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Semantic Release & PyPI Publish
+    runs-on: ubuntu-latest
+    concurrency: release
+    environment:
+      name: pypi
+      url: https://pypi.org/project/valid8r/
+
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          python-version: '3.12'
+          dependency-groups: 'dev'
+
+      - name: Python Semantic Release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v10.4.1
+        with:
+          github_token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          git_committer_name: "github-actions[bot]"
+          git_committer_email: "github-actions[bot]@users.noreply.github.com"
+
+      # Only build and publish if a new version was released
+      - name: Build package
+        if: steps.release.outputs.released == 'true'
+        run: |
+          echo "Building distributions for version ${{ steps.release.outputs.version }}"
+          uv build
+          echo "Built distributions:"
+          ls -lh dist/
+
+      - name: Smoke test - wheel installation
+        if: steps.release.outputs.released == 'true'
+        run: |
+          echo "Testing wheel installation in isolated environment..."
+          uv run --isolated --no-project \
+            --with dist/*.whl -- \
+            python -c "import valid8r; from valid8r import parsers, validators, Maybe; print(f'✓ valid8r wheel OK')"
+
+      - name: Smoke test - sdist installation
+        if: steps.release.outputs.released == 'true'
+        run: |
+          echo "Testing source distribution installation in isolated environment..."
+          uv run --isolated --no-project \
+            --with dist/*.tar.gz -- \
+            python -c "import valid8r; from valid8r import parsers, validators, Maybe; print(f'✓ valid8r sdist OK')"
+
+      - name: Publish to PyPI
+        if: steps.release.outputs.released == 'true'
+        run: |
+          echo "Publishing to PyPI using Trusted Publishing..."
+          uv publish
+          echo "✓ Published to PyPI: https://pypi.org/project/valid8r/${{ steps.release.outputs.version }}/"
+
+      - name: Release summary
+        if: steps.release.outputs.released == 'true'
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ steps.release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PyPI**: https://pypi.org/project/valid8r/${{ steps.release.outputs.version }}/" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+
+  verify-pypi-release:
+    name: Verify PyPI Release
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wait for PyPI propagation
+        run: |
+          echo "Waiting 60 seconds for PyPI to propagate..."
+          sleep 60
+
+      - name: Install from PyPI and verify
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          echo "Installing valid8r==$VERSION from PyPI..."
+          pip install "valid8r==$VERSION"
+
+          echo "Verifying installation..."
+          python -c "import valid8r; print(f'Successfully installed valid8r from PyPI')"
+          python -c "from valid8r import parsers, validators, Maybe; print('✓ All imports working')"

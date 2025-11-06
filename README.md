@@ -3,7 +3,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/valid8r.svg)](https://pypi.org/project/valid8r/)
 [![Python versions](https://img.shields.io/pypi/pyversions/valid8r.svg)](https://pypi.org/project/valid8r/)
 [![License](https://img.shields.io/github/license/mikelane/valid8r.svg)](https://github.com/mikelane/valid8r/blob/main/LICENSE)
-[![CI Status](https://img.shields.io/github/actions/workflow/status/mikelane/valid8r/ci.yml?branch=main)](https://github.com/mikelane/valid8r/actions)
+[![CI](https://github.com/mikelane/valid8r/actions/workflows/ci.yml/badge.svg)](https://github.com/mikelane/valid8r/actions/workflows/ci.yml)
+[![Release](https://github.com/mikelane/valid8r/actions/workflows/release.yml/badge.svg)](https://github.com/mikelane/valid8r/actions/workflows/release.yml)
 [![codecov](https://codecov.io/gh/mikelane/valid8r/branch/main/graph/badge.svg)](https://codecov.io/gh/mikelane/valid8r)
 [![Documentation](https://img.shields.io/readthedocs/valid8r.svg)](https://valid8r.readthedocs.io/)
 

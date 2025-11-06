@@ -20,6 +20,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Generated version file
+valid8r/_version.py
+
 # Poetry
 poetry.lock
 

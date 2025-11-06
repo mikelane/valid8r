@@ -1576,7 +1576,6 @@ wheels = [
 
 [[package]]
 name = "valid8r"
-version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "email-validator" },
@@ -1632,7 +1631,7 @@ dev = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "livereload", specifier = ">=2.7.1" },
     { name = "pre-commit", specifier = ">=4.3.0" },
-    { name = "python-semantic-release", specifier = ">=9.21.1" },
+    { name = "python-semantic-release", specifier = ">=10.4.1" },
     { name = "uvicorn", specifier = ">=0.37.0" },
 ]
 docs = [

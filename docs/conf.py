@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import tomllib
 from datetime import (  # type: ignore[attr-defined]  #datetime.UTC is totally a thing, c'mon mypy.
     UTC,
     datetime,
@@ -17,11 +16,10 @@ if TYPE_CHECKING:
 # Add the project root directory to the path so Sphinx can find the modules
 sys.path.insert(0, str(Path('..').resolve()))
 
-# Read version from pyproject.toml
-_pyproject_path = Path(__file__).parent.parent / 'pyproject.toml'
-with _pyproject_path.open('rb') as f:
-    _pyproject_data = tomllib.load(f)
-    _version = _pyproject_data['project']['version']
+# Import version from package (dynamic version from hatch-vcs)
+import valid8r
+
+_version = valid8r.__version__
 
 # -- Project information -----------------------------------------------------
 project = 'Valid8r'

@@ -454,23 +454,24 @@ See `SECURITY.md` for reporting vulnerabilities and security best practices.
 
 ## Release Process
 
-### Automated Semantic Versioning
+### Fully Automated Releases
 
-Valid8r uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) for automated versioning and releases. The workflow is fully automated via GitHub Actions.
+Valid8r uses [python-semantic-release v10](https://python-semantic-release.readthedocs.io/)
+for fully automated versioning and releases. The workflow is:
 
-**How It Works**:
-1. You push commits to `main` using [Conventional Commits](https://www.conventionalcommits.org/)
-2. Semantic-release analyzes commit messages
-3. Version is bumped based on commit types:
-   - `feat:` → MINOR version bump (0.X.0)
-   - `fix:`, `perf:` → PATCH version bump (0.0.X)
-   - `feat!:` or `BREAKING CHANGE:` → MAJOR version bump (X.0.0)
-   - `docs:`, `chore:`, `ci:` → No version bump
-4. Changelog is auto-generated from commits
-5. Git tag is created (e.g., `v0.9.1`)
-6. Package is built and published to PyPI
+1. **Commit to main** using [Conventional Commits](https://www.conventionalcommits.org/)
+2. **Semantic-release analyzes** commits and determines version bump
+3. **Version bumped** based on commit types:
+   - `feat:` → MINOR (0.X.0)
+   - `fix:`, `perf:` → PATCH (0.0.X)
+   - `feat!:` or `BREAKING CHANGE:` → MAJOR (X.0.0)
+4. **Changelog auto-generated** from commit history
+5. **Git tag created** (e.g., `v0.10.0`)
+6. **Built and tested** (wheel + sdist smoke tests)
+7. **Published to PyPI** via Trusted Publishing (no API tokens)
+8. **GitHub release created** with changelog
 
-**Workflow**: `.github/workflows/semantic-release.yml`
+**Workflow**: `.github/workflows/release.yml`
 
 ### Conventional Commit Format
 
@@ -513,16 +514,19 @@ keyword arguments instead of positional arguments.
 docs: update README with phone parser examples
 ```
 
-### Manual Release (Emergency Only)
+### Security Features
 
-If semantic-release fails, you can manually trigger a release:
+- **PyPI Trusted Publishing**: No API tokens, OIDC authentication
+- **SHA-pinned Actions**: All GitHub Actions pinned to commit SHAs
+- **Isolated Testing**: Built packages tested in isolation before publish
+- **Automated Validation**: Multi-version testing, type checking, linting
+
+### Manual Override (Emergency Only)
 
 ```bash
-# Manually trigger the publish-pypi workflow
-gh workflow run publish-pypi.yml
+# Trigger release workflow manually
+gh workflow run release.yml
 ```
-
-**Note**: This should only be used in emergencies. The semantic-release workflow is the preferred method.
 
 ### Release Checklist
 
@@ -540,7 +544,7 @@ Before merging to `main`:
 gh release list
 
 # View workflow runs
-gh run list --workflow=semantic-release.yml
+gh run list --workflow=release.yml
 
 # Check PyPI versions
 pip index versions valid8r

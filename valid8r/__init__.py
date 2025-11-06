@@ -3,7 +3,11 @@
 
 from __future__ import annotations
 
-__version__ = '0.5.8'
+# Import version from generated file
+try:
+    from valid8r._version import __version__
+except ImportError:
+    __version__ = '0.0.0+unknown'
 
 # Public API re-exports for concise imports
 # Modules
