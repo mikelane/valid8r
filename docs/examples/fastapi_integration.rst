@@ -408,6 +408,84 @@ Use pattern matching to provide context-rich error messages:
 
        return result
 
+Example 7: Production-Ready FastAPI Integration
+------------------------------------------------
+
+For production deployments, add defense-in-depth validation with rate limiting, host validation, and multiple security layers:
+
+.. code-block:: python
+
+   from fastapi import FastAPI, HTTPException, Request
+   from fastapi.middleware.trustedhost import TrustedHostMiddleware
+   from slowapi import Limiter, _rate_limit_exceeded_handler
+   from slowapi.util import get_remote_address
+   from slowapi.errors import RateLimitExceeded
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from pydantic import BaseModel, field_validator
+
+   app = FastAPI()
+
+   # Layer 1: Rate limiting
+   limiter = Limiter(key_func=get_remote_address)
+   app.state.limiter = limiter
+   app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+   # Layer 2: Trusted host middleware
+   app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com"])
+
+   class UserInput(BaseModel):
+       email: str
+       phone: str
+
+       # Layer 3: Pydantic field validation (pre-Valid8r)
+       @field_validator('email')
+       @classmethod
+       def validate_email_length(cls, v: str) -> str:
+           if len(v) > 254:
+               raise ValueError('Email too long')
+           return v
+
+       @field_validator('phone')
+       @classmethod
+       def validate_phone_length(cls, v: str) -> str:
+           if len(v) > 100:
+               raise ValueError('Phone number too long')
+           return v
+
+   @app.post("/users/")
+   @limiter.limit("10/minute")  # Rate limit per IP
+   def create_user(request: Request, user: UserInput):
+       """Create user with defense-in-depth validation."""
+       # Layer 4: Valid8r parsing (with built-in DoS protection)
+       email_result = parsers.parse_email(user.email)
+       phone_result = parsers.parse_phone(user.phone)
+
+       match (email_result, phone_result):
+           case (Success(email), Success(phone)):
+               return {
+                   "email": f"{email.local}@{email.domain}",
+                   "phone": phone.national
+               }
+           case (Failure(_), _):
+               raise HTTPException(status_code=400, detail="Invalid email")
+           case (_, Failure(_)):
+               raise HTTPException(status_code=400, detail="Invalid phone")
+
+.. note::
+   This example demonstrates **defense in depth**: rate limiting (Layer 1), host validation (Layer 2),
+   Pydantic pre-validation (Layer 3), and Valid8r parsing (Layer 4). See :doc:`/security/production-deployment`
+   for complete FastAPI security patterns.
+
+Installation for Production Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To run the production example, install additional dependencies:
+
+.. code-block:: bash
+
+   pip install valid8r fastapi uvicorn slowapi
+
 Running the Example
 --------------------
 
