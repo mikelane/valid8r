@@ -31,10 +31,4 @@ runs:
     - name: Install dependencies
       if: inputs.dependency-groups != ''
       shell: bash
-      run: |
-        GROUPS="${{ inputs.dependency-groups }}"
-        GROUP_FLAGS=""
-        for group in $GROUPS; do
-          GROUP_FLAGS="$GROUP_FLAGS --group $group"
-        done
-        uv sync $GROUP_FLAGS
+      run: uv sync --group ${{ inputs.dependency-groups }}
