@@ -41,6 +41,9 @@ Issues = "https://github.com/mikelane/valid8r/issues"
 docs-build = "scripts.docs:build"
 docs-serve = "scripts.docs:serve"
 
+[project.optional-dependencies]
+click = ["click>=8.0.0"]
+
 [dependency-groups]
 dev = [
     "fastapi>=0.119.0",
@@ -69,6 +72,7 @@ docs = [
 
 test = [
     "behave>=1.3.0",
+    "click>=8.0.0",
     "coverage>=7.10.2",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
@@ -205,6 +209,8 @@ module = [
   "behave.*",
   "sphinx",
   "sphinx.*",
+  "click",
+  "click.*",
 ]
 ignore_missing_imports = true
 

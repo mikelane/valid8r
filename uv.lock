@@ -1584,6 +1584,11 @@ dependencies = [
     { name = "uuid-utils" },
 ]
 
+[package.optional-dependencies]
+click = [
+    { name = "click" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "fastapi" },
@@ -1609,6 +1614,7 @@ lint = [
 ]
 test = [
     { name = "behave" },
+    { name = "click" },
     { name = "coverage" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -1619,11 +1625,13 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", marker = "extra == 'click'", specifier = ">=8.0.0" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-core", specifier = ">=2.27.0" },
     { name = "uuid-utils", specifier = ">=0.11.0" },
 ]
+provides-extras = ["click"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1650,6 +1658,7 @@ lint = [
 ]
 test = [
     { name = "behave", specifier = ">=1.3.0" },
+    { name = "click", specifier = ">=8.0.0" },
     { name = "coverage", specifier = ">=7.10.2" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
