@@ -9,7 +9,7 @@ import pytest
 
 click = pytest.importorskip('click')
 
-from valid8r.core import (
+from valid8r.core import (  # noqa: E402
     parsers,
     validators,
 )

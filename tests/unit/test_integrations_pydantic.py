@@ -249,9 +249,10 @@ class DescribeNestedModelValidation:
 
     def it_includes_field_path_in_nested_validation_errors(self) -> None:
         """Nested validation errors include field path (Gherkin scenario 2)."""
+        from valid8r.core.parsers import PhoneNumber  # noqa: PLC0415  # Runtime needed for Pydantic
 
         class Address(BaseModel):
-            phone: PhoneNumber  # type: ignore[name-defined]  # PhoneNumber in TYPE_CHECKING
+            phone: PhoneNumber
 
             @field_validator('phone', mode='before')
             @classmethod
