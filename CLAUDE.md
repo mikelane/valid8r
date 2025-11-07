@@ -66,6 +66,7 @@ All new features MUST follow this exact workflow using the specialized agents de
 - Skip the Gherkin phase for new features
 - Modify Gherkin/Cucumber tests during implementation
 - Commit code with failing tests
+- Make ANY code changes without an associated GitHub issue/ticket
 
 **ALWAYS:**
 - Start with product-technical-lead for new features
@@ -74,6 +75,74 @@ All new features MUST follow this exact workflow using the specialized agents de
 - See tests FAIL (RED) before writing code
 - Make tests PASS (GREEN) with minimal code
 - Refactor while keeping tests GREEN
+- Work against a GitHub issue/ticket (existing or newly created)
+- Keep the issue/ticket updated with progress throughout development
+
+## **MANDATORY: GitHub Issue/Ticket Requirement**
+
+**ALL work must be tracked in a GitHub issue. NO EXCEPTIONS.**
+
+### Rules for All Agents
+
+1. **Before making ANY changes** (code, docs, config, tests):
+   - Verify an open GitHub issue exists for the work
+   - If no issue exists, ask the user if you should create one
+   - Link all commits and PRs to the issue number (e.g., `feat: add parser (#123)`)
+
+2. **Throughout development**:
+   - Update the issue with progress comments at key milestones:
+     - When starting work: "Starting implementation"
+     - After major steps: "BDD tests complete (RED)", "TDD cycle complete (GREEN)"
+     - When blocked: "Blocked by X, investigating Y"
+     - When complete: "Implementation complete, PR #XXX ready for review"
+   - Reference the issue in ALL commit messages using `#issue-number`
+   - Keep the issue status current (labels, assignees, milestones)
+
+3. **When completing work**:
+   - Reference the issue in the PR description (e.g., "Closes #123")
+   - Add a final comment summarizing what was delivered
+   - Do NOT close issues manually - let PRs close them automatically
+
+### Creating Issues
+
+When creating a new issue, include:
+- **Title**: Clear, concise description of the work
+- **Body**:
+  - Summary of what needs to be done
+  - Acceptance criteria (Gherkin scenarios if applicable)
+  - Technical considerations
+  - Related issues (blocks/blocked by)
+- **Labels**: Appropriate labels (enhancement, bug, integration, etc.)
+- **Milestone**: If part of a larger initiative
+
+### Examples
+
+**Good commit message:**
+```
+feat: add environment variable integration (#147)
+```
+
+**Good PR description:**
+```
+Closes #147
+
+Implements environment variable integration with schema validation.
+All BDD scenarios passing, comprehensive tests included.
+```
+
+**Good issue update:**
+```
+Starting BDD test implementation. Created feature file with 7 scenarios
+covering all acceptance criteria from the issue description.
+```
+
+**Bad commit message:**
+```
+add env vars  # Missing issue reference
+```
+
+**Bad workflow:**
+Making changes without creating/referencing any issue
 
 ## Common Development Commands
 
@@ -558,3 +627,40 @@ The `main` branch is protected by repository rulesets. The semantic-release work
 - Repository ruleset: Requires review for all PRs
 - Bypass actor: Repository administrators (using Classic PAT with `repo` scope)
 - Secret: `SEMANTIC_RELEASE_TOKEN` (Classic PAT, not fine-grained)
+- do not push to github without running the full pre-commit suite of linting and tests.
+
+### GitHub Auto-Close Issues Workflow
+
+**Problem**: GitHub's native auto-close feature doesn't work with squash merges when the closing keyword ("Closes #XXX", "Fixes #XXX", "Resolves #XXX") is only in the PR description body, not the PR title.
+
+**Solution**: Custom GitHub Action (`.github/workflows/auto-close-issues.yml`) that:
+1. Triggers when a PR is merged to `main`
+2. Parses the PR description for closing keywords
+3. Automatically closes referenced issues via GitHub API
+4. Adds a comment linking the PR that closed the issue
+
+**Supported Keywords** (case-insensitive):
+- `Closes #123`, `Close #123`, `Closed #123`
+- `Fixes #123`, `Fix #123`, `Fixed #123`
+- `Resolves #123`, `Resolve #123`, `Resolved #123`
+
+**PR Best Practices**:
+```markdown
+## Summary
+Brief description of changes
+
+## Implementation
+Technical details
+
+## Related Issues
+Closes #142
+Fixes #145
+```
+
+**Benefits**:
+- Eliminates manual issue closing after PR merge
+- Prevents PM agents from suggesting already-completed work
+- Provides traceability with automatic comments
+- Works seamlessly with existing squash merge workflow
+
+**Workflow Run**: Adds ~5-10 seconds to PR merge process (negligible cost)
