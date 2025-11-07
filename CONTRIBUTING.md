@@ -5,6 +5,7 @@ Thank you for considering contributing to Valid8r! This document provides guidel
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
+- [Fork-Based Contributions Required](#fork-based-contributions-required)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [Development Workflow](#development-workflow)
@@ -21,6 +22,16 @@ Thank you for considering contributing to Valid8r! This document provides guidel
 
 This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to mikelane@gmail.com.
 
+## Fork-Based Contributions Required
+
+**Important**: This repository requires all contributions to be made via forks, not direct branches.
+
+- **External contributors**: Must fork the repository and submit PRs from their fork
+- **Collaborators with write access**: Should also use forks for contributions
+- **Why**: This ensures a consistent workflow, improves security, and keeps the main repository clean
+
+The `main` branch is protected and requires pull requests for all changes. Direct pushes to `main` are not allowed.
+
 ## Getting Started
 
 ### Prerequisites
@@ -32,15 +43,29 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 ### Fork and Clone
 
-1. Fork the repository on GitHub
-2. Clone your fork locally:
+**All contributions must come from a fork** - you cannot create branches directly in the main repository.
+
+1. **Fork the repository** on GitHub by clicking the "Fork" button at https://github.com/mikelane/valid8r
+
+2. **Clone your fork** locally:
    ```bash
    git clone https://github.com/YOUR-USERNAME/valid8r.git
    cd valid8r
    ```
-3. Add the upstream repository:
+
+3. **Add the upstream repository** to keep your fork in sync:
    ```bash
    git remote add upstream https://github.com/mikelane/valid8r.git
+   ```
+
+4. **Verify your remotes**:
+   ```bash
+   git remote -v
+   # You should see:
+   # origin    https://github.com/YOUR-USERNAME/valid8r.git (fetch)
+   # origin    https://github.com/YOUR-USERNAME/valid8r.git (push)
+   # upstream  https://github.com/mikelane/valid8r.git (fetch)
+   # upstream  https://github.com/mikelane/valid8r.git (push)
    ```
 
 ## Development Setup
@@ -94,19 +119,42 @@ Pre-commit hooks automatically:
 
 ## Development Workflow
 
-### 1. Create a Feature Branch
+### 1. Keep Your Fork Up to Date
+
+Before creating a new feature branch, sync your fork with the upstream repository:
 
 ```bash
+# Fetch upstream changes
+git fetch upstream
+
+# Update your local main branch
+git checkout main
+git merge upstream/main
+
+# Push updates to your fork
+git push origin main
+```
+
+### 2. Create a Feature Branch (In Your Fork)
+
+**Important**: Create branches in your fork, not in the upstream repository.
+
+```bash
+# Ensure you're on an updated main branch
+git checkout main
+git pull upstream main
+
+# Create and switch to a new feature branch
 git checkout -b feat/your-feature-name
 # or
 git checkout -b fix/your-bug-fix
 ```
 
-### 2. Make Your Changes
+### 3. Make Your Changes
 
 Write clean, well-tested code following our style guidelines.
 
-### 3. Run Tests Locally
+### 4. Run Tests Locally
 
 ```bash
 # Run all tests with coverage
@@ -122,7 +170,7 @@ uv run tox -e bdd
 uv run tox -e lint
 ```
 
-### 4. Commit Your Changes
+### 5. Commit Your Changes
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
@@ -133,13 +181,21 @@ git commit -m "feat: add new email validation parser"
 
 See [Commit Messages](#commit-messages) section for details.
 
-### 5. Push and Create Pull Request
+### 6. Push to Your Fork and Create Pull Request
+
+**Push to your fork** (origin), not upstream:
 
 ```bash
+# Push your feature branch to YOUR fork
 git push origin feat/your-feature-name
 ```
 
-Then create a Pull Request on GitHub.
+Then create a Pull Request on GitHub:
+1. Go to https://github.com/mikelane/valid8r
+2. Click "Pull requests" → "New pull request"
+3. Click "compare across forks"
+4. Select your fork and branch as the source
+5. Fill out the PR template completely
 
 ## Code Style
 

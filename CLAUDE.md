@@ -144,6 +144,157 @@ add env vars  # Missing issue reference
 **Bad workflow:**
 Making changes without creating/referencing any issue
 
+## **MANDATORY: Documentation Requirement**
+
+**ALL code changes must include updated documentation. NO EXCEPTIONS.**
+
+Documentation is not a separate task—it is an integral part of every pull request. No PR is considered complete without documentation updates.
+
+### Rules for All Agents
+
+**1. Documentation Must Be Updated BEFORE PR Creation:**
+   - Code changes without documentation updates will be rejected in code review
+   - Documentation updates are NOT optional follow-up work
+   - Treat documentation with the same rigor as tests and code
+
+**2. Required Documentation Types:**
+
+   **For New Features:**
+   - [ ] Docstrings for all public functions/classes (with examples)
+   - [ ] API documentation in `docs/` (if applicable)
+   - [ ] User guide section or update (how to use the feature)
+   - [ ] README.md update (if feature is user-facing)
+   - [ ] CHANGELOG.md entry (via conventional commits)
+   - [ ] Code examples in `examples/` (if appropriate)
+
+   **For Bug Fixes:**
+   - [ ] Update existing docstrings if behavior changed
+   - [ ] Update user guide if fix affects documented behavior
+   - [ ] Add clarifying comments if bug was non-obvious
+   - [ ] CHANGELOG.md entry (via conventional commits)
+
+   **For Refactoring:**
+   - [ ] Update docstrings to reflect new architecture
+   - [ ] Update architectural documentation if applicable
+   - [ ] Add/update code comments explaining design decisions
+   - [ ] Update diagrams if architecture changed
+
+   **For Infrastructure/CI Changes:**
+   - [ ] Update CONTRIBUTING.md if developer workflow changes
+   - [ ] Update README.md if setup instructions change
+   - [ ] Document new workflows in `.github/workflows/README.md`
+   - [ ] Update this CLAUDE.md if agent behavior should change
+
+**3. Documentation Quality Standards:**
+
+   **Docstrings:**
+   - Use Google-style or NumPy-style format consistently
+   - Include type information (handled by type hints)
+   - Provide usage examples as doctests where appropriate
+   - Document all parameters, return values, and exceptions
+   - Explain WHY, not just WHAT (especially for non-obvious code)
+
+   **User Documentation:**
+   - Write for the intended audience (users vs. developers)
+   - Include working code examples
+   - Explain common use cases and patterns
+   - Document edge cases and limitations
+   - Keep language clear and concise
+
+   **API Documentation:**
+   - Auto-generated via sphinx-autoapi (requires good docstrings)
+   - Manual sections for concepts, tutorials, guides
+   - Keep examples tested and up-to-date
+
+**4. Documentation Testing:**
+   - [ ] Run `uv run tox -e docs` to verify docs build without errors
+   - [ ] Test all code examples in documentation
+   - [ ] Verify doctests pass with `pytest --doctest-modules`
+   - [ ] Check for broken links in documentation
+   - [ ] Preview rendered documentation locally
+
+**5. PR Checklist for Documentation:**
+
+   Every PR description must include:
+   ```markdown
+   ## Documentation Updates
+   - [ ] Docstrings added/updated
+   - [ ] User guide updated
+   - [ ] API docs updated (if applicable)
+   - [ ] Examples added/updated
+   - [ ] README.md updated (if needed)
+   - [ ] CHANGELOG.md entry (via conventional commit)
+   - [ ] Docs build successfully (`uv run tox -e docs`)
+   ```
+
+**6. What Happens If Documentation Is Missing:**
+   - Code reviewer will request changes
+   - PR will not be approved until documentation is complete
+   - CI may fail if docs don't build
+   - Issue will not be considered complete
+
+### Examples
+
+**Good PR (includes documentation):**
+```markdown
+Closes #147
+
+## Summary
+Implements environment variable integration with schema validation.
+
+## Documentation Updates
+- ✅ Added comprehensive docstrings to EnvSchema, EnvField, load_env_config
+- ✅ Created docs/integrations/environment.md user guide
+- ✅ Added FastAPI example in examples/env_example.py
+- ✅ Updated valid8r/integrations/__init__.py exports
+- ✅ Updated README.md with environment variable section
+- ✅ Conventional commit includes CHANGELOG entry
+- ✅ Docs build verified locally
+
+## Tests
+All BDD scenarios passing, comprehensive unit tests included.
+```
+
+**Bad PR (missing documentation):**
+```markdown
+Closes #147
+
+Added environment variable support. All tests passing.
+```
+*This PR would be rejected—no docstrings, no user guide, no examples.*
+
+### Documentation-First Mindset
+
+**Think of documentation as:**
+- A specification that prevents bugs (like tests)
+- A contract with users about behavior
+- A design tool (writing docs often reveals design flaws)
+- A force multiplier (good docs reduce support burden)
+
+**Documentation is not:**
+- An afterthought
+- Someone else's job
+- Optional for "small" changes
+- Something to "do later"
+
+### Special Cases
+
+**Experimental Features:**
+- Must still be documented
+- Mark clearly as "experimental" or "unstable"
+- Document what might change in future versions
+
+**Internal/Private Code:**
+- Still needs docstrings (for maintainers)
+- Less extensive than public API
+- Focus on WHY and design decisions
+
+**Breaking Changes:**
+- MUST document migration path
+- Update user guide with before/after examples
+- Include in CHANGELOG with "BREAKING CHANGE:" footer
+- Consider deprecation warnings before removal
+
 ## Common Development Commands
 
 **Note**: This project uses `uv` for dependency management. The migration from Poetry to uv was completed in November 2025 (PR #48), bringing 60% faster CI pipelines and 300x+ faster dependency resolution.
