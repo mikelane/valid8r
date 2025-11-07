@@ -56,21 +56,40 @@ Quick Start
 Installation
 ------------
 
+**Basic installation** (includes Pydantic integration):
+
 .. code-block:: bash
 
    pip install valid8r
 
-Alternatively, if you use uv:
+**With optional framework integrations**:
+
+.. code-block:: bash
+
+   # Click integration for CLI applications
+   pip install valid8r[click]
+
+**Using uv**:
 
 .. code-block:: bash
 
    uv add valid8r
+   # or with Click
+   uv add "valid8r[click]"
 
-Or if you use Poetry:
+**Using Poetry**:
 
 .. code-block:: bash
 
    poetry add valid8r
+   # or with Click
+   poetry add "valid8r[click]"
+
+.. note::
+   **Pydantic integration** is included by default. The **Click integration** is optional
+   and only needed if you're building CLI applications with Click.
+
+   See :doc:`user_guide/getting_started` for detailed installation instructions.
 
 Validation with Pattern Matching
 --------------------------------

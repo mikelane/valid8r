@@ -4,23 +4,55 @@ Getting Started
 Installation
 ------------
 
-Valid8r requires Python 3.11 or higher (supports Python 3.11-3.14). You can install it using pip:
+Valid8r requires Python 3.11 or higher (supports Python 3.11-3.14).
+
+**Basic Installation** (includes Pydantic integration):
 
 .. code-block:: bash
 
    pip install valid8r
 
-Or, if you use uv (recommended for faster dependency resolution):
+**With Optional Integrations**:
+
+.. code-block:: bash
+
+   # Click integration for CLI applications
+   pip install valid8r[click]
+
+**Using uv** (recommended for faster dependency resolution):
 
 .. code-block:: bash
 
    uv add valid8r
+   # or with Click
+   uv add "valid8r[click]"
 
-Or with Poetry:
+**Using Poetry**:
 
 .. code-block:: bash
 
    poetry add valid8r
+   # or with Click
+   poetry add "valid8r[click]"
+
+**What's Included**:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Feature
+     - Installation
+     - Import
+   * - Core parsers & validators
+     - ``pip install valid8r``
+     - ``from valid8r import parsers, validators``
+   * - **Pydantic integration**
+     - *included by default*
+     - ``from valid8r.integrations import validator_from_parser``
+   * - **Click integration (CLI)**
+     - ``pip install valid8r[click]``
+     - ``from valid8r.integrations import ParamTypeAdapter``
 
 Basic Concepts
 --------------
