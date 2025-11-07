@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from valid8r.core.maybe import Maybe
+    from valid8r.core.parsers import PhoneNumber
 
 
 class DescribeValidatorFromParser:
@@ -224,14 +225,14 @@ class DescribeNestedModelValidation:
 
     def it_validates_nested_model_with_valid8r_parser(self) -> None:
         """Validate nested model with valid8r parser (Gherkin scenario 1)."""
-        from valid8r.core.parsers import PhoneNumber
+        from valid8r.core.parsers import PhoneNumber  # type: ignore[misc]  # Runtime needed
 
         class Address(BaseModel):
             phone: PhoneNumber
 
             @field_validator('phone', mode='before')
             @classmethod
-            def validate_phone(cls, v):
+            def validate_phone(cls, v: Any) -> PhoneNumber:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_phone)(v)
 
         class User(BaseModel):
@@ -248,14 +249,13 @@ class DescribeNestedModelValidation:
 
     def it_includes_field_path_in_nested_validation_errors(self) -> None:
         """Nested validation errors include field path (Gherkin scenario 2)."""
-        from valid8r.core.parsers import PhoneNumber
 
         class Address(BaseModel):
-            phone: PhoneNumber
+            phone: PhoneNumber  # type: ignore[name-defined]  # PhoneNumber in TYPE_CHECKING
 
             @field_validator('phone', mode='before')
             @classmethod
-            def validate_phone(cls, v):
+            def validate_phone(cls, v: Any) -> PhoneNumber:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_phone)(v)
 
         class User(BaseModel):
@@ -286,7 +286,7 @@ class DescribeNestedModelValidation:
 
             @field_validator('email', mode='before')
             @classmethod
-            def validate_email(cls, v):
+            def validate_email(cls, v: Any) -> EmailAddress:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_email)(v)
 
         class Department(BaseModel):
@@ -315,7 +315,7 @@ class DescribeNestedModelValidation:
 
             @field_validator('email', mode='before')
             @classmethod
-            def validate_email(cls, v):
+            def validate_email(cls, v: Any) -> EmailAddress:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_email)(v)
 
         class Department(BaseModel):
@@ -351,8 +351,8 @@ class DescribeListOfModelsValidation:
 
             @field_validator('quantity', mode='before')
             @classmethod
-            def validate_quantity(cls, v):
-                def quantity_parser(value):
+            def validate_quantity(cls, v: Any) -> int:  # noqa: ANN401
+                def quantity_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
                     return parsers.parse_int(value).bind(validators.minimum(1))
 
                 return validator_from_parser(quantity_parser)(v)
@@ -374,8 +374,8 @@ class DescribeListOfModelsValidation:
 
             @field_validator('quantity', mode='before')
             @classmethod
-            def validate_quantity(cls, v):
-                def quantity_parser(value):
+            def validate_quantity(cls, v: Any) -> int:  # noqa: ANN401
+                def quantity_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
                     return parsers.parse_int(value).bind(validators.minimum(1))
 
                 return validator_from_parser(quantity_parser)(v)
@@ -432,9 +432,9 @@ class DescribeDictValueValidation:
 
             @field_validator('ports', mode='before')
             @classmethod
-            def validate_ports(cls, v):
+            def validate_ports(cls, v: Any) -> dict[str, int]:  # noqa: ANN401
                 if not isinstance(v, dict):
-                    raise ValueError('ports must be a dict')
+                    raise TypeError('ports must be a dict')
 
                 # Validate each value in the dict
                 validated = {}
@@ -454,9 +454,9 @@ class DescribeDictValueValidation:
 
             @field_validator('ports', mode='before')
             @classmethod
-            def validate_ports(cls, v):
+            def validate_ports(cls, v: Any) -> dict[str, int]:  # noqa: ANN401
                 if not isinstance(v, dict):
-                    raise ValueError('ports must be a dict')
+                    raise TypeError('ports must be a dict')
 
                 validated = {}
                 for key, value in v.items():
@@ -482,7 +482,7 @@ class DescribeDictValueValidation:
 
             @field_validator('email', mode='before')
             @classmethod
-            def validate_email(cls, v):
+            def validate_email(cls, v: Any) -> EmailAddress:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_email)(v)
 
         class Team(BaseModel):
