@@ -739,3 +739,190 @@ class DescribeParsers:
                 pytest.fail(f'Unexpected success: {result}')
             case Failure(error):
                 assert 'Invalid input' in error
+
+
+class DescribeParsePath:
+    """Tests for parse_path function."""
+
+    def it_parses_absolute_posix_path(self) -> None:
+        """Parse an absolute POSIX path."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('/home/user/file.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert path.is_absolute()
+                assert path.parts == ('/', 'home', 'user', 'file.txt')
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_parses_relative_path(self) -> None:
+        """Parse a relative path."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('./data/file.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert not path.is_absolute()
+                # Path normalizes './data/file.txt' to 'data/file.txt'
+                assert path.parts == ('data', 'file.txt')
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_rejects_none_input(self) -> None:
+        """Reject None input."""
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path(None)
+        match result:
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(err):
+                assert 'Path cannot be empty' in err
+
+    def it_rejects_empty_string(self) -> None:
+        """Reject empty string input."""
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('')
+        match result:
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(err):
+                assert 'Path cannot be empty' in err
+
+    def it_normalizes_redundant_separators(self) -> None:
+        """Normalize paths with redundant separators."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('/home//user///file.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                # Path normalization should collapse multiple separators
+                assert str(path) == '/home/user/file.txt'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_handles_current_directory(self) -> None:
+        """Handle current directory path."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('.')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert str(path) == '.'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_handles_parent_directory(self) -> None:
+        """Handle parent directory path."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('..')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert str(path) == '..'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_expands_user_directory_when_requested(self) -> None:
+        """Expand home directory when expand_user=True."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('~/documents/file.txt', expand_user=True)
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                # Path should start with the user's home directory
+                home_dir = Path('~').expanduser()
+                assert str(path).startswith(str(home_dir))
+                assert 'documents' in str(path)
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_does_not_expand_user_by_default(self) -> None:
+        """Do not expand home directory by default."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('~/documents/file.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                # Should keep the tilde
+                assert str(path) == '~/documents/file.txt'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_resolves_to_absolute_path_when_requested(self) -> None:
+        """Resolve to absolute path when resolve=True."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('./file.txt', resolve=True)
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert path.is_absolute()
+                # Should be in current working directory
+                cwd = Path.cwd()
+                assert str(path).startswith(str(cwd))
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_does_not_resolve_by_default(self) -> None:
+        """Do not resolve paths by default."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('./file.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert not path.is_absolute()
+                assert str(path) == 'file.txt'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    @pytest.mark.parametrize(
+        ('input_path', 'expected_parts'),
+        [
+            pytest.param('/home/user/file.txt', ('/', 'home', 'user', 'file.txt'), id='absolute-posix'),
+            pytest.param('data/file.txt', ('data', 'file.txt'), id='relative-simple'),
+            pytest.param('./data/file.txt', ('data', 'file.txt'), id='relative-dot'),  # Path normalizes ./ away
+            pytest.param('../parent/file.txt', ('..', 'parent', 'file.txt'), id='relative-parent'),
+        ],
+    )
+    def it_parses_various_path_formats(self, input_path: str, expected_parts: tuple[str, ...]) -> None:
+        """Parse various path formats correctly."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path(input_path)
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert path.parts == expected_parts
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')

@@ -57,6 +57,7 @@ from ipaddress import (
     ip_address,
     ip_network,
 )
+from pathlib import Path
 from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
@@ -2015,6 +2016,68 @@ def parse_jwt(text: str) -> Maybe[str]:
     return Maybe.success(text)
 
 
+def parse_path(
+    text: str | None,
+    *,
+    expand_user: bool = False,
+    resolve: bool = False,
+) -> Maybe[Path]:
+    """Parse a string into a pathlib.Path object.
+
+    Converts string representations of filesystem paths to Python Path objects.
+    Handles cross-platform path formats, optional home directory expansion,
+    and optional resolution to absolute paths.
+
+    Args:
+        text: The path string to parse (leading/trailing whitespace is stripped)
+        expand_user: If True, expand ~ to user's home directory (default: False)
+        resolve: If True, resolve to absolute path following symlinks (default: False)
+
+    Returns:
+        Maybe[Path]: Success(Path) if parsing succeeds, Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_path('/home/user/file.txt')
+        Success(PosixPath('/home/user/file.txt'))
+        >>> parse_path('data/file.txt')
+        Success(PosixPath('data/file.txt'))
+        >>> parse_path('')
+        Failure('Path cannot be empty')
+        >>> parse_path(None)
+        Failure('Path cannot be empty')
+
+    Notes:
+        - Path normalization (collapsing redundant separators) happens automatically
+        - This parser does NOT validate path existence - use validators for that
+        - Use expand_user=True to expand ~ to the user's home directory
+        - Use resolve=True to convert relative paths to absolute paths
+        - The resolve option will follow symlinks and normalize the path
+    """
+    # Handle None or empty input
+    if text is None or not isinstance(text, str):
+        return Maybe.failure('Path cannot be empty')
+
+    stripped = text.strip()
+    if stripped == '':
+        return Maybe.failure('Path cannot be empty')
+
+    try:
+        # Create Path object (automatically normalizes redundant separators)
+        path = Path(stripped)
+
+        # Expand user directory if requested
+        if expand_user:
+            path = path.expanduser()
+
+        # Resolve to absolute path if requested
+        if resolve:
+            path = path.resolve()
+
+        return Maybe.success(path)
+    except (ValueError, OSError) as e:
+        return Maybe.failure(f'Invalid path: {e!s}')
+
+
 # Public API exports
 __all__ = [
     'EmailAddress',
@@ -2042,6 +2105,7 @@ __all__ = [
     'parse_jwt',
     'parse_list',
     'parse_list_with_validation',
+    'parse_path',
     'parse_phone',
     'parse_set',
     'parse_slug',
