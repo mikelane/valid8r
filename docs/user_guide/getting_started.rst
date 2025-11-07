@@ -17,7 +17,7 @@ Valid8r requires Python 3.11 or higher (supports Python 3.11-3.14).
 .. code-block:: bash
 
    # Click integration for CLI applications
-   pip install valid8r[click]
+   pip install 'valid8r[click]'
 
 **Using uv** (recommended for faster dependency resolution):
 
@@ -51,7 +51,7 @@ Valid8r requires Python 3.11 or higher (supports Python 3.11-3.14).
      - *included by default*
      - ``from valid8r.integrations import validator_from_parser``
    * - **Click integration (CLI)**
-     - ``pip install valid8r[click]``
+     - ``pip install 'valid8r[click]'``
      - ``from valid8r.integrations import ParamTypeAdapter``
 
 Basic Concepts

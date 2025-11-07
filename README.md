@@ -49,10 +49,10 @@ pip install valid8r
 **With optional framework integrations**:
 ```bash
 # Click integration for CLI applications
-pip install valid8r[click]
+pip install 'valid8r[click]'
 
 # All optional integrations
-pip install valid8r[click]
+pip install 'valid8r[click]'
 ```
 
 **Requirements**: Python 3.11 or higher
@@ -61,7 +61,7 @@ pip install valid8r[click]
 |---------|--------------|--------|
 | Core parsers & validators | `pip install valid8r` | `from valid8r import parsers, validators` |
 | Pydantic integration | _included by default_ | `from valid8r.integrations import validator_from_parser` |
-| Click integration (CLI) | `pip install valid8r[click]` | `from valid8r.integrations import ParamTypeAdapter` |
+| Click integration (CLI) | `pip install 'valid8r[click]'` | `from valid8r.integrations import ParamTypeAdapter` |
 
 ### Basic Parsing
 
@@ -201,7 +201,7 @@ Works seamlessly with nested models, lists, and complex Pydantic schemas. See [P
 
 #### Click Integration (Optional)
 
-Install: `pip install valid8r[click]`
+Install: `pip install 'valid8r[click]'`
 
 Integrate valid8r parsers into Click CLI applications:
 

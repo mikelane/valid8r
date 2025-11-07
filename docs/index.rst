@@ -67,7 +67,7 @@ Installation
 .. code-block:: bash
 
    # Click integration for CLI applications
-   pip install valid8r[click]
+   pip install 'valid8r[click]'
 
 **Using uv**:
 
