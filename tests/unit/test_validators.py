@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -339,3 +340,197 @@ class DescribeIsSorted:
 
         assert result.is_success()
         assert result.value_or([]) == [5, 4, 3, 2, 1]
+
+
+class DescribeFilesystemValidators:
+    """Tests for filesystem validators (exists, is_file, is_dir)."""
+
+    def it_accepts_existing_file_with_exists(self, tmp_path: Path) -> None:
+        """Test exists() accepts a path that exists on the filesystem."""
+        from valid8r.core.validators import exists
+
+        # Create temporary file
+        test_file = tmp_path / 'test.txt'
+        test_file.write_text('test content')
+
+        # Validate
+        validator = exists()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_non_existent_path_with_exists(self) -> None:
+        """Test exists() rejects a path that does not exist."""
+        from valid8r.core.validators import exists
+
+        non_existent = Path('/nonexistent/file.txt')
+
+        validator = exists()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        assert 'does not exist' in result.error_or('').lower()
+
+    def it_accepts_file_with_is_file(self, tmp_path: Path) -> None:
+        """Test is_file() accepts a path that is a regular file."""
+        from valid8r.core.validators import is_file
+
+        # Create temporary file
+        test_file = tmp_path / 'test.txt'
+        test_file.write_text('test content')
+
+        # Validate
+        validator = is_file()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_directory_with_is_file(self, tmp_path: Path) -> None:
+        """Test is_file() rejects a path that is a directory."""
+        from valid8r.core.validators import is_file
+
+        # Validate directory
+        validator = is_file()
+        result = validator(tmp_path)
+
+        assert result.is_failure()
+        assert 'not a file' in result.error_or('').lower()
+
+    def it_rejects_non_existent_path_with_is_file(self) -> None:
+        """Test is_file() rejects a path that does not exist."""
+        from valid8r.core.validators import is_file
+
+        non_existent = Path('/nonexistent/file.txt')
+
+        validator = is_file()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        # Should mention it's not a file (existence is checked by is_file)
+        assert 'not a file' in result.error_or('').lower()
+
+    def it_accepts_directory_with_is_dir(self, tmp_path: Path) -> None:
+        """Test is_dir() accepts a path that is a directory."""
+        from valid8r.core.validators import is_dir
+
+        # Validate directory
+        validator = is_dir()
+        result = validator(tmp_path)
+
+        assert result.is_success()
+        assert result.value_or(None) == tmp_path
+
+    def it_rejects_file_with_is_dir(self, tmp_path: Path) -> None:
+        """Test is_dir() rejects a path that is a file."""
+        from valid8r.core.validators import is_dir
+
+        # Create temporary file
+        test_file = tmp_path / 'test.txt'
+        test_file.write_text('test content')
+
+        # Validate
+        validator = is_dir()
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'not a directory' in result.error_or('').lower()
+
+    def it_rejects_non_existent_path_with_is_dir(self) -> None:
+        """Test is_dir() rejects a path that does not exist."""
+        from valid8r.core.validators import is_dir
+
+        non_existent = Path('/nonexistent/dir')
+
+        validator = is_dir()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        assert 'not a directory' in result.error_or('').lower()
+
+    def it_chains_validators_for_complete_validation(self, tmp_path: Path) -> None:
+        """Test chaining exists() and is_file() for complete validation."""
+        from valid8r.core.validators import (
+            exists,
+            is_file,
+        )
+
+        # Create temporary file
+        test_file = tmp_path / 'data.csv'
+        test_file.write_text('data')
+
+        # Chain validators
+        validator = exists() & is_file()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_fails_chained_validation_at_first_error(self) -> None:
+        """Test chained validation fails at first error (exists before is_file)."""
+        from valid8r.core.validators import (
+            exists,
+            is_file,
+        )
+
+        non_existent = Path('/nonexistent/file.txt')
+
+        # Chain validators
+        validator = exists() & is_file()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        # Should fail at exists() check
+        assert 'does not exist' in result.error_or('').lower()
+
+    def it_validates_with_parse_path_pipeline(self, tmp_path: Path) -> None:
+        """Test validation works in parse_path pipeline."""
+        from valid8r.core import parsers
+        from valid8r.core.validators import (
+            exists,
+            is_file,
+        )
+
+        # Create temporary file
+        test_file = tmp_path / 'test.txt'
+        test_file.write_text('test')
+
+        # Parse and validate
+        result = parsers.parse_path(str(test_file)).bind(lambda p: (exists() & is_file())(p))
+
+        assert result.is_success()
+        assert isinstance(result.value_or(None), Path)
+
+    def it_handles_symbolic_links_with_exists(self, tmp_path: Path) -> None:
+        """Test exists() follows symbolic links and validates target exists."""
+        from valid8r.core.validators import exists
+
+        # Create real file and symlink
+        real_file = tmp_path / 'real.txt'
+        real_file.write_text('content')
+
+        link = tmp_path / 'link.txt'
+        link.symlink_to(real_file)
+
+        # Validate symlink
+        validator = exists()
+        result = validator(link)
+
+        assert result.is_success()
+        assert result.value_or(None) == link
+
+    def it_rejects_broken_symbolic_link_with_exists(self, tmp_path: Path) -> None:
+        """Test exists() rejects broken symbolic links."""
+        from valid8r.core.validators import exists
+
+        # Create broken symlink
+        broken_link = tmp_path / 'broken'
+        broken_link.symlink_to(tmp_path / 'nonexistent')
+
+        # Validate
+        validator = exists()
+        result = validator(broken_link)
+
+        assert result.is_failure()
+        assert 'does not exist' in result.error_or('').lower()

@@ -24,6 +24,7 @@ from valid8r.core.maybe import Maybe
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
 
 class SupportsComparison(Protocol):  # noqa: D101
@@ -561,5 +562,121 @@ def is_sorted(*, reverse: bool = False, error_message: str | None = None) -> Val
             return Maybe.success(value)
         direction = 'descending' if reverse else 'ascending'
         return Maybe.failure(error_message or f'List must be sorted in {direction} order')
+
+    return Validator(validator)
+
+
+def exists() -> Validator[Path]:
+    """Create a validator that ensures a path exists on the filesystem.
+
+    Validates that a Path object points to an existing file or directory.
+    Follows symbolic links by default (uses Path.exists()).
+
+    Returns:
+        Validator[Path]: A validator function that checks path existence
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import exists
+        >>> # Existing path (doctest creates temp file)
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     exists()(path).is_success()
+        True
+        >>> # Non-existent path
+        >>> path = Path('/nonexistent/file.txt')
+        >>> exists()(path).is_failure()
+        True
+        >>> exists()(path).error_or('')
+        'Path does not exist: /nonexistent/file.txt'
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if value.exists():
+            return Maybe.success(value)
+        return Maybe.failure(f'Path does not exist: {value}')
+
+    return Validator(validator)
+
+
+def is_file() -> Validator[Path]:
+    """Create a validator that ensures a path is a regular file.
+
+    Validates that a Path object points to an existing regular file
+    (not a directory, symlink, socket, etc.). Note that this also checks
+    that the path exists. For better error messages, chain with exists() first.
+
+    Returns:
+        Validator[Path]: A validator function that checks path is a file
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import is_file
+        >>> # Regular file
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     is_file()(path).is_success()
+        True
+        >>> # Directory
+        >>> import os
+        >>> path = Path(os.getcwd())
+        >>> result = is_file()(path)
+        >>> result.is_failure()
+        True
+        >>> 'not a file' in result.error_or('').lower()
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if value.is_file():
+            return Maybe.success(value)
+        return Maybe.failure(f'Path is not a file: {value}')
+
+    return Validator(validator)
+
+
+def is_dir() -> Validator[Path]:
+    """Create a validator that ensures a path is a directory.
+
+    Validates that a Path object points to an existing directory.
+    Note that this also checks that the path exists. For better error
+    messages, chain with exists() first.
+
+    Returns:
+        Validator[Path]: A validator function that checks path is a directory
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import is_dir
+        >>> # Directory
+        >>> import os
+        >>> path = Path(os.getcwd())
+        >>> is_dir()(path).is_success()
+        True
+        >>> # Regular file
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     result = is_dir()(path)
+        ...     result.is_failure()
+        True
+        >>> # Non-existent path
+        >>> path = Path('/nonexistent/dir')
+        >>> result = is_dir()(path)
+        >>> result.is_failure()
+        True
+        >>> 'not a directory' in result.error_or('').lower()
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if value.is_dir():
+            return Maybe.success(value)
+        return Maybe.failure(f'Path is not a directory: {value}')
 
     return Validator(validator)
