@@ -65,5 +65,5 @@ Feature: Environment variable parsing with schema
   Scenario: Parse list values from comma-separated strings
     Given environment variable APP_ALLOWED_HOSTS="localhost,example.com,api.example.com"
     And a schema with "allowed_hosts" using parse_list(parse_str)
-    When I call load_env_config with prefix "APP_" and list_separator ","
+    When I call load_env_config(schema, prefix="APP_")
     Then I get Success with {"allowed_hosts": ["localhost", "example.com", "api.example.com"]}

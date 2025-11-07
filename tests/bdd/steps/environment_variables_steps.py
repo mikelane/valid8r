@@ -232,15 +232,6 @@ def step_call_load_env_config_delimiter(context: Context, prefix: str, delimiter
     )
 
 
-@when('I call load_env_config with prefix "{prefix}" and list_separator "{list_separator}"')
-def step_call_load_env_config_list_sep(context: Context, prefix: str, list_separator: str) -> None:
-    """Call load_env_config with prefix and list separator."""
-    context.result = context.load_env_config(
-        schema=context.schema,
-        prefix=prefix,
-        list_separator=list_separator,
-        environ=getattr(context, 'test_environ', {}),
-    )
 
 
 @then('I get Success with {expected_dict}')
