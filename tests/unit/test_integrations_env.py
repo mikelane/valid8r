@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-import pytest
-
-from valid8r.core.maybe import Failure, Maybe, Success
-from valid8r.core.parsers import parse_bool, parse_int
-from valid8r.core.validators import maximum, minimum
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
+from valid8r.core.parsers import (
+    parse_bool,
+    parse_int,
+)
+from valid8r.core.validators import minimum
 
 
 class DescribeEnvField:
@@ -39,7 +44,10 @@ class DescribeEnvField:
 
     def it_creates_a_field_with_nested_schema(self) -> None:
         """Create an EnvField with nested schema."""
-        from valid8r.integrations.env import EnvField, EnvSchema
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+        )
 
         nested_schema = EnvSchema(fields={'port': EnvField(parser=parse_int)})
         field = EnvField(parser=None, nested=nested_schema)
@@ -53,7 +61,10 @@ class DescribeEnvSchema:
 
     def it_creates_a_schema_with_fields(self) -> None:
         """Create an EnvSchema with fields."""
-        from valid8r.integrations.env import EnvField, EnvSchema
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+        )
 
         schema = EnvSchema(fields={'port': EnvField(parser=parse_int), 'debug': EnvField(parser=parse_bool)})
         assert 'port' in schema.fields
@@ -73,7 +84,11 @@ class DescribeLoadEnvConfig:
 
     def it_loads_simple_config_from_environment(self) -> None:
         """Load simple configuration from environment variables."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(fields={'port': EnvField(parser=parse_int), 'debug': EnvField(parser=parse_bool)})
         env = {'APP_PORT': '8080', 'APP_DEBUG': 'true'}
@@ -84,7 +99,11 @@ class DescribeLoadEnvConfig:
 
     def it_uses_default_values_for_missing_variables(self) -> None:
         """Use default values when environment variables are missing."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(fields={'port': EnvField(parser=parse_int, default=3000)})
         env = {}
@@ -95,7 +114,11 @@ class DescribeLoadEnvConfig:
 
     def it_fails_validation_for_invalid_environment_variable(self) -> None:
         """Fail validation when environment variable cannot be parsed."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(fields={'port': EnvField(parser=parse_int)})
         env = {'APP_PORT': 'invalid'}
@@ -107,9 +130,17 @@ class DescribeLoadEnvConfig:
 
     def it_fails_for_required_field_not_set(self) -> None:
         """Fail when a required field is not set."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
-        schema = EnvSchema(fields={'api_key': EnvField(parser=lambda x: Maybe.success(x) if x else Maybe.failure('missing'), required=True)})
+        schema = EnvSchema(
+            fields={
+                'api_key': EnvField(parser=lambda x: Maybe.success(x) if x else Maybe.failure('missing'), required=True)
+            }
+        )
         env = {}
         result = load_env_config(schema, prefix='APP_', environ=env)
 
@@ -119,7 +150,11 @@ class DescribeLoadEnvConfig:
 
     def it_validates_with_chained_validators(self) -> None:
         """Validate environment variables using chained validators."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         def chained_parser(text: str | None) -> Maybe:
             return parse_int(text).bind(minimum(1))
@@ -133,8 +168,12 @@ class DescribeLoadEnvConfig:
 
     def it_parses_list_values_from_comma_separated_strings(self) -> None:
         """Parse list values from comma-separated strings."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
         from valid8r.core.parsers import parse_list
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         def list_parser(text: str | None) -> Maybe:
             if text is None:
@@ -150,7 +189,11 @@ class DescribeLoadEnvConfig:
 
     def it_handles_nested_configuration(self) -> None:
         """Handle nested configuration with delimiter."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         nested_schema = EnvSchema(
             fields={
@@ -168,11 +211,13 @@ class DescribeLoadEnvConfig:
 
     def it_accumulates_errors_for_multiple_invalid_fields(self) -> None:
         """Accumulate errors when multiple fields fail validation."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
-
-        schema = EnvSchema(
-            fields={'port': EnvField(parser=parse_int), 'max_connections': EnvField(parser=parse_int)}
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
         )
+
+        schema = EnvSchema(fields={'port': EnvField(parser=parse_int), 'max_connections': EnvField(parser=parse_int)})
         env = {'APP_PORT': 'invalid', 'APP_MAX_CONNECTIONS': 'also_invalid'}
         result = load_env_config(schema, prefix='APP_', environ=env)
 
@@ -183,10 +228,17 @@ class DescribeLoadEnvConfig:
 
     def it_handles_empty_environment(self) -> None:
         """Handle empty environment with all defaults."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(
-            fields={'port': EnvField(parser=parse_int, default=8080), 'debug': EnvField(parser=parse_bool, default=False)}
+            fields={
+                'port': EnvField(parser=parse_int, default=8080),
+                'debug': EnvField(parser=parse_bool, default=False),
+            }
         )
         env = {}
         result = load_env_config(schema, prefix='APP_', environ=env)
@@ -196,7 +248,11 @@ class DescribeLoadEnvConfig:
 
     def it_handles_no_prefix(self) -> None:
         """Handle environment variables without a prefix."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(fields={'port': EnvField(parser=parse_int)})
         env = {'PORT': '8080'}
@@ -207,7 +263,11 @@ class DescribeLoadEnvConfig:
 
     def it_converts_field_names_to_uppercase_with_prefix(self) -> None:
         """Convert field names to uppercase and prepend prefix for env var lookup."""
-        from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+        from valid8r.integrations.env import (
+            EnvField,
+            EnvSchema,
+            load_env_config,
+        )
 
         schema = EnvSchema(fields={'max_connections': EnvField(parser=parse_int)})
         env = {'APP_MAX_CONNECTIONS': '100'}

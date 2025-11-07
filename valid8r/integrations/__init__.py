@@ -39,10 +39,14 @@ Examples:
 
 from __future__ import annotations
 
-from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+from valid8r.integrations.env import (
+    EnvField,
+    EnvSchema,
+    load_env_config,
+)
 from valid8r.integrations.pydantic import validator_from_parser
 
-__all__ = ['validator_from_parser', 'load_env_config', 'EnvSchema', 'EnvField']
+__all__ = ['EnvField', 'EnvSchema', 'load_env_config', 'validator_from_parser']
 
 # Click integration is optional, only import if click is available
 try:

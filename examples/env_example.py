@@ -18,18 +18,35 @@ Or set environment variables in a .env file and use python-dotenv.
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass
-from typing import Any
 
-from valid8r.core.parsers import parse_bool, parse_email, parse_int, parse_list
-from valid8r.core.validators import maximum, minimum
-from valid8r.integrations.env import EnvField, EnvSchema, load_env_config
+from valid8r.core.maybe import Maybe
+from valid8r.core.parsers import (
+    parse_bool,
+    parse_email,
+    parse_int,
+    parse_list,
+)
+from valid8r.core.validators import (
+    maximum,
+    minimum,
+)
+from valid8r.integrations.env import (
+    EnvField,
+    EnvSchema,
+    load_env_config,
+)
 
 
-def parse_str(text: str | None):
-    """Simple string parser for environment variables."""
-    from valid8r.core.maybe import Maybe
+def parse_str(text: str | None) -> Maybe[str]:
+    """Parse a string value from an environment variable.
 
+    Args:
+        text: The string value to parse
+
+    Returns:
+        Success with the string value, or Failure if invalid
+
+    """
     if text is None or not isinstance(text, str):
         return Maybe.failure('Value must be a string')
     return Maybe.success(text)
