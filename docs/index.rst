@@ -147,6 +147,7 @@ Contents
    examples/custom_validators
    examples/interactive_prompts
    examples/fastapi_integration
+   examples/environment_variables
 
 .. toctree::
    :maxdepth: 2
