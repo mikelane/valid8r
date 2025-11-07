@@ -232,8 +232,6 @@ def step_call_load_env_config_delimiter(context: Context, prefix: str, delimiter
     )
 
 
-
-
 @then('I get Success with {expected_dict}')
 def step_assert_success_with_dict(context: Context, expected_dict: str) -> None:
     """Assert that the result is a Success with the expected dictionary."""
