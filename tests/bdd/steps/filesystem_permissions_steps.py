@@ -45,9 +45,10 @@ def step_filesystem_permission_validators_available(context: Context) -> None:
         )
 
         ctx.validators_available = True
-        ctx.is_readable = is_readable
-        ctx.is_writable = is_writable
-        ctx.is_executable = is_executable
+        # Call the factory functions to get Validator instances
+        ctx.is_readable = is_readable()
+        ctx.is_writable = is_writable()
+        ctx.is_executable = is_executable()
     except ImportError:
         ctx.validators_available = False
         # Store placeholder functions that return Failure
@@ -386,6 +387,20 @@ def step_bind_with_is_readable(context: Context) -> None:
     ctx.result = ctx.result.bind(ctx.is_readable)
 
 
+@when('bind with is_readable validator')
+def step_bind_with_is_readable_validator(context: Context) -> None:
+    """Bind the current result with is_readable validator."""
+    ctx = get_custom_context(context)
+    ctx.result = ctx.result.bind(ctx.is_readable)
+
+
+@when('bind with is_writable validator')
+def step_bind_with_is_writable_validator(context: Context) -> None:
+    """Bind the current result with is_writable validator."""
+    ctx = get_custom_context(context)
+    ctx.result = ctx.result.bind(ctx.is_writable)
+
+
 @when('bind with exists validator')
 def step_bind_with_exists(context: Context) -> None:
     """Bind the current result with exists validator."""
@@ -396,7 +411,7 @@ def step_bind_with_exists(context: Context) -> None:
         ctx.result = Failure('exists validator not implemented yet')
         return
 
-    ctx.result = ctx.result.bind(exists)
+    ctx.result = ctx.result.bind(exists())
 
 
 @when('bind with is_file validator')
@@ -409,7 +424,7 @@ def step_bind_with_is_file(context: Context) -> None:
         ctx.result = Failure('is_file validator not implemented yet')
         return
 
-    ctx.result = ctx.result.bind(is_file)
+    ctx.result = ctx.result.bind(is_file())
 
 
 @when('bind with is_dir validator')
@@ -422,7 +437,7 @@ def step_bind_with_is_dir(context: Context) -> None:
         ctx.result = Failure('is_dir validator not implemented yet')
         return
 
-    ctx.result = ctx.result.bind(is_dir)
+    ctx.result = ctx.result.bind(is_dir())
 
 
 # ==========================================

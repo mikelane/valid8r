@@ -7,6 +7,7 @@ that either contains the validated value or an error message.
 
 from __future__ import annotations
 
+import os
 import re
 from typing import (
     TYPE_CHECKING,
@@ -678,5 +679,119 @@ def is_dir() -> Validator[Path]:
         if value.is_dir():
             return Maybe.success(value)
         return Maybe.failure(f'Path is not a directory: {value}')
+
+    return Validator(validator)
+
+
+def is_readable() -> Validator[Path]:
+    """Create a validator that ensures a path has read permissions.
+
+    Validates that a Path object has read permissions using os.access().
+    Works with files, directories, and symbolic links. For symlinks, checks
+    the target's permissions (follows the link).
+
+    Returns:
+        Validator[Path]: A validator function that checks read permissions
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import is_readable
+        >>> # Readable file
+        >>> import tempfile
+        >>> import os
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     os.chmod(tmp.name, 0o444)  # r--r--r--
+        ...     is_readable()(path).is_success()
+        True
+        >>> # Non-existent path
+        >>> path = Path('/nonexistent/file.txt')
+        >>> is_readable()(path).is_failure()
+        True
+        >>> 'not readable' in is_readable()(path).error_or('').lower()
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if os.access(value, os.R_OK):
+            return Maybe.success(value)
+        return Maybe.failure(f'Path is not readable: {value}')
+
+    return Validator(validator)
+
+
+def is_writable() -> Validator[Path]:
+    """Create a validator that ensures a path has write permissions.
+
+    Validates that a Path object has write permissions using os.access().
+    Works with files, directories, and symbolic links. For symlinks, checks
+    the target's permissions (follows the link).
+
+    Returns:
+        Validator[Path]: A validator function that checks write permissions
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import is_writable
+        >>> # Writable file
+        >>> import tempfile
+        >>> import os
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     os.chmod(tmp.name, 0o644)  # rw-r--r--
+        ...     is_writable()(path).is_success()
+        True
+        >>> # Non-existent path
+        >>> path = Path('/nonexistent/file.txt')
+        >>> is_writable()(path).is_failure()
+        True
+        >>> 'not writable' in is_writable()(path).error_or('').lower()
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if os.access(value, os.W_OK):
+            return Maybe.success(value)
+        return Maybe.failure(f'Path is not writable: {value}')
+
+    return Validator(validator)
+
+
+def is_executable() -> Validator[Path]:
+    """Create a validator that ensures a path has execute permissions.
+
+    Validates that a Path object has execute permissions using os.access().
+    Works with files, directories, and symbolic links. For symlinks, checks
+    the target's permissions (follows the link).
+
+    Returns:
+        Validator[Path]: A validator function that checks execute permissions
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import is_executable
+        >>> # Executable file
+        >>> import tempfile
+        >>> import os
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     os.chmod(tmp.name, 0o755)  # rwxr-xr-x
+        ...     is_executable()(path).is_success()
+        True
+        >>> # Non-existent path
+        >>> path = Path('/nonexistent/file.sh')
+        >>> is_executable()(path).is_failure()
+        True
+        >>> 'not executable' in is_executable()(path).error_or('').lower()
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        if os.access(value, os.X_OK):
+            return Maybe.success(value)
+        return Maybe.failure(f'Path is not executable: {value}')
 
     return Validator(validator)

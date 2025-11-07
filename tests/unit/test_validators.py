@@ -534,3 +534,301 @@ class DescribeFilesystemValidators:
 
         assert result.is_failure()
         assert 'does not exist' in result.error_or('').lower()
+
+
+class DescribeIsReadable:
+    """Tests for the is_readable filesystem permission validator."""
+
+    def it_accepts_readable_file(self, tmp_path: Path) -> None:
+        """Test is_readable accepts a file with read permissions."""
+        from valid8r.core.validators import is_readable
+
+        # Create file with read permissions
+        test_file = tmp_path / 'readable.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o444)  # r--r--r--
+
+        validator = is_readable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_non_readable_file(self, tmp_path: Path) -> None:
+        """Test is_readable rejects a file without read permissions."""
+        from valid8r.core.validators import is_readable
+
+        # Create file without read permissions
+        test_file = tmp_path / 'not_readable.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o200)  # -w-------
+
+        validator = is_readable()
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'not readable' in result.error_or('').lower()
+
+    def it_accepts_readable_directory(self, tmp_path: Path) -> None:
+        """Test is_readable accepts a directory with read permissions."""
+        from valid8r.core.validators import is_readable
+
+        # Create directory with read permissions
+        test_dir = tmp_path / 'readable_dir'
+        test_dir.mkdir()
+        test_dir.chmod(0o555)  # r-xr-xr-x
+
+        validator = is_readable()
+        result = validator(test_dir)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_dir
+
+    def it_rejects_non_existent_path(self, tmp_path: Path) -> None:
+        """Test is_readable rejects a non-existent path."""
+        from valid8r.core.validators import is_readable
+
+        non_existent = tmp_path / 'nonexistent.txt'
+
+        validator = is_readable()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        assert 'not readable' in result.error_or('').lower()
+
+    def it_accepts_readable_symlink(self, tmp_path: Path) -> None:
+        """Test is_readable accepts a symlink to a readable file."""
+        from valid8r.core.validators import is_readable
+
+        # Create readable file and symlink
+        real_file = tmp_path / 'real.txt'
+        real_file.write_text('content')
+        real_file.chmod(0o444)
+
+        symlink = tmp_path / 'link.txt'
+        symlink.symlink_to(real_file)
+
+        validator = is_readable()
+        result = validator(symlink)
+
+        assert result.is_success()
+        assert result.value_or(None) == symlink
+
+    def it_rejects_broken_symlink(self, tmp_path: Path) -> None:
+        """Test is_readable rejects a broken symlink."""
+        from valid8r.core.validators import is_readable
+
+        # Create broken symlink
+        broken_link = tmp_path / 'broken'
+        broken_link.symlink_to(tmp_path / 'nonexistent')
+
+        validator = is_readable()
+        result = validator(broken_link)
+
+        assert result.is_failure()
+        assert 'not readable' in result.error_or('').lower()
+
+    def it_chains_with_exists_and_is_file(self, tmp_path: Path) -> None:
+        """Test is_readable chains with exists and is_file validators."""
+        from valid8r.core.validators import (
+            exists,
+            is_file,
+            is_readable,
+        )
+
+        # Create readable file
+        test_file = tmp_path / 'data.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o644)
+
+        # Chain validators
+        validator = exists() & is_file() & is_readable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+
+class DescribeIsWritable:
+    """Tests for the is_writable filesystem permission validator."""
+
+    def it_accepts_writable_file(self, tmp_path: Path) -> None:
+        """Test is_writable accepts a file with write permissions."""
+        from valid8r.core.validators import is_writable
+
+        # Create file with write permissions
+        test_file = tmp_path / 'writable.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o644)  # rw-r--r--
+
+        validator = is_writable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_non_writable_file(self, tmp_path: Path) -> None:
+        """Test is_writable rejects a file without write permissions."""
+        from valid8r.core.validators import is_writable
+
+        # Create file without write permissions
+        test_file = tmp_path / 'not_writable.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o444)  # r--r--r--
+
+        validator = is_writable()
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'not writable' in result.error_or('').lower()
+
+    def it_accepts_writable_directory(self, tmp_path: Path) -> None:
+        """Test is_writable accepts a directory with write permissions."""
+        from valid8r.core.validators import is_writable
+
+        # Create directory with write permissions
+        test_dir = tmp_path / 'writable_dir'
+        test_dir.mkdir()
+        test_dir.chmod(0o755)  # rwxr-xr-x
+
+        validator = is_writable()
+        result = validator(test_dir)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_dir
+
+    def it_rejects_non_existent_path(self, tmp_path: Path) -> None:
+        """Test is_writable rejects a non-existent path."""
+        from valid8r.core.validators import is_writable
+
+        non_existent = tmp_path / 'nonexistent.txt'
+
+        validator = is_writable()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        assert 'not writable' in result.error_or('').lower()
+
+    def it_chains_with_is_readable(self, tmp_path: Path) -> None:
+        """Test is_writable chains with is_readable validator."""
+        from valid8r.core.validators import (
+            is_readable,
+            is_writable,
+        )
+
+        # Create file with read and write permissions
+        test_file = tmp_path / 'rw.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o644)
+
+        # Chain validators
+        validator = is_readable() & is_writable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_fails_chain_when_readable_but_not_writable(self, tmp_path: Path) -> None:
+        """Test chain fails when file is readable but not writable."""
+        from valid8r.core.validators import (
+            is_readable,
+            is_writable,
+        )
+
+        # Create read-only file
+        test_file = tmp_path / 'readonly.txt'
+        test_file.write_text('content')
+        test_file.chmod(0o444)
+
+        # Chain validators
+        validator = is_readable() & is_writable()
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'not writable' in result.error_or('').lower()
+
+
+class DescribeIsExecutable:
+    """Tests for the is_executable filesystem permission validator."""
+
+    def it_accepts_executable_file(self, tmp_path: Path) -> None:
+        """Test is_executable accepts a file with execute permissions."""
+        from valid8r.core.validators import is_executable
+
+        # Create file with execute permissions
+        test_file = tmp_path / 'executable.sh'
+        test_file.write_text('#!/bin/bash\necho "test"')
+        test_file.chmod(0o755)  # rwxr-xr-x
+
+        validator = is_executable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_non_executable_file(self, tmp_path: Path) -> None:
+        """Test is_executable rejects a file without execute permissions."""
+        from valid8r.core.validators import is_executable
+
+        # Create file without execute permissions
+        test_file = tmp_path / 'not_executable.sh'
+        test_file.write_text('#!/bin/bash\necho "test"')
+        test_file.chmod(0o644)  # rw-r--r--
+
+        validator = is_executable()
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'not executable' in result.error_or('').lower()
+
+    def it_rejects_non_existent_path(self, tmp_path: Path) -> None:
+        """Test is_executable rejects a non-existent path."""
+        from valid8r.core.validators import is_executable
+
+        non_existent = tmp_path / 'nonexistent.sh'
+
+        validator = is_executable()
+        result = validator(non_existent)
+
+        assert result.is_failure()
+        assert 'not executable' in result.error_or('').lower()
+
+    def it_chains_with_is_readable_and_is_writable(self, tmp_path: Path) -> None:
+        """Test is_executable chains with is_readable and is_writable."""
+        from valid8r.core.validators import (
+            is_executable,
+            is_readable,
+            is_writable,
+        )
+
+        # Create file with all permissions
+        test_file = tmp_path / 'all_perms.sh'
+        test_file.write_text('#!/bin/bash\necho "test"')
+        test_file.chmod(0o777)  # rwxrwxrwx
+
+        # Chain validators
+        validator = is_readable() & is_writable() & is_executable()
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_works_in_full_validation_pipeline(self, tmp_path: Path) -> None:
+        """Test is_executable works in complete validation pipeline."""
+        from valid8r.core import parsers
+        from valid8r.core.validators import (
+            exists,
+            is_executable,
+            is_file,
+        )
+
+        # Create executable file
+        test_file = tmp_path / 'script.sh'
+        test_file.write_text('#!/bin/bash\necho "test"')
+        test_file.chmod(0o755)
+
+        # Full pipeline: parse → exists → is_file → is_executable
+        result = parsers.parse_path(str(test_file)).bind(lambda p: (exists() & is_file() & is_executable())(p))
+
+        assert result.is_success()
+        assert isinstance(result.value_or(None), Path)
