@@ -832,3 +832,349 @@ class DescribeIsExecutable:
 
         assert result.is_success()
         assert isinstance(result.value_or(None), Path)
+class DescribeMaxSize:
+    """Tests for the max_size validator."""
+
+    def it_accepts_file_under_maximum_size(self, tmp_path: Path) -> None:
+        """Test max_size accepts a file smaller than the limit."""
+        from valid8r.core.validators import max_size
+
+        # Create file of 1024 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 1024)
+
+        validator = max_size(2048)
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_exactly_at_maximum_size(self, tmp_path: Path) -> None:
+        """Test max_size accepts a file exactly at the limit."""
+        from valid8r.core.validators import max_size
+
+        # Create file of 2048 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 2048)
+
+        validator = max_size(2048)
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_file_exceeding_maximum_size(self, tmp_path: Path) -> None:
+        """Test max_size rejects a file larger than the limit."""
+        from valid8r.core.validators import max_size
+
+        # Create file of 5120 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 5120)
+
+        validator = max_size(1024)
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'exceeds maximum size' in result.error_or('').lower()
+
+    def it_includes_actual_size_in_error_message(self, tmp_path: Path) -> None:
+        """Test max_size error message includes the actual file size."""
+        from valid8r.core.validators import max_size
+
+        # Create file of 5120 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 5120)
+
+        validator = max_size(1024)
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert '5120' in result.error_or('')
+
+    def it_accepts_empty_file(self, tmp_path: Path) -> None:
+        """Test max_size accepts an empty file."""
+        from valid8r.core.validators import max_size
+
+        # Create empty file
+        test_file = tmp_path / 'empty.txt'
+        test_file.write_bytes(b'')
+
+        validator = max_size(1024)
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_non_file_paths(self, tmp_path: Path) -> None:
+        """Test max_size rejects directories."""
+        from valid8r.core.validators import max_size
+
+        validator = max_size(1024)
+        result = validator(tmp_path)
+
+        assert result.is_failure()
+        assert 'not a file' in result.error_or('').lower()
+
+    def it_handles_symbolic_links_with_exists(self, tmp_path: Path) -> None:
+        """Test exists() follows symbolic links and validates target exists."""
+        from valid8r.core.validators import exists
+
+        # Create real file and symlink
+        real_file = tmp_path / 'real.txt'
+        real_file.write_text('content')
+
+        link = tmp_path / 'link.txt'
+        link.symlink_to(real_file)
+
+        # Validate symlink
+        validator = exists()
+        result = validator(link)
+
+        assert result.is_success()
+        assert result.value_or(None) == link
+
+    def it_rejects_broken_symbolic_link_with_exists(self, tmp_path: Path) -> None:
+        """Test exists() rejects broken symbolic links."""
+        from valid8r.core.validators import exists
+
+        # Create broken symlink
+        broken_link = tmp_path / 'broken'
+        broken_link.symlink_to(tmp_path / 'nonexistent')
+
+        # Validate
+        validator = exists()
+        result = validator(broken_link)
+
+        assert result.is_failure()
+        assert 'does not exist' in result.error_or('').lower()
+
+
+class DescribeMinSize:
+    """Tests for the min_size validator."""
+
+    def it_accepts_file_above_minimum_size(self, tmp_path: Path) -> None:
+        """Test min_size accepts a file larger than the limit."""
+        from valid8r.core.validators import min_size
+
+        # Create file of 2048 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 2048)
+
+        validator = min_size(1024)
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_exactly_at_minimum_size(self, tmp_path: Path) -> None:
+        """Test min_size accepts a file exactly at the limit."""
+        from valid8r.core.validators import min_size
+
+        # Create file of 1024 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 1024)
+
+        validator = min_size(1024)
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_file_below_minimum_size(self, tmp_path: Path) -> None:
+        """Test min_size rejects a file smaller than the limit."""
+        from valid8r.core.validators import min_size
+
+        # Create file of 512 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 512)
+
+        validator = min_size(1024)
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'smaller than minimum size' in result.error_or('').lower()
+
+    def it_includes_minimum_size_in_error_message(self, tmp_path: Path) -> None:
+        """Test min_size error message includes the minimum size."""
+        from valid8r.core.validators import min_size
+
+        # Create file of 512 bytes
+        test_file = tmp_path / 'test.txt'
+        test_file.write_bytes(b'x' * 512)
+
+        validator = min_size(1024)
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert '1024' in result.error_or('')
+
+    def it_rejects_empty_file(self, tmp_path: Path) -> None:
+        """Test min_size rejects an empty file when minimum is positive."""
+        from valid8r.core.validators import min_size
+
+        # Create empty file
+        test_file = tmp_path / 'empty.txt'
+        test_file.write_bytes(b'')
+
+        validator = min_size(1)
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'smaller than minimum size' in result.error_or('').lower()
+
+    def it_rejects_non_file_paths(self, tmp_path: Path) -> None:
+        """Test min_size rejects directories."""
+        from valid8r.core.validators import min_size
+
+        validator = min_size(1024)
+        result = validator(tmp_path)
+
+        assert result.is_failure()
+        assert 'not a file' in result.error_or('').lower()
+
+
+class DescribeHasExtension:
+    """Tests for the has_extension validator."""
+
+    def it_accepts_file_with_single_allowed_extension(self, tmp_path: Path) -> None:
+        """Test has_extension accepts a file with the correct extension."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .pdf extension
+        test_file = tmp_path / 'document.pdf'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_with_one_of_multiple_extensions(self, tmp_path: Path) -> None:
+        """Test has_extension accepts file with one of several allowed extensions."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .docx extension
+        test_file = tmp_path / 'document.docx'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf', '.doc', '.docx')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_file_with_wrong_extension(self, tmp_path: Path) -> None:
+        """Test has_extension rejects file with incorrect extension."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .png extension
+        test_file = tmp_path / 'image.png'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf', '.docx')
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'allowed extensions' in result.error_or('').lower()
+
+    def it_rejects_file_with_no_extension(self, tmp_path: Path) -> None:
+        """Test has_extension rejects file without extension."""
+        from valid8r.core.validators import has_extension
+
+        # Create file without extension
+        test_file = tmp_path / 'README'
+        test_file.write_text('content')
+
+        validator = has_extension('.md', '.txt')
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'allowed extensions' in result.error_or('').lower()
+
+    def it_accepts_file_with_uppercase_extension(self, tmp_path: Path) -> None:
+        """Test has_extension is case-insensitive (uppercase)."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with uppercase extension
+        test_file = tmp_path / 'DOCUMENT.PDF'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_with_mixed_case_extension(self, tmp_path: Path) -> None:
+        """Test has_extension is case-insensitive (mixed case)."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with mixed case extension
+        test_file = tmp_path / 'Report.Pdf'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_with_multiple_dots_in_name(self, tmp_path: Path) -> None:
+        """Test has_extension handles files with multiple dots correctly."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with multiple dots
+        test_file = tmp_path / 'my.backup.file.tar.gz'
+        test_file.write_text('content')
+
+        validator = has_extension('.gz')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_rejects_file_with_multiple_dots_but_wrong_extension(self, tmp_path: Path) -> None:
+        """Test has_extension validates final extension only."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .tar.gz but validate for .zip
+        test_file = tmp_path / 'my.backup.file.tar.gz'
+        test_file.write_text('content')
+
+        validator = has_extension('.zip', '.7z')
+        result = validator(test_file)
+
+        assert result.is_failure()
+        assert 'allowed extensions' in result.error_or('').lower()
+
+    def it_lists_all_allowed_extensions_in_error(self, tmp_path: Path) -> None:
+        """Test has_extension error message includes all allowed extensions."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .png extension
+        test_file = tmp_path / 'image.png'
+        test_file.write_text('content')
+
+        validator = has_extension('.pdf', '.docx', '.txt')
+        result = validator(test_file)
+
+        assert result.is_failure()
+        error_msg = result.error_or('')
+        assert '.pdf' in error_msg
+        assert '.docx' in error_msg
+        assert '.txt' in error_msg
+
+    def it_accepts_dot_file_with_proper_extension(self, tmp_path: Path) -> None:
+        """Test has_extension handles dot files with extensions correctly."""
+        from valid8r.core.validators import has_extension
+
+        # Create dot file with extension
+        test_file = tmp_path / '.config.json'
+        test_file.write_text('content')
+
+        validator = has_extension('.json')
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file

@@ -795,3 +795,188 @@ def is_executable() -> Validator[Path]:
         return Maybe.failure(f'Path is not executable: {value}')
 
     return Validator(validator)
+
+
+def max_size(max_bytes: int) -> Validator[Path]:
+    """Create a validator that ensures a file does not exceed a maximum size.
+
+    Validates that a file's size in bytes is at most the specified maximum.
+    This validator checks that the path is a regular file before checking size.
+
+    Args:
+        max_bytes: Maximum allowed file size in bytes (inclusive)
+
+    Returns:
+        Validator[Path]: A validator function that checks file size
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import max_size
+        >>> # File under size limit
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 1024)
+        ...     max_size(2048)(path).is_success()
+        1024
+        True
+        >>> # File over size limit
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 5120)
+        ...     result = max_size(1024)(path)
+        ...     result.is_failure()
+        5120
+        True
+        >>> # Error includes actual size
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 5120)
+        ...     result = max_size(1024)(path)
+        ...     '5120' in result.error_or('')
+        5120
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        # Check that path is a file (not directory)
+        if not value.is_file():
+            return Maybe.failure(f'Path is not a file: {value}')
+
+        # Get file size
+        file_size = value.stat().st_size
+
+        # Check size limit
+        if file_size <= max_bytes:
+            return Maybe.success(value)
+
+        return Maybe.failure(f'File size {file_size} bytes exceeds maximum size of {max_bytes} bytes')
+
+    return Validator(validator)
+
+
+def min_size(min_bytes: int) -> Validator[Path]:
+    """Create a validator that ensures a file meets a minimum size requirement.
+
+    Validates that a file's size in bytes is at least the specified minimum.
+    This validator checks that the path is a regular file before checking size.
+
+    Args:
+        min_bytes: Minimum required file size in bytes (inclusive)
+
+    Returns:
+        Validator[Path]: A validator function that checks file size
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import min_size
+        >>> # File above size limit
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 2048)
+        ...     min_size(1024)(path).is_success()
+        2048
+        True
+        >>> # File below size limit
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 512)
+        ...     result = min_size(1024)(path)
+        ...     result.is_failure()
+        512
+        True
+        >>> # Error includes minimum size
+        >>> with tempfile.NamedTemporaryFile() as tmp:
+        ...     path = Path(tmp.name)
+        ...     path.write_bytes(b'x' * 512)
+        ...     result = min_size(1024)(path)
+        ...     '1024' in result.error_or('')
+        512
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        # Check that path is a file (not directory)
+        if not value.is_file():
+            return Maybe.failure(f'Path is not a file: {value}')
+
+        # Get file size
+        file_size = value.stat().st_size
+
+        # Check size limit
+        if file_size >= min_bytes:
+            return Maybe.success(value)
+
+        return Maybe.failure(f'File size {file_size} bytes is smaller than minimum size of {min_bytes} bytes')
+
+    return Validator(validator)
+
+
+def has_extension(*extensions: str) -> Validator[Path]:
+    """Create a validator that ensures a file has one of the allowed extensions.
+
+    Validates that a file's extension matches one of the specified extensions.
+    Extension matching is case-insensitive. Extensions should include the dot (e.g., '.txt').
+
+    Args:
+        *extensions: Variable number of allowed file extensions (e.g., '.pdf', '.txt')
+
+    Returns:
+        Validator[Path]: A validator function that checks file extension
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from valid8r.core.validators import has_extension
+        >>> # Single extension
+        >>> import tempfile
+        >>> import os
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     path = Path(tmpdir) / 'document.pdf'
+        ...     path.write_text('content')
+        ...     has_extension('.pdf')(path).is_success()
+        7
+        True
+        >>> # Multiple extensions
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     path = Path(tmpdir) / 'document.docx'
+        ...     path.write_text('content')
+        ...     has_extension('.pdf', '.doc', '.docx')(path).is_success()
+        7
+        True
+        >>> # Case-insensitive
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     path = Path(tmpdir) / 'DOCUMENT.PDF'
+        ...     path.write_text('content')
+        ...     has_extension('.pdf')(path).is_success()
+        7
+        True
+        >>> # Wrong extension
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     path = Path(tmpdir) / 'image.png'
+        ...     path.write_text('content')
+        ...     result = has_extension('.pdf', '.docx')(path)
+        ...     result.is_failure()
+        7
+        True
+
+    """
+
+    def validator(value: Path) -> Maybe[Path]:
+        # Get the file extension (lowercase for case-insensitive comparison)
+        file_ext = value.suffix.lower()
+
+        # Normalize allowed extensions to lowercase, filtering out empty strings
+        allowed_exts = {ext.lower() for ext in extensions if ext}
+
+        # Check if file extension is in allowed set (and not empty)
+        if file_ext and file_ext in allowed_exts:
+            return Maybe.success(value)
+
+        # Format error message with all allowed extensions
+        exts_list = ', '.join(sorted(ext for ext in extensions if ext))
+        return Maybe.failure(f'File extension {file_ext or "(none)"} not in allowed extensions: {exts_list}')
+
+    return Validator(validator)
