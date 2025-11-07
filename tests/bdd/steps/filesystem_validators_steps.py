@@ -199,7 +199,7 @@ def step_validate_with_has_extension(context: Context, extensions: str) -> None:
     """Validate the path with has_extension validator (any number of extensions)."""
     ctx = get_custom_context(context)
     # Parse extensions from string like "'.pdf'" or "'.pdf', '.doc', '.docx'"
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     validator = ctx.has_extension(*ext_list)
     ctx.result = validator(ctx.path_object)
 
@@ -209,7 +209,7 @@ def step_validate_with_min_size_and_extension(context: Context, min_bytes: int, 
     """Validate with both min_size and has_extension validators."""
     ctx = get_custom_context(context)
     # Parse extensions
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     min_size_validator = ctx.min_size(min_bytes)
     ext_validator = ctx.has_extension(*ext_list)
     # Chain validators
@@ -221,7 +221,7 @@ def step_validate_with_max_size_and_extension(context: Context, max_bytes: int, 
     """Validate with both max_size and has_extension validators."""
     ctx = get_custom_context(context)
     # Parse extensions from string like "'.pdf'" or "'.pdf', '.docx'"
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     max_size_validator = ctx.max_size(max_bytes)
     ext_validator = ctx.has_extension(*ext_list)
     # Chain validators
@@ -235,7 +235,7 @@ def step_validate_with_min_max_size_and_extension(
     """Validate with min_size, max_size, and has_extension validators."""
     ctx = get_custom_context(context)
     # Parse extensions
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     min_size_validator = ctx.min_size(min_bytes)
     max_size_validator = ctx.max_size(max_bytes)
     ext_validator = ctx.has_extension(*ext_list)
@@ -256,7 +256,7 @@ def step_validate_with_full_pipeline(context: Context, max_bytes: int, extension
         return
 
     # Parse extensions
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     max_size_validator = ctx.max_size(max_bytes)
     ext_validator = ctx.has_extension(*ext_list)
 
@@ -278,7 +278,7 @@ def step_validate_with_parse_path_exists_pipeline(context: Context, max_bytes: i
         return
 
     # Parse extensions
-    ext_list = [ext.strip().strip("'\"") for ext in extensions.split(',')]
+    ext_list = [ext.strip().strip('\'"') for ext in extensions.split(',')]
     max_size_validator = ctx.max_size(max_bytes)
     ext_validator = ctx.has_extension(*ext_list)
 
@@ -329,10 +329,15 @@ def step_validate_as_upload_10mb_office(context: Context) -> None:
 # ==========================================
 
 
-@then('the result is Success with a Path')
+@then('I get Success with the Path')
 def step_filesystem_result_is_success_with_path(context: Context) -> None:
-    """Verify the validation result is Success containing a Path object."""
+    """Verify the validation result is Success containing a Path object.
+
+    Note: Uses 'the Path' to avoid ambiguity with environment_variables_steps.py
+    which has a parameterized step @then('I get Success with {expected_dict}').
+    """
     ctx = get_custom_context(context)
+    assert ctx.result is not None, 'No result found in context'
     match ctx.result:
         case Success(value):
             assert isinstance(value, Path), f'Expected Path but got {type(value).__name__}'
@@ -340,6 +345,18 @@ def step_filesystem_result_is_success_with_path(context: Context) -> None:
             pytest.fail(f'Expected Success but got Failure: {err}')
 
 
+# Alias for consistency with Gherkin phrasing variations
+@then('the result is Success with a Path')
+def step_filesystem_result_is_success_with_path_alias(context: Context) -> None:
+    """Alias for 'I get Success with the Path'."""
+    step_filesystem_result_is_success_with_path(context)
+
+
+# Note: "I get Failure mentioning" step is already defined in environment_variables_steps.py
+# and works for all features. No need to duplicate it here.
+
+
+# Alias for And steps - "the failure message mentions"
 @then('the failure message mentions "{substring}"')
 def step_and_failure_message_mentions(context: Context, substring: str) -> None:
     """Verify the failure message also contains the specified substring (for And steps)."""

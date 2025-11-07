@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import parse  # type: ignore[import-untyped]
 from behave import (  # type: ignore[import-untyped]
     given,
+    register_type,
     then,
     when,
 )
@@ -23,6 +25,16 @@ from valid8r.core.validators import minimum
 
 if TYPE_CHECKING:
     from behave.runner import Context  # type: ignore[import-untyped]
+
+
+# Register custom type for dictionary strings (must start with '{')
+@parse.with_pattern(r'\{.+\}')
+def parse_dict_string(text: str) -> str:
+    """Parse a dictionary string that starts and ends with braces."""
+    return text
+
+
+register_type(DictString=parse_dict_string)
 
 
 def parse_str(text: str | None) -> Maybe[str]:
@@ -232,9 +244,13 @@ def step_call_load_env_config_delimiter(context: Context, prefix: str, delimiter
     )
 
 
-@then('I get Success with {expected_dict}')
+@then('I get Success with {expected_dict:DictString}')
 def step_assert_success_with_dict(context: Context, expected_dict: str) -> None:
-    """Assert that the result is a Success with the expected dictionary."""
+    """Assert that the result is a Success with the expected dictionary.
+
+    Uses custom DictString type that only matches strings starting with '{',
+    preventing ambiguity with other 'I get Success with X' steps.
+    """
     import ast
 
     # Check if we have multiline text (JSON) - used for nested dicts
