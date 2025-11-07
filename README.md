@@ -33,7 +33,7 @@ print(f"Your age is {age}")
 
 **Chainable Validators**: Combine validators using `&` (and), `|` (or), and `~` (not) operators for complex validation logic.
 
-**Zero Dependencies**: Core library uses only Python's standard library (with optional `uuid-utils` for faster UUID parsing).
+**Framework Integrations**: Built-in support for Pydantic (always included) and optional Click integration for CLI apps.
 
 **Interactive Prompts**: Built-in user input prompting with automatic retry and validation.
 
@@ -41,11 +41,27 @@ print(f"Your age is {age}")
 
 ### Installation
 
+**Basic installation** (includes Pydantic integration):
 ```bash
 pip install valid8r
 ```
 
+**With optional framework integrations**:
+```bash
+# Click integration for CLI applications
+pip install 'valid8r[click]'
+
+# All optional integrations
+pip install 'valid8r[click]'
+```
+
 **Requirements**: Python 3.11 or higher
+
+| Feature | Installation | Import |
+|---------|--------------|--------|
+| Core parsers & validators | `pip install valid8r` | `from valid8r import parsers, validators` |
+| Pydantic integration | _included by default_ | `from valid8r.integrations import validator_from_parser` |
+| Click integration (CLI) | `pip install 'valid8r[click]'` | `from valid8r.integrations import ParamTypeAdapter` |
 
 ### Basic Parsing
 
@@ -154,6 +170,56 @@ port = prompt.ask(
     retry=3
 )
 ```
+
+### Framework Integrations
+
+#### Pydantic Integration (Always Included)
+
+Convert valid8r parsers into Pydantic field validators:
+
+```python
+from pydantic import BaseModel, field_validator
+from valid8r import parsers, validators
+from valid8r.integrations import validator_from_parser
+
+class User(BaseModel):
+    age: int
+
+    @field_validator('age', mode='before')
+    @classmethod
+    def validate_age(cls, v):
+        # Parse string to int, then validate 0-120 range
+        age_parser = lambda x: parsers.parse_int(x).bind(
+            validators.between(0, 120)
+        )
+        return validator_from_parser(age_parser)(v)
+
+user = User(age="25")  # Accepts string, validates, returns int
+```
+
+Works seamlessly with nested models, lists, and complex Pydantic schemas. See [Pydantic Integration Examples](https://valid8r.readthedocs.io/en/latest/examples/pydantic_integration.html).
+
+#### Click Integration (Optional)
+
+Install: `pip install 'valid8r[click]'`
+
+Integrate valid8r parsers into Click CLI applications:
+
+```python
+import click
+from valid8r import parsers
+from valid8r.integrations import ParamTypeAdapter
+
+@click.command()
+@click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
+def send_mail(email):
+    """Send an email with validated address."""
+    click.echo(f"Sending to {email.local}@{email.domain}")
+
+# Automatically validates email format and provides rich error messages
+```
+
+See [Click Integration Examples](https://valid8r.readthedocs.io/en/latest/examples/click_integration.html).
 
 ## Features
 

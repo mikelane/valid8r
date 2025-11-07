@@ -5,10 +5,11 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-import click
 import pytest
 
-from valid8r.core import (
+click = pytest.importorskip('click')
+
+from valid8r.core import (  # noqa: E402
     parsers,
     validators,
 )
