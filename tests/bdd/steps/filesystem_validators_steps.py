@@ -262,7 +262,7 @@ def step_validate_with_full_pipeline(context: Context, max_bytes: int, extension
 
     # Execute pipeline
     path_str = str(ctx.path_object)
-    ctx.result = parse_path(path_str).bind(is_file).bind(max_size_validator).bind(ext_validator)
+    ctx.result = parse_path(path_str).bind(is_file()).bind(max_size_validator).bind(ext_validator)
 
 
 @when('I validate with parse_path and exists and max_size({max_bytes:d}) and has_extension({extensions})')
@@ -284,7 +284,7 @@ def step_validate_with_parse_path_exists_pipeline(context: Context, max_bytes: i
 
     # Execute pipeline
     path_str = str(ctx.path_object)
-    ctx.result = parse_path(path_str).bind(exists).bind(max_size_validator).bind(ext_validator)
+    ctx.result = parse_path(path_str).bind(exists()).bind(max_size_validator).bind(ext_validator)
 
 
 @when('I validate with parse_path and is_file and max_size({max_bytes:d})')
@@ -303,7 +303,7 @@ def step_validate_with_parse_path_is_file_max_size(context: Context, max_bytes: 
 
     # Execute pipeline
     path_str = str(ctx.path_object)
-    ctx.result = parse_path(path_str).bind(is_file).bind(max_size_validator)
+    ctx.result = parse_path(path_str).bind(is_file()).bind(max_size_validator)
 
 
 @when('I validate as an upload with 10MB limit and PDF extension')
