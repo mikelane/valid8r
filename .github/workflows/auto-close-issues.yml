@@ -1,0 +1,67 @@
+name: Auto-close Issues from PR Description
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  auto-close-issues:
+    # Only run when PR is merged (not just closed) and merges to main
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Parse PR description for issue references
+        id: parse
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "Parsing PR #$PR_NUMBER for issue references..."
+
+          # Extract issue numbers from closing keywords (case-insensitive)
+          # Supports: close, closes, closed, fix, fixes, fixed, resolve, resolves, resolved
+          ISSUES=$(echo "$PR_BODY" | grep -iE "(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+" | \
+                   grep -oE "#[0-9]+" | sed 's/#//' | sort -u)
+
+          if [ -z "$ISSUES" ]; then
+            echo "No issues referenced with closing keywords"
+            echo "issues=" >> $GITHUB_OUTPUT
+          else
+            echo "Found issue references: $ISSUES"
+            # Convert to JSON array for safe passing between steps
+            ISSUES_JSON=$(echo "$ISSUES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "issues=$ISSUES_JSON" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Close referenced issues
+        if: steps.parse.outputs.issues != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUES: ${{ steps.parse.outputs.issues }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Closing issues: $ISSUES"
+
+          for ISSUE_NUM in $(echo "$ISSUES" | jq -r '.[]'); do
+            echo "Closing issue #$ISSUE_NUM..."
+
+            gh issue close "$ISSUE_NUM" \
+              --repo "$REPO" \
+              --comment "Closed by PR #$PR_NUMBER: $PR_URL"
+
+            if [ $? -eq 0 ]; then
+              echo "✓ Closed issue #$ISSUE_NUM"
+            else
+              echo "✗ Failed to close issue #$ISSUE_NUM (may already be closed or not exist)"
+            fi
+          done
+
+          echo "Issue auto-close complete"
