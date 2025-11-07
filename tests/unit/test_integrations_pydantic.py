@@ -6,6 +6,8 @@ into Pydantic field validators.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 from pydantic import (
     BaseModel,
@@ -17,8 +19,13 @@ from valid8r.core import (
     parsers,
     validators,
 )
-from valid8r.core.parsers import EmailAddress
+from valid8r.core.parsers import EmailAddress  # noqa: TC001
 from valid8r.integrations.pydantic import validator_from_parser
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from valid8r.core.maybe import Maybe
 
 
 class DescribeValidatorFromParser:
@@ -33,14 +40,14 @@ class DescribeValidatorFromParser:
     def it_converts_failure_to_pydantic_validation_error(self) -> None:
         """Convert parser returning Failure to Pydantic ValidationError."""
         validator_func = validator_from_parser(parsers.parse_int)
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:  # noqa: PT011
             validator_func('not-a-number')
         assert 'valid integer' in str(exc_info.value).lower()
 
     def it_uses_custom_error_prefix(self) -> None:
         """Use custom error messages in Pydantic errors."""
         validator_func = validator_from_parser(parsers.parse_int, error_prefix='User ID')
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:  # noqa: PT011
             validator_func('invalid')
         error_msg = str(exc_info.value)
         assert error_msg.startswith('User ID')
@@ -50,7 +57,7 @@ class DescribeValidatorFromParser:
         # Create a chained validator using bind: parse_int THEN minimum(0) AND maximum(120)
         chained_validator = validators.minimum(0) & validators.maximum(120)
 
-        def chained_parser(value):
+        def chained_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
             return parsers.parse_int(value).bind(chained_validator)
 
         validator_func = validator_from_parser(chained_parser)
@@ -59,17 +66,17 @@ class DescribeValidatorFromParser:
         assert validator_func('25') == 25
 
         # Below minimum
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError):  # noqa: PT011
             validator_func('-1')
 
         # Above maximum
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError):  # noqa: PT011
             validator_func('150')
 
     def it_preserves_error_messages_from_parsers(self) -> None:
         """Preserve valid8r error messages in Pydantic errors."""
         validator_func = validator_from_parser(parsers.parse_email)
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:  # noqa: PT011
             validator_func('not-an-email')
         # The error should contain something about email format
         error_msg = str(exc_info.value).lower()
@@ -87,7 +94,7 @@ class DescribePydanticBaseModelIntegration:
 
             @field_validator('age', mode='before')
             @classmethod
-            def validate_age(cls, v):
+            def validate_age(cls, v: Any) -> int:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_int)(v)
 
         # Valid input
@@ -110,7 +117,7 @@ class DescribePydanticBaseModelIntegration:
 
             @field_validator('email', mode='before')
             @classmethod
-            def validate_email(cls, v):
+            def validate_email(cls, v: Any) -> EmailAddress:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_email)(v)
 
         # Valid email
@@ -130,8 +137,8 @@ class DescribePydanticBaseModelIntegration:
 
             @field_validator('stock', mode='before')
             @classmethod
-            def validate_stock(cls, v):
-                def stock_parser(value):
+            def validate_stock(cls, v: Any) -> int:  # noqa: ANN401
+                def stock_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
                     return parsers.parse_int(value).bind(validators.minimum(0))
 
                 return validator_from_parser(stock_parser)(v)
@@ -157,15 +164,15 @@ class DescribePydanticBaseModelIntegration:
 
             @field_validator('age', mode='before')
             @classmethod
-            def validate_age(cls, v):
-                def age_parser(value):
+            def validate_age(cls, v: Any) -> int:  # noqa: ANN401
+                def age_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
                     return parsers.parse_int(value).bind(validators.between(0, 120))
 
                 return validator_from_parser(age_parser)(v)
 
             @field_validator('email', mode='before')
             @classmethod
-            def validate_email(cls, v):
+            def validate_email(cls, v: Any) -> EmailAddress:  # noqa: ANN401
                 return validator_from_parser(parsers.parse_email)(v)
 
         # Valid data
@@ -194,7 +201,7 @@ class DescribePydanticBaseModelIntegration:
 
             @field_validator('age', mode='before')
             @classmethod
-            def validate_age(cls, v):
+            def validate_age(cls, v: Any) -> int | None:  # noqa: ANN401
                 if v is None:
                     return v
                 return validator_from_parser(parsers.parse_int)(v)

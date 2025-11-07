@@ -23,13 +23,16 @@ Example:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypeVar,
 )
 
-from valid8r.core.maybe import Maybe
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from valid8r.core.maybe import Maybe
 
 T = TypeVar('T')
 
@@ -74,8 +77,12 @@ def validator_from_parser(
         ValueError: User ID: ...
 
     """
+    from valid8r.core.maybe import (  # noqa: PLC0415
+        Failure,
+        Success,
+    )
 
-    def validate(value: Any) -> T:
+    def validate(value: Any) -> T:  # noqa: ANN401
         """Validate the value using the parser.
 
         Args:
@@ -88,11 +95,6 @@ def validator_from_parser(
             ValueError: If parsing fails.
 
         """
-        from valid8r.core.maybe import (
-            Failure,
-            Success,
-        )
-
         result = parser(value)
 
         match result:
@@ -100,11 +102,13 @@ def validator_from_parser(
                 return parsed_value  # type: ignore[no-any-return]
             case Failure(error_msg):
                 if error_prefix:
-                    raise ValueError(f'{error_prefix}: {error_msg}')
+                    msg = f'{error_prefix}: {error_msg}'
+                    raise ValueError(msg)
                 raise ValueError(error_msg)
             case _:  # pragma: no cover
                 # This should never happen as Maybe only has Success and Failure
-                raise TypeError(f'Unexpected Maybe type: {type(result)}')
+                msg = f'Unexpected Maybe type: {type(result)}'
+                raise TypeError(msg)
 
     return validate
 
