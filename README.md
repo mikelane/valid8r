@@ -400,9 +400,12 @@ See [SECURITY.md](SECURITY.md) for complete security documentation.
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! **All contributions must be made via forks** - please do not create branches directly in the main repository.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for complete guidelines.
 
 **Quick links**:
+- [Fork-Based Workflow Requirement](CONTRIBUTING.md#fork-based-contributions-required)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Development Setup](CONTRIBUTING.md#development-setup)
 - [Commit Message Format](CONTRIBUTING.md#commit-messages)
@@ -411,21 +414,35 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ### Development Quick Start
 
 ```bash
-# Install uv (fast dependency manager)
+# 1. Fork the repository on GitHub
+#    Visit: https://github.com/mikelane/valid8r
+
+# 2. Clone YOUR fork (not the upstream repo)
+git clone https://github.com/YOUR-USERNAME/valid8r
+cd valid8r
+
+# 3. Add upstream remote
+git remote add upstream https://github.com/mikelane/valid8r.git
+
+# 4. Install uv (fast dependency manager)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone and install dependencies
-git clone https://github.com/mikelane/valid8r
-cd valid8r
+# 5. Install dependencies
 uv sync
 
-# Run tests
+# 6. Run tests
 uv run tox
 
-# Run linters
+# 7. Run linters
 uv run ruff check .
 uv run ruff format .
 uv run mypy valid8r
+
+# 8. Create a feature branch and make your changes
+git checkout -b feat/your-feature
+
+# 9. Push to YOUR fork and create a PR
+git push origin feat/your-feature
 ```
 
 ## Project Status
