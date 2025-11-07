@@ -21,6 +21,7 @@ Examples:
     ... @click.option('--port', type=ParamTypeAdapter(port_parser, name='port'))
     ... def start_server(port):
     ...     click.echo(f"Starting server on port {port}")
+
 """
 
 from __future__ import annotations
@@ -73,6 +74,7 @@ class ParamTypeAdapter(click.ParamType):
         ...     parsers.parse_email,
         ...     error_prefix='Email address'
         ... )
+
     """
 
     def __init__(
@@ -87,6 +89,7 @@ class ParamTypeAdapter(click.ParamType):
             parser: A valid8r parser function
             name: Custom name for the type (defaults to parser.__name__)
             error_prefix: Custom prefix for error messages
+
         """
         self.parser = parser
         self.name = name or parser.__name__
@@ -110,6 +113,7 @@ class ParamTypeAdapter(click.ParamType):
 
         Raises:
             click.exceptions.BadParameter: If validation fails
+
         """
         # If value is not a string, it's already been converted (e.g., from a callback)
         # In this case, just pass it through

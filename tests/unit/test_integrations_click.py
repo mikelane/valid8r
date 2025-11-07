@@ -12,10 +12,6 @@ from valid8r.core import (
     parsers,
     validators,
 )
-from valid8r.core.maybe import (
-    Failure,
-    Success,
-)
 
 if TYPE_CHECKING:
     from valid8r.core.maybe import Maybe
@@ -185,7 +181,7 @@ class DescribeParamTypeAdapter:
         # Monkey-patch to capture the error message
         original_fail = adapter.fail
 
-        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:  # noqa: ARG001
+        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:
             catcher.message = message
             original_fail(message, param, ctx)
 
@@ -221,7 +217,7 @@ class DescribeParamTypeAdapterWithCustomErrorPrefix:
 
         original_fail = adapter.fail
 
-        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:  # noqa: ARG001
+        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:
             catcher.message = message
             original_fail(message, param, ctx)
 
@@ -252,7 +248,7 @@ class DescribeParamTypeAdapterWithCustomErrorPrefix:
 
         original_fail = adapter.fail
 
-        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:  # noqa: ARG001
+        def capture_fail(message: str, param: object = None, ctx: object = None) -> None:
             catcher.message = message
             original_fail(message, param, ctx)
 

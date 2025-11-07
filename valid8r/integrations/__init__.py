@@ -14,6 +14,7 @@ Examples:
     ... @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
     ... def greet(email):
     ...     click.echo(f"Hello {email.local}@{email.domain}!")
+
 """
 
 from __future__ import annotations
