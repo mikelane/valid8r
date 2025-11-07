@@ -171,6 +171,50 @@ port = prompt.ask(
 )
 ```
 
+### Environment Variables
+
+Load typed, validated configuration from environment variables following 12-factor app principles:
+
+```python
+from valid8r.integrations.env import EnvSchema, EnvField, load_env_config
+from valid8r import parsers, validators
+from valid8r.core.maybe import Success, Failure
+
+# Define configuration schema
+schema = EnvSchema(fields={
+    'port': EnvField(
+        parser=lambda x: parsers.parse_int(x).bind(validators.between(1024, 65535)),
+        default=8080
+    ),
+    'debug': EnvField(parser=parsers.parse_bool, default=False),
+    'database_url': EnvField(parser=parsers.parse_str, required=True),
+    'admin_email': EnvField(parser=parsers.parse_email, required=True),
+})
+
+# Load and validate configuration
+result = load_env_config(schema, prefix='APP_')
+
+match result:
+    case Success(config):
+        # All values are typed and validated
+        port = config['port']              # int (validated 1024-65535)
+        debug = config['debug']            # bool (not str!)
+        db = config['database_url']        # str (required, guaranteed present)
+        email = config['admin_email']      # EmailAddress (validated format)
+    case Failure(error):
+        print(f"Configuration error: {error}")
+```
+
+**Features:**
+
+- Type-safe parsing (no more string-to-int conversions)
+- Declarative validation with composable parsers
+- Required vs optional fields with sensible defaults
+- Nested schemas for hierarchical configuration
+- Clear error messages for missing or invalid values
+
+See [Environment Variables Guide](https://valid8r.readthedocs.io/en/latest/examples/environment_variables.html) for complete examples including FastAPI, Docker, and Kubernetes deployment patterns.
+
 ### Framework Integrations
 
 #### Pydantic Integration (Always Included)
