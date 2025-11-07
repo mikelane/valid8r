@@ -54,7 +54,7 @@ Feature: Environment variable parsing with schema
     Given environment variable APP_MAX_CONNECTIONS="0"
     And a schema with "max_connections" using parse_int & minimum(1)
     When I call load_env_config(schema, prefix="APP_")
-    Then I get Failure mentioning "minimum"
+    Then I get Failure mentioning "at least"
 
   Scenario: Required vs optional fields
     Given a schema with required field "api_key" and optional field "log_level"

@@ -50,7 +50,7 @@ def step_import_load_env_config(context: Context) -> None:
     context.load_env_config = load_env_config
 
 
-@given('environment variables')
+@given('environment variables:')
 def step_given_environment_variables(context: Context) -> None:
     """Set up environment variables from a table."""
     if not hasattr(context, 'test_environ'):
@@ -60,7 +60,7 @@ def step_given_environment_variables(context: Context) -> None:
         context.test_environ[row['name']] = row['value']
 
 
-@given('a schema')
+@given('a schema:')
 def step_given_schema(context: Context) -> None:
     """Create a schema from a table."""
     from valid8r.integrations.env import (
@@ -211,7 +211,7 @@ def step_schema_with_list_parser(context: Context, field_name: str) -> None:
 
     # Create a list parser using parse_list
     def list_parser(text: str | None) -> Maybe:
-        return parse_list(text, element_parser=parse_str, delimiter=',')
+        return parse_list(text, element_parser=parse_str, separator=',')
 
     context.schema = EnvSchema(fields={field_name: EnvField(parser=list_parser)})
 

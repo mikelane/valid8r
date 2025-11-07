@@ -129,7 +129,7 @@ class DescribeLoadEnvConfig:
         result = load_env_config(schema, prefix='APP_', environ=env)
 
         assert isinstance(result, Failure)
-        assert 'minimum' in result.error.lower()
+        assert 'at least' in result.error.lower()
 
     def it_parses_list_values_from_comma_separated_strings(self) -> None:
         """Parse list values from comma-separated strings."""
@@ -139,7 +139,7 @@ class DescribeLoadEnvConfig:
         def list_parser(text: str | None) -> Maybe:
             if text is None:
                 return Maybe.failure('missing')
-            return parse_list(text, element_parser=lambda x: Maybe.success(x), delimiter=',')
+            return parse_list(text, element_parser=lambda x: Maybe.success(x), separator=',')
 
         schema = EnvSchema(fields={'allowed_hosts': EnvField(parser=list_parser)})
         env = {'APP_ALLOWED_HOSTS': 'localhost,example.com,api.example.com'}
