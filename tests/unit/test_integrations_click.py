@@ -5,8 +5,9 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-import click
 import pytest
+
+click = pytest.importorskip('click')
 
 from valid8r.core import (
     parsers,
