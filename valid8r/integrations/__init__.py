@@ -36,6 +36,6 @@ __all__ = ['validator_from_parser']
 try:
     from valid8r.integrations.click import ParamTypeAdapter
 
-    __all__.append('ParamTypeAdapter')
+    __all__ += ['ParamTypeAdapter']
 except ImportError:
     pass
