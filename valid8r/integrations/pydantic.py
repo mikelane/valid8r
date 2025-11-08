@@ -193,4 +193,110 @@ def validator_from_parser(
     return validate
 
 
-__all__ = ['validator_from_parser']
+def make_after_validator(
+    parser: Callable[[Any], Maybe[T]],
+) -> Callable[[Any], T]:
+    """Create a Pydantic AfterValidator from a valid8r parser.
+
+    AfterValidator runs after Pydantic's type conversion, allowing you to use
+    valid8r parsers with Pydantic's Annotated type system for cleaner model definitions.
+
+    This function wraps a valid8r parser (which returns Maybe[T]) into a function
+    suitable for use with Pydantic's AfterValidator.
+
+    Args:
+        parser: A valid8r parser function that returns Maybe[T].
+
+    Returns:
+        A validator function that returns T on success or raises ValueError
+        on failure.
+
+    Raises:
+        ValueError: When the parser returns a Failure with the error message.
+
+    Example:
+        >>> from pydantic import BaseModel, AfterValidator
+        >>> from typing_extensions import Annotated
+        >>> from valid8r.core import parsers
+        >>>
+        >>> email_validator = make_after_validator(parsers.parse_email)
+        >>>
+        >>> class User(BaseModel):
+        ...     email: Annotated[str, AfterValidator(email_validator)]
+        >>>
+        >>> user = User(email='alice@example.com')  # doctest: +SKIP
+
+    """
+    return validator_from_parser(parser)
+
+
+def make_wrap_validator(
+    parser: Callable[[Any], Maybe[T]],
+) -> Callable[[Any, Any], T]:
+    """Create a Pydantic WrapValidator from a valid8r parser.
+
+    WrapValidator runs before Pydantic's type conversion, receiving raw input
+    values. This allows full control over validation and pre-processing.
+
+    This function wraps a valid8r parser (which returns Maybe[T]) into a function
+    suitable for use with Pydantic's WrapValidator.
+
+    Args:
+        parser: A valid8r parser function that returns Maybe[T].
+
+    Returns:
+        A wrap validator function that returns T on success or raises ValueError
+        on failure. The function signature is (value, handler) -> T, though handler
+        is not used since the parser handles all validation.
+
+    Raises:
+        ValueError: When the parser returns a Failure with the error message.
+
+    Example:
+        >>> from pydantic import BaseModel, WrapValidator
+        >>> from typing_extensions import Annotated
+        >>> from valid8r.core import parsers
+        >>>
+        >>> int_validator = make_wrap_validator(parsers.parse_int)
+        >>>
+        >>> class Data(BaseModel):
+        ...     value: Annotated[int, WrapValidator(int_validator)]
+        >>>
+        >>> data = Data(value='42')  # doctest: +SKIP
+
+    """
+    from valid8r.core.maybe import (  # noqa: PLC0415
+        Failure,
+        Success,
+    )
+
+    def wrap_validate(value: Any, handler: Any) -> T:  # noqa: ANN401, ARG001
+        """Validate the value using the parser.
+
+        Args:
+            value: The value to validate.
+            handler: Pydantic's handler function (not used).
+
+        Returns:
+            The parsed value if successful.
+
+        Raises:
+            ValueError: If parsing fails.
+
+        """
+        result = parser(value)
+
+        match result:
+            case Success(parsed_value):
+                return parsed_value  # type: ignore[no-any-return]
+            case Failure(error_msg):
+                raise ValueError(error_msg)
+            case _:  # pragma: no cover
+                # This should never happen as Maybe only has Success and Failure
+                msg = f'Unexpected Maybe type: {type(result)}'
+                raise TypeError(msg)
+
+    return wrap_validate
+
+
+__all__ = ['make_after_validator', 'make_wrap_validator', 'validator_from_parser']
