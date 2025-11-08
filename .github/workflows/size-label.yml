@@ -1,3 +1,6 @@
+# Action versions use semantic versioning for stability
+# Last reviewed: 2025-11-08
+
 name: PR Size Labeler
 
 on:
@@ -12,7 +15,7 @@ jobs:
   size-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: codelytv/pr-size-labeler@v1
+      - uses: codelytv/pr-size-labeler@v1.10.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           xs_label: 'size/XS'

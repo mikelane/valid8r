@@ -1,3 +1,6 @@
+# Action versions use major tags (e.g., v5) for automatic minor/patch updates
+# Last reviewed: 2025-11-08
+
 name: Auto-close Issues from PR Description
 
 on:
