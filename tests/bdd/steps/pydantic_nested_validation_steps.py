@@ -52,10 +52,11 @@ def step_create_address_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
-        phone: str
+        phone: PhoneNumber
 
         @field_validator('phone', mode='before')
         @classmethod
@@ -133,10 +134,11 @@ def step_create_nested_user_address_phone(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
-        phone: str
+        phone: PhoneNumber
 
         @field_validator('phone', mode='before')
         @classmethod
@@ -326,10 +328,11 @@ def step_create_user_with_optional_address(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
-        phone: str
+        phone: PhoneNumber
 
         @field_validator('phone', mode='before')
         @classmethod
