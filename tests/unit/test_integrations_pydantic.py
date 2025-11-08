@@ -19,13 +19,13 @@ from valid8r.core import (
     parsers,
     validators,
 )
+from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import EmailAddress  # noqa: TC001
 from valid8r.integrations.pydantic import validator_from_parser
 
 if TYPE_CHECKING:
     from typing import Any
 
-    from valid8r.core.maybe import Maybe
     from valid8r.core.parsers import PhoneNumber
 
 
@@ -494,3 +494,319 @@ class DescribeDictValueValidation:
         assert len(team.contacts) == 2
         assert team.contacts['alice'].email.local == 'alice'
         assert team.contacts['bob'].email.domain == 'example.com'
+
+
+class DescribeMakeAfterValidator:
+    """Test suite for make_after_validator function."""
+
+    def it_creates_pydantic_after_validator_from_parser(self) -> None:
+        """Create Pydantic AfterValidator from valid8r parser."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        email_validator = make_after_validator(parsers.parse_email)
+
+        class User(BaseModel):
+            email: Annotated[str, AfterValidator(email_validator)]
+
+        # Valid email
+        user = User(email='alice@example.com')
+        assert isinstance(user.email, EmailAddress)
+        assert user.email.local == 'alice'
+        assert user.email.domain == 'example.com'
+
+    def it_converts_failure_to_validation_error(self) -> None:
+        """Convert parser Failure to Pydantic ValidationError."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        phone_validator = make_after_validator(parsers.parse_phone)
+
+        class Contact(BaseModel):
+            phone: Annotated[str, AfterValidator(phone_validator)]
+
+        # Invalid phone number
+        with pytest.raises(ValidationError) as exc_info:
+            Contact(phone='invalid')
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert 'phone' in errors[0]['msg'].lower() or 'format' in errors[0]['msg'].lower()
+
+    def it_works_with_chained_validators(self) -> None:
+        """Work with chained validators using operator overloading."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        int_validator = make_after_validator(parsers.parse_int)
+        min_validator = make_after_validator(validators.minimum(0))
+
+        class Data(BaseModel):
+            value: Annotated[int, AfterValidator(int_validator), AfterValidator(min_validator)]
+
+        # Valid value
+        data = Data(value='42')
+        assert data.value == 42
+
+        # Invalid value (negative)
+        with pytest.raises(ValidationError) as exc_info:
+            Data(value='-1')
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert 'minimum' in errors[0]['msg'].lower()
+
+    def it_works_with_optional_fields(self) -> None:
+        """Work with optional fields."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        email_validator = make_after_validator(parsers.parse_email)
+
+        class User(BaseModel):
+            email: Annotated[str | None, AfterValidator(email_validator)] = None
+
+        # Valid email
+        user1 = User(email='alice@example.com')
+        assert isinstance(user1.email, EmailAddress)
+
+        # None value should pass through
+        user2 = User(email=None)
+        assert user2.email is None
+
+        # Default None
+        user3 = User()
+        assert user3.email is None
+
+    def it_mixes_with_field_validator(self) -> None:
+        """Mix AfterValidator with field_validator."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        int_validator = make_after_validator(parsers.parse_int)
+
+        class User(BaseModel):
+            age: Annotated[int, AfterValidator(int_validator)]
+            name: str
+
+            @field_validator('name')
+            @classmethod
+            def validate_name(cls, v: str) -> str:
+                if not v.strip():
+                    msg = 'Name cannot be empty'
+                    raise ValueError(msg)
+                return v.strip()
+
+        # Valid data
+        user = User(age='25', name='Alice')
+        assert user.age == 25
+        assert user.name == 'Alice'
+
+        # Invalid age
+        with pytest.raises(ValidationError) as exc_info:
+            User(age='invalid', name='Bob')
+        assert any(err['loc'] == ('age',) for err in exc_info.value.errors())
+
+        # Invalid name
+        with pytest.raises(ValidationError) as exc_info:
+            User(age='30', name='')
+        assert any(err['loc'] == ('name',) for err in exc_info.value.errors())
+
+    def it_preserves_field_path_in_nested_models(self) -> None:
+        """Preserve field path in nested model validation errors."""
+        from pydantic import AfterValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_after_validator
+
+        phone_validator = make_after_validator(parsers.parse_phone)
+
+        class Address(BaseModel):
+            phone: Annotated[str, AfterValidator(phone_validator)]
+
+        class User(BaseModel):
+            name: str
+            address: Address
+
+        # Valid nested data
+        user = User(name='Alice', address={'phone': '(206) 234-5678'})
+        assert user.name == 'Alice'
+
+        # Invalid nested phone
+        with pytest.raises(ValidationError) as exc_info:
+            User(name='Bob', address={'phone': 'invalid'})
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        error_loc = errors[0]['loc']
+        assert 'address' in error_loc
+        assert 'phone' in error_loc
+
+
+class DescribeMakeWrapValidator:
+    """Test suite for make_wrap_validator function."""
+
+    def it_creates_pydantic_wrap_validator_from_parser(self) -> None:
+        """Create Pydantic WrapValidator from valid8r parser."""
+        from pydantic import WrapValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        int_validator = make_wrap_validator(parsers.parse_int)
+
+        class Data(BaseModel):
+            value: Annotated[int, WrapValidator(int_validator)]
+
+        # Valid value
+        data = Data(value='42')
+        assert data.value == 42
+        assert isinstance(data.value, int)
+
+    def it_receives_raw_input_before_pydantic_processing(self) -> None:
+        """Receive raw input before Pydantic's type conversion."""
+        from pydantic import WrapValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        captured_values: list[tuple[Any, str]] = []
+
+        def capturing_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
+            """Parser that captures the input value and its type."""
+            captured_values.append((value, type(value).__name__))
+            return parsers.parse_int(value)
+
+        int_validator = make_wrap_validator(capturing_parser)
+
+        class Data(BaseModel):
+            value: Annotated[int, WrapValidator(int_validator)]
+
+        # Create instance
+        Data(value='  42  ')
+
+        # Verify raw string was received (not pre-processed by Pydantic)
+        assert len(captured_values) == 1
+        assert captured_values[0][1] == 'str'
+        assert captured_values[0][0] == '  42  '
+
+    def it_converts_failure_to_validation_error(self) -> None:
+        """Convert parser Failure to Pydantic ValidationError."""
+        from pydantic import WrapValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        int_validator = make_wrap_validator(parsers.parse_int)
+
+        class Data(BaseModel):
+            value: Annotated[int, WrapValidator(int_validator)]
+
+        # Invalid value
+        with pytest.raises(ValidationError) as exc_info:
+            Data(value='not-a-number')
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert 'integer' in errors[0]['msg'].lower()
+
+    def it_chains_multiple_wrap_validators(self) -> None:
+        """Chain multiple WrapValidators together."""
+        from pydantic import WrapValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        # First validator strips whitespace
+        def strip_parser(value: Any) -> Maybe[str]:  # noqa: ANN401
+            if isinstance(value, str):
+                return parsers.parse_str(value.strip())
+            return parsers.parse_str(str(value))
+
+        def parse_str(value: Any) -> Maybe[str]:  # noqa: ANN401
+            if value is None or not isinstance(value, str):
+                return Maybe.failure('Value must be a string')
+            return Maybe.success(value)
+
+        # Second validator parses int
+        strip_validator = make_wrap_validator(strip_parser)
+        int_validator = make_wrap_validator(parsers.parse_int)
+
+        class Data(BaseModel):
+            value: Annotated[int, WrapValidator(strip_validator), WrapValidator(int_validator)]
+
+        # Valid value with whitespace
+        data = Data(value='  42  ')
+        assert data.value == 42
+
+    def it_works_with_chained_parsers_using_bind(self) -> None:
+        """Work with chained parsers using bind."""
+        from pydantic import WrapValidator
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        def age_parser(value: Any) -> Maybe[int]:  # noqa: ANN401
+            return parsers.parse_int(value).bind(validators.between(0, 120))
+
+        age_validator = make_wrap_validator(age_parser)
+
+        class User(BaseModel):
+            age: Annotated[int, WrapValidator(age_validator)]
+
+        # Valid age
+        user = User(age='25')
+        assert user.age == 25
+
+        # Invalid age (negative)
+        with pytest.raises(ValidationError):
+            User(age='-1')
+
+        # Invalid age (too high)
+        with pytest.raises(ValidationError):
+            User(age='150')
+
+    def it_accesses_validation_info_context(self) -> None:
+        """Access ValidationInfo context in WrapValidator."""
+        from pydantic import WrapValidator
+        from pydantic_core import ValidationInfo
+        from typing_extensions import Annotated
+
+        from valid8r.integrations.pydantic import make_wrap_validator
+
+        captured_field_names: list[str | None] = []
+
+        def info_capturing_parser(value: Any, handler: Any, info: ValidationInfo | None = None) -> Maybe[int]:  # noqa: ANN401
+            """Parser that captures ValidationInfo."""
+            if info:
+                captured_field_names.append(info.field_name)
+            return parsers.parse_int(value)
+
+        # Note: We need to create a custom wrapper for this test since make_wrap_validator
+        # handles the info parameter internally
+        def custom_validator(value: Any, handler: Any, info: ValidationInfo | None = None) -> int:  # noqa: ANN401
+            result = info_capturing_parser(value, handler, info)
+            if result.is_failure():
+                msg = result.error_or('Invalid value')
+                raise ValueError(msg)
+            return result.value_or(0)
+
+        class Data(BaseModel):
+            value: Annotated[int, WrapValidator(custom_validator)]
+
+        # Create instance
+        Data(value='42')
+
+        # Verify ValidationInfo was passed and field name captured
+        assert len(captured_field_names) == 1
+        assert captured_field_names[0] == 'value'
