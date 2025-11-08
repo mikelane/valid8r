@@ -168,7 +168,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "S101", # Allow asserts in tests
 ]
 "tests/bdd/steps/*" = [
+    "N806", # Allow uppercase variable names (extracting from context)
     "S101", # Allow asserts in behave tests
+    "TRY004", # Allow AssertionError for type checks in tests
 ]
 "tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
 "scripts/*" = ["T201"] # allow print function in the scripts

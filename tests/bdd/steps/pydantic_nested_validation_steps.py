@@ -13,6 +13,12 @@ from behave import (  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from behave.runner import Context  # type: ignore[import-untyped]
+    from pydantic import ValidationError
+
+    from valid8r.core.parsers import (
+        EmailAddress,
+        PhoneNumber,
+    )
 
 
 # Register custom type for dictionary/JSON strings
@@ -52,7 +58,6 @@ def step_create_address_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
-    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -110,7 +115,8 @@ def step_validate_model_with_data(context: Context, data: str) -> None:
 def step_user_validates_successfully(context: Context) -> None:
     """Verify User model validated successfully."""
     if context.validation_error:
-        raise AssertionError(f'Validation failed: {context.validation_error}')
+        msg = f'Validation failed: {context.validation_error}'
+        raise AssertionError(msg)
     if not context.validated_model:
         raise AssertionError('No validated model found')
 
@@ -122,7 +128,8 @@ def step_verify_phone_number_object(context: Context) -> None:
 
     phone = context.validated_model.address.phone
     if not isinstance(phone, PhoneNumber):
-        raise AssertionError(f'Expected PhoneNumber, got {type(phone).__name__}')
+        msg = f'Expected PhoneNumber, got {type(phone).__name__}'
+        raise AssertionError(msg)
 
 
 @given('nested models User -> Address -> phone')
@@ -134,7 +141,6 @@ def step_create_nested_user_address_phone(context: Context) -> None:
     )
 
     from valid8r.core import parsers
-    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -160,14 +166,13 @@ def step_pydantic_raises_validation_error(context: Context) -> None:
     if not context.validation_error:
         raise AssertionError('Expected ValidationError but validation succeeded')
     if not isinstance(context.validation_error, ValidationError):
-        raise AssertionError(f'Expected ValidationError, got {type(context.validation_error).__name__}')
+        msg = f'Expected ValidationError, got {type(context.validation_error).__name__}'
+        raise AssertionError(msg)
 
 
 @then('the error includes field path "{field_path}"')
 def step_error_includes_field_path(context: Context, field_path: str) -> None:
     """Verify error includes the specified field path."""
-    from pydantic import ValidationError
-
     error: ValidationError = context.validation_error
     error_dict = error.errors()
 
@@ -187,14 +192,13 @@ def step_error_includes_field_path(context: Context, field_path: str) -> None:
 @then('the error message contains the valid8r parse_phone error')
 def step_error_contains_parse_phone_error(context: Context) -> None:
     """Verify error message contains valid8r parse_phone error text."""
-    from pydantic import ValidationError
-
     error: ValidationError = context.validation_error
     error_str = str(error)
 
     # Check for characteristic parse_phone error messages
     if 'phone' not in error_str.lower() and 'invalid' not in error_str.lower():
-        raise AssertionError(f'Error does not contain parse_phone error text: {error_str}')
+        msg = f'Error does not contain parse_phone error text: {error_str}'
+        raise AssertionError(msg)
 
 
 @given('a model LineItem with quantity validated by parse_int & minimum(1)')
@@ -244,7 +248,8 @@ def step_validation_error_for_items_index(context: Context) -> None:
     if not context.validation_error:
         raise AssertionError('Expected ValidationError but validation succeeded')
     if not isinstance(context.validation_error, ValidationError):
-        raise AssertionError(f'Expected ValidationError, got {type(context.validation_error).__name__}')
+        msg = f'Expected ValidationError, got {type(context.validation_error).__name__}'
+        raise AssertionError(msg)
 
     # Check that error mentions items[1] or index 1
     error_dict = context.validation_error.errors()
@@ -270,9 +275,11 @@ def step_error_mentions_keyword(context: Context, keyword: str) -> None:
     if keyword_lower == 'minimum':
         # Accept "minimum" or "at least" as equivalent
         if 'minimum' not in error_str and 'least' not in error_str:
-            raise AssertionError(f"Error does not mention '{keyword}' or 'at least': {error_str}")
+            msg = f"Error does not mention '{keyword}' or 'at least': {error_str}"
+            raise AssertionError(msg)
     elif keyword_lower not in error_str:
-        raise AssertionError(f"Error does not mention '{keyword}': {error_str}")
+        msg = f"Error does not mention '{keyword}': {error_str}"
+        raise AssertionError(msg)
 
 
 @given('a model Config with ports: dict[str, int] using validator_from_parser(parse_int)')
@@ -294,7 +301,7 @@ def step_create_config_model(context: Context) -> None:
         def validate_ports(cls, v):  # noqa: ANN001, ANN206
             if not isinstance(v, dict):
                 msg = 'ports must be a dict'
-                raise ValueError(msg)
+                raise TypeError(msg)
             return {k: validator_from_parser(parsers.parse_int)(val) for k, val in v.items()}
 
     context.Config = Config
@@ -304,7 +311,8 @@ def step_create_config_model(context: Context) -> None:
 def step_model_validates_successfully(context: Context) -> None:
     """Verify model validated successfully."""
     if context.validation_error:
-        raise AssertionError(f'Validation failed: {context.validation_error}')
+        msg = f'Validation failed: {context.validation_error}'
+        raise AssertionError(msg)
     if not context.validated_model:
         raise AssertionError('No validated model found')
 
@@ -316,7 +324,8 @@ def step_verify_config_ports(context: Context, data: str) -> None:
     actual = context.validated_model.ports
 
     if actual != expected:
-        raise AssertionError(f'Expected ports={expected}, got {actual}')
+        msg = f'Expected ports={expected}, got {actual}'
+        raise AssertionError(msg)
 
 
 @given('a Pydantic model User with optional address: Address | None')
@@ -328,7 +337,6 @@ def step_create_user_with_optional_address(context: Context) -> None:
     )
 
     from valid8r.core import parsers
-    from valid8r.core.parsers import PhoneNumber
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -351,7 +359,8 @@ def step_create_user_with_optional_address(context: Context) -> None:
 def step_verify_address_is_none(context: Context) -> None:
     """Verify user.address is None."""
     if context.validated_model.address is not None:
-        raise AssertionError(f'Expected address=None, got {context.validated_model.address}')
+        msg = f'Expected address=None, got {context.validated_model.address}'
+        raise AssertionError(msg)
 
 
 @given('a model Employee with email validated by parse_email')
@@ -363,7 +372,6 @@ def step_create_employee_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
-    from valid8r.core.parsers import EmailAddress
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
@@ -407,7 +415,8 @@ def step_create_company_model(context: Context) -> None:
 def step_company_validates_successfully(context: Context) -> None:
     """Verify Company model validated successfully."""
     if context.validation_error:
-        raise AssertionError(f'Validation failed: {context.validation_error}')
+        msg = f'Validation failed: {context.validation_error}'
+        raise AssertionError(msg)
     if not context.validated_model:
         raise AssertionError('No validated model found')
 
@@ -419,7 +428,8 @@ def step_verify_email_address_object(context: Context) -> None:
 
     email = context.validated_model.engineering.lead.email
     if not isinstance(email, EmailAddress):
-        raise AssertionError(f'Expected EmailAddress, got {type(email).__name__}')
+        msg = f'Expected EmailAddress, got {type(email).__name__}'
+        raise AssertionError(msg)
 
 
 @given('nested models Company -> Department -> Employee -> email (three levels)')
@@ -431,7 +441,6 @@ def step_create_three_level_nesting(context: Context) -> None:
     )
 
     from valid8r.core import parsers
-    from valid8r.core.parsers import EmailAddress
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
@@ -456,11 +465,10 @@ def step_create_three_level_nesting(context: Context) -> None:
 @then('the error message contains the valid8r parse_email error')
 def step_error_contains_parse_email_error(context: Context) -> None:
     """Verify error message contains valid8r parse_email error text."""
-    from pydantic import ValidationError
-
     error: ValidationError = context.validation_error
     error_str = str(error)
 
     # Check for characteristic parse_email error messages
     if 'email' not in error_str.lower() and 'invalid' not in error_str.lower():
-        raise AssertionError(f'Error does not contain parse_email error text: {error_str}')
+        msg = f'Error does not contain parse_email error text: {error_str}'
+        raise AssertionError(msg)
