@@ -1,3 +1,6 @@
+# Action versions use semantic versioning for stability
+# Last reviewed: 2025-11-08
+
 name: 'Setup uv with cache'
 description: 'Install uv with optimized caching and dependency installation'
 inputs:
@@ -18,7 +21,7 @@ runs:
   using: 'composite'
   steps:
     - name: Install uv
-      uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6  # v6.0.0
+      uses: astral-sh/setup-uv@v7.1.2
       with:
         version: ${{ inputs.uv-version }}
         enable-cache: true
