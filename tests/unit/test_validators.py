@@ -832,6 +832,8 @@ class DescribeIsExecutable:
 
         assert result.is_success()
         assert isinstance(result.value_or(None), Path)
+
+
 class DescribeMaxSize:
     """Tests for the max_size validator."""
 
