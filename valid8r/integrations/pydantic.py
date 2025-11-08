@@ -195,21 +195,22 @@ def validator_from_parser(
 
 def make_after_validator(
     parser: Callable[[Any], Maybe[T]],
-) -> Callable[[Any], T]:
+) -> Callable[[Any], T | None]:
     """Create a Pydantic AfterValidator from a valid8r parser.
 
     AfterValidator runs after Pydantic's type conversion, allowing you to use
     valid8r parsers with Pydantic's Annotated type system for cleaner model definitions.
 
     This function wraps a valid8r parser (which returns Maybe[T]) into a function
-    suitable for use with Pydantic's AfterValidator.
+    suitable for use with Pydantic's AfterValidator. For optional fields (e.g.,
+    `str | None`), `None` values are passed through without validation.
 
     Args:
         parser: A valid8r parser function that returns Maybe[T].
 
     Returns:
-        A validator function that returns T on success or raises ValueError
-        on failure.
+        A validator function that returns T on success, None for None inputs,
+        or raises ValueError on failure.
 
     Raises:
         ValueError: When the parser returns a Failure with the error message.
@@ -226,8 +227,50 @@ def make_after_validator(
         >>>
         >>> user = User(email='alice@example.com')  # doctest: +SKIP
 
+        >>> # Optional field example
+        >>> class Contact(BaseModel):
+        ...     email: Annotated[str | None, AfterValidator(email_validator)] = None
+        >>>
+        >>> contact = Contact(email=None)  # doctest: +SKIP
+        >>> contact.email is None  # doctest: +SKIP
+        True
+
     """
-    return validator_from_parser(parser)
+    from valid8r.core.maybe import (  # noqa: PLC0415
+        Failure,
+        Success,
+    )
+
+    def validate(value: Any) -> T | None:  # noqa: ANN401
+        """Validate the value using the parser.
+
+        Args:
+            value: The value to validate. None is passed through for optional fields.
+
+        Returns:
+            The parsed value if successful, or None if value is None.
+
+        Raises:
+            ValueError: If parsing fails.
+
+        """
+        # Pass through None for optional fields
+        if value is None:
+            return None
+
+        result = parser(value)
+
+        match result:
+            case Success(parsed_value):
+                return parsed_value  # type: ignore[no-any-return]
+            case Failure(error_msg):
+                raise ValueError(error_msg)
+            case _:  # pragma: no cover
+                # This should never happen as Maybe only has Success and Failure
+                msg = f'Unexpected Maybe type: {type(result)}'
+                raise TypeError(msg)
+
+    return validate
 
 
 def make_wrap_validator(

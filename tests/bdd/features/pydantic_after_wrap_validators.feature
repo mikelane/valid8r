@@ -21,7 +21,7 @@ Feature: Pydantic AfterValidator and WrapValidator support
 
   Scenario: Use WrapValidator for pre-processing
     Given a WrapValidator(make_wrap_validator(parse_int))
-    When I validate with value "42"
+    When I validate with "42"
     Then the validator receives the raw string
     And returns parsed integer 42
 
