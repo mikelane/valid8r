@@ -260,6 +260,21 @@ def step_assert_success_with_dict(context: Context, expected_dict: str) -> None:
     assert context.result.value == expected, f'Expected {expected} but got {context.result.value}'
 
 
+@then('I get Success with {{}}:')
+def step_assert_success_with_json_block(context: Context) -> None:
+    """Assert that the result is a Success with JSON from a docstring block.
+
+    This step matches the literal text 'I get Success with {}:' where the '{}:'
+    indicates that a multiline JSON document follows in context.text.
+    The double braces {{}} are used to escape the literal curly braces.
+    """
+    assert context.text, 'Expected multiline JSON block but none was provided'
+    expected = json.loads(context.text)
+
+    assert isinstance(context.result, Success), f'Expected Success but got {type(context.result).__name__}'
+    assert context.result.value == expected, f'Expected {expected} but got {context.result.value}'
+
+
 @then('I get Failure mentioning "{error_substring1}" and "{error_substring2}"')
 def step_assert_failure_mentioning_two(context: Context, error_substring1: str, error_substring2: str) -> None:
     """Assert that the result is a Failure containing two specific substrings."""
