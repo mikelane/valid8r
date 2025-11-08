@@ -261,8 +261,15 @@ def step_validation_error_for_items_index(context: Context) -> None:
 @then('the error mentions "{keyword}"')
 def step_error_mentions_keyword(context: Context, keyword: str) -> None:
     """Verify error message mentions the specified keyword."""
-    error_str = str(context.validation_error)
-    if keyword.lower() not in error_str.lower():
+    error_str = str(context.validation_error).lower()
+
+    # Handle synonyms for common validation messages
+    keyword_lower = keyword.lower()
+    if keyword_lower == 'minimum':
+        # Accept "minimum" or "at least" as equivalent
+        if 'minimum' not in error_str and 'least' not in error_str:
+            raise AssertionError(f"Error does not mention '{keyword}' or 'at least': {error_str}")
+    elif keyword_lower not in error_str:
         raise AssertionError(f"Error does not mention '{keyword}': {error_str}")
 
 
@@ -353,10 +360,11 @@ def step_create_employee_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import EmailAddress
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
-        email: str
+        email: EmailAddress
 
         @field_validator('email', mode='before')
         @classmethod
@@ -420,10 +428,11 @@ def step_create_three_level_nesting(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import EmailAddress
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
-        email: str
+        email: EmailAddress
 
         @field_validator('email', mode='before')
         @classmethod

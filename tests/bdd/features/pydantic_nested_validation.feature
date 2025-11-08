@@ -10,7 +10,7 @@ Feature: Nested model validation with valid8r parsers
   Scenario: Validate nested model with valid8r parser
     Given a Pydantic model Address with phone field using validator_from_parser(parse_phone)
     And a Pydantic model User with address: Address field
-    When I validate the model with {"name": "Alice", "address": {"phone": "555-0123"}}
+    When I validate the model with {"name": "Alice", "address": {"phone": "(206) 234-5678"}}
     Then the User model validates successfully
     And user.address.phone is a PhoneNumber object
 
@@ -36,7 +36,7 @@ Feature: Nested model validation with valid8r parsers
 
   Scenario: Handle None values in optional nested models
     Given a Pydantic model User with optional address: Address | None
-    When I validate the model with {"name": "Bob", "address": None}
+    When I validate the model with {"name": "Bob", "address": null}
     Then the User model validates successfully
     And user.address is None
 
