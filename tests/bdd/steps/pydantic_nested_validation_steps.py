@@ -15,11 +15,6 @@ if TYPE_CHECKING:
     from behave.runner import Context  # type: ignore[import-untyped]
     from pydantic import ValidationError
 
-    from valid8r.core.parsers import (
-        EmailAddress,
-        PhoneNumber,
-    )
-
 
 # Register custom type for dictionary/JSON strings
 @parse.with_pattern(r'\{.+\}')
@@ -58,6 +53,7 @@ def step_create_address_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber  # noqa: TC001
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -68,6 +64,8 @@ def step_create_address_model(context: Context) -> None:
         def validate_phone(cls, v):  # noqa: ANN001, ANN206
             return validator_from_parser(parsers.parse_phone)(v)
 
+    # Rebuild model to resolve forward references
+    Address.model_rebuild()
     context.Address = Address
 
 
@@ -82,6 +80,8 @@ def step_create_user_model_with_address(context: Context) -> None:
         name: str
         address: Address
 
+    # Rebuild model to resolve forward references
+    User.model_rebuild()
     context.User = User
 
 
@@ -141,6 +141,7 @@ def step_create_nested_user_address_phone(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber  # noqa: TC001
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -153,6 +154,10 @@ def step_create_nested_user_address_phone(context: Context) -> None:
 
     class User(BaseModel):
         address: Address
+
+    # Rebuild models to resolve forward references
+    Address.model_rebuild()
+    User.model_rebuild()
 
     context.Address = Address
     context.User = User
@@ -337,6 +342,7 @@ def step_create_user_with_optional_address(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import PhoneNumber  # noqa: TC001
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Address(BaseModel):
@@ -350,6 +356,10 @@ def step_create_user_with_optional_address(context: Context) -> None:
     class User(BaseModel):
         name: str
         address: Address | None = None
+
+    # Rebuild models to resolve forward references
+    Address.model_rebuild()
+    User.model_rebuild()
 
     context.Address = Address
     context.User = User
@@ -372,6 +382,7 @@ def step_create_employee_model(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import EmailAddress  # noqa: TC001
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
@@ -382,6 +393,8 @@ def step_create_employee_model(context: Context) -> None:
         def validate_email(cls, v):  # noqa: ANN001, ANN206
             return validator_from_parser(parsers.parse_email)(v)
 
+    # Rebuild model to resolve forward references
+    Employee.model_rebuild()
     context.Employee = Employee
 
 
@@ -395,6 +408,8 @@ def step_create_department_model(context: Context) -> None:
     class Department(BaseModel):
         lead: Employee
 
+    # Rebuild model to resolve forward references
+    Department.model_rebuild()
     context.Department = Department
 
 
@@ -408,6 +423,8 @@ def step_create_company_model(context: Context) -> None:
     class Company(BaseModel):
         engineering: Department
 
+    # Rebuild model to resolve forward references
+    Company.model_rebuild()
     context.Company = Company
 
 
@@ -441,6 +458,7 @@ def step_create_three_level_nesting(context: Context) -> None:
     )
 
     from valid8r.core import parsers
+    from valid8r.core.parsers import EmailAddress  # noqa: TC001
     from valid8r.integrations.pydantic import validator_from_parser
 
     class Employee(BaseModel):
@@ -456,6 +474,11 @@ def step_create_three_level_nesting(context: Context) -> None:
 
     class Company(BaseModel):
         engineering: Department
+
+    # Rebuild models to resolve forward references
+    Employee.model_rebuild()
+    Department.model_rebuild()
+    Company.model_rebuild()
 
     context.Employee = Employee
     context.Department = Department
