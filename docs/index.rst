@@ -137,6 +137,7 @@ Contents
    user_guide/validators
    user_guide/prompting
    user_guide/advanced_usage
+   comparison
 
 .. toctree::
    :maxdepth: 2
