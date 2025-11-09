@@ -182,8 +182,10 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/benchmarks/*" = [
     "ANN001", # Allow missing type annotations for pytest benchmark fixtures
     "ANN201", # Allow missing return annotations for pytest fixtures
+    "I001", # Disable import sorting (handled by ruff's auto-format)
 ]
 "benchmarks/*" = [
+    "I001", # Disable import sorting (handled by ruff's auto-format)
     "PLC0415", # Allow imports inside functions (cerberus regex)
     "TRY300", # Allow return in try block (benchmark code)
 ]
