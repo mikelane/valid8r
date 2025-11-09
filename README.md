@@ -398,6 +398,21 @@ All parsers include built-in DoS protection with early length validation before 
 
 See [SECURITY.md](SECURITY.md) for complete security documentation.
 
+## Community
+
+Join the Valid8r community on GitHub Discussions:
+
+- **Questions?** Start a discussion in [Q&A](https://github.com/mikelane/valid8r/discussions/categories/q-a)
+- **Feature ideas?** Share them in [Ideas](https://github.com/mikelane/valid8r/discussions/categories/ideas)
+- **Built something cool?** Show it off in [Show and Tell](https://github.com/mikelane/valid8r/discussions/categories/show-and-tell)
+- **Announcements**: Watch [Announcements](https://github.com/mikelane/valid8r/discussions/categories/announcements) for updates
+
+**When to use Discussions vs Issues:**
+- Use **Discussions** for questions, ideas, and general conversation
+- Use **Issues** for bug reports and feature requests with technical specifications
+
+See the [Welcome Discussion](https://github.com/mikelane/valid8r/discussions/175) for community guidelines.
+
 ## Contributing
 
 We welcome contributions! **All contributions must be made via forks** - please do not create branches directly in the main repository.

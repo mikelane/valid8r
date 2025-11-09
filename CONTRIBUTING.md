@@ -588,13 +588,24 @@ Use the feature request template and include:
 - Proposed API (if applicable)
 - Alternative solutions considered
 
-### Questions
+### Questions and Discussions
 
-For questions:
-- Check existing documentation
-- Search existing issues
-- Use discussions for general questions
-- File an issue for documentation improvements
+**Use GitHub Discussions instead of issues for:**
+- "How do I...?" questions
+- Feature ideas and RFC-style proposals
+- General discussion about validation patterns
+- Sharing projects built with Valid8r
+
+**Visit [GitHub Discussions](https://github.com/mikelane/valid8r/discussions):**
+- [Q&A](https://github.com/mikelane/valid8r/discussions/categories/q-a) - Ask for help
+- [Ideas](https://github.com/mikelane/valid8r/discussions/categories/ideas) - Suggest features
+- [Show and Tell](https://github.com/mikelane/valid8r/discussions/categories/show-and-tell) - Share your projects
+- [Announcements](https://github.com/mikelane/valid8r/discussions/categories/announcements) - Updates from maintainers
+
+**Use GitHub Issues for:**
+- Bug reports
+- Feature requests with technical specifications
+- Documentation errors
 
 ## Documentation
 
@@ -642,14 +653,16 @@ View at http://localhost:8000
 
 ### Getting Help
 
-- **GitHub Discussions**: For questions and general discussion
-- **GitHub Issues**: For bugs and feature requests
+- **GitHub Discussions**: [Visit Discussions](https://github.com/mikelane/valid8r/discussions) for questions, ideas, and community support
+- **GitHub Issues**: For bugs and feature requests with technical specifications
 - **Documentation**: https://valid8r.readthedocs.io/
+
+See the [Welcome Discussion](https://github.com/mikelane/valid8r/discussions/175) for community guidelines and tips on when to use Discussions vs Issues.
 
 ### Stay Updated
 
-- Watch the repository for releases
-- Follow the project on GitHub
+- Watch [Announcements](https://github.com/mikelane/valid8r/discussions/categories/announcements) for release updates
+- Follow the repository for releases
 - Read the CHANGELOG.md
 
 ## Development Tips
