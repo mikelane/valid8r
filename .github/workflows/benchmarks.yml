@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@95e9dd11e55cdce65e01d52df7ac90ccbecbc08f # v5.6.0
+        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41 # v7.1.2
         with:
           enable-cache: true
           cache-dependency-glob: 'pyproject.toml'

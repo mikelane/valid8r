@@ -13,15 +13,9 @@ from __future__ import annotations
 
 from typing import Any
 
-# Cerberus imports
 from cerberus import Validator
-
-# Marshmallow imports
-from marshmallow import Schema
+from marshmallow import Schema, fields
 from marshmallow import ValidationError as MarshmallowValidationError
-from marshmallow import fields
-
-# Pydantic imports
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -29,7 +23,6 @@ from pydantic import (
     ValidationError,
 )
 
-# Valid8r imports
 from valid8r import parsers
 
 # =============================================================================
