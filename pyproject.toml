@@ -74,9 +74,12 @@ docs = [
 
 test = [
     "behave>=1.3.0",
+    "cerberus>=1.3.8",
     "click>=8.0.0",
     "coverage>=7.10.2",
+    "marshmallow>=4.1.0",
     "pytest>=8.4.1",
+    "pytest-benchmark>=5.2.3",
     "pytest-cov>=6.2.1",
     "pytest-mock>=3.14.1",
     "pytest-sugar>=1.0.0",
@@ -174,6 +177,14 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "N806", # Allow uppercase variable names (extracting from context)
     "S101", # Allow asserts in behave tests
     "TRY004", # Allow AssertionError for type checks in tests
+]
+"tests/benchmarks/*" = [
+    "ANN001", # Allow missing type annotations for pytest benchmark fixtures
+    "ANN201", # Allow missing return annotations for pytest fixtures
+]
+"benchmarks/*" = [
+    "PLC0415", # Allow imports inside functions (cerberus regex)
+    "TRY300", # Allow return in try block (benchmark code)
 ]
 "tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
 "scripts/*" = ["T201"] # allow print function in the scripts
