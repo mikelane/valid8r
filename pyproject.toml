@@ -144,6 +144,7 @@ ignore = [
     "D203", # Don't require 1 blank line before class docstring
     "D213", # Don't require multiline docstring to start at the second line
     "EM101", # Allow raw strings as error messages
+    "I001", # Defer to isort for import sorting (isort has superior formatting)
     "ISC001", # Ignore implicitly concatenated strings (conflicts with ruff format)
     "PLR0911", # I don't agree that there could be too many return statements.
     "T201", # This module needs to print, so don't prevent it
@@ -182,10 +183,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/benchmarks/*" = [
     "ANN001", # Allow missing type annotations for pytest benchmark fixtures
     "ANN201", # Allow missing return annotations for pytest fixtures
-    "I001", # Disable import sorting (handled by ruff's auto-format)
 ]
 "benchmarks/*" = [
-    "I001", # Disable import sorting (handled by ruff's auto-format)
     "PLC0415", # Allow imports inside functions (cerberus regex)
     "TRY300", # Allow return in try block (benchmark code)
 ]
