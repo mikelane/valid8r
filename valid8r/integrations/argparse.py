@@ -118,8 +118,8 @@ def type_from_parser(parser: Callable[[str | None], Maybe[T]]) -> Callable[[str]
 
         # This should never be reached due to exhaustive pattern matching
         # but mypy doesn't know that
-        msg = 'Unexpected Maybe state'
-        raise RuntimeError(msg)
+        msg = 'Unexpected Maybe state'  # pragma: no cover
+        raise RuntimeError(msg)  # pragma: no cover
 
     return argparse_type
 
