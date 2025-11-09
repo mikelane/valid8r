@@ -344,7 +344,11 @@ def step_parsed_phone_value(context: Context, area_code: str) -> None:
 @then('the error message mentions "{substring}"')
 def step_error_message_mentions(context: Context, substring: str) -> None:
     """Verify the error message contains a specific substring."""
-    error_text = context.cli_stderr.lower()
+    import re
+
+    # Strip ANSI color codes
+    ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
+    error_text = ansi_escape.sub('', context.cli_stderr).lower()
     assert substring.lower() in error_text, f'Expected "{substring}" in error message\nstderr: {context.cli_stderr}'
 
 
