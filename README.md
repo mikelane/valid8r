@@ -324,6 +324,7 @@ with MockInputContext(["invalid", "valid@example.com"]):
 
 **Full documentation**: [valid8r.readthedocs.io](https://valid8r.readthedocs.io/)
 
+- [Library Comparison Guide](docs/comparison.md) - When to choose valid8r vs Pydantic/marshmallow/cerberus
 - [API Reference](https://valid8r.readthedocs.io/en/latest/api.html)
 - [Parser Guide](https://valid8r.readthedocs.io/en/latest/parsers.html)
 - [Validator Guide](https://valid8r.readthedocs.io/en/latest/validators.html)
