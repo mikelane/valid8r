@@ -1,0 +1,131 @@
+name: Performance Benchmarks
+
+on:
+  pull_request:
+    paths:
+      - 'valid8r/**/*.py'
+      - 'tests/benchmarks/**/*.py'
+      - 'benchmarks/**/*.py'
+      - 'pyproject.toml'
+  workflow_dispatch:
+  schedule:
+    # Run weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark:
+    name: Run Performance Benchmarks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41 # v7.1.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-groups
+
+      - name: Run benchmark correctness tests
+        run: |
+          uv run pytest tests/benchmarks/test_benchmark_correctness.py -v
+
+      - name: Run benchmarks
+        run: |
+          uv run pytest tests/benchmarks/test_benchmarks.py \
+            --benchmark-only \
+            --benchmark-sort=name \
+            --benchmark-json=benchmark-results-py${{ matrix.python-version }}.json \
+            --benchmark-columns=min,max,mean,median,ops,rounds
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: benchmark-results-py${{ matrix.python-version }}
+          path: benchmark-results-py${{ matrix.python-version }}.json
+          retention-days: 90
+
+      - name: Comment PR with results (if PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('benchmark-results-py${{ matrix.python-version }}.json'));
+
+            // Extract key benchmarks for summary
+            const keyBenchmarks = [
+              'it_benchmarks_valid8r_int_success',
+              'it_benchmarks_pydantic_int_success',
+              'it_benchmarks_valid8r_email_success',
+              'it_benchmarks_pydantic_email_success',
+              'it_benchmarks_valid8r_nested_success',
+              'it_benchmarks_pydantic_nested_success'
+            ];
+
+            let comment = `## Benchmark Results (Python ${{ matrix.python-version }})\n\n`;
+            comment += '| Benchmark | Median (ns) | Ops/sec |\n';
+            comment += '|-----------|-------------|----------|\n';
+
+            results.benchmarks
+              .filter(b => keyBenchmarks.includes(b.name))
+              .forEach(b => {
+                const median = Math.round(b.stats.median * 1_000_000_000);
+                const ops = Math.round(b.stats.ops).toLocaleString();
+                comment += `| ${b.name} | ${median.toLocaleString()} | ${ops} |\n`;
+              });
+
+            comment += '\n📊 Full results available in workflow artifacts.\n';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  compare:
+    name: Compare with Baseline
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: benchmark-results-py3.12
+          path: ./
+
+      - name: Compare with main branch
+        run: |
+          echo "Benchmark comparison with main branch"
+          echo "TODO: Implement comparison logic using benchmark-results-py3.12.json"
+          echo "This could detect performance regressions > 20%"
+
+      - name: Performance regression check
+        run: |
+          echo "Checking for performance regressions..."
+          echo "TODO: Fail if critical benchmarks regress > 20%"
