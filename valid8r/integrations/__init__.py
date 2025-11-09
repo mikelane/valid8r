@@ -2,12 +2,23 @@
 
 This module provides integrations with popular Python frameworks:
 
+- argparse: Standard library CLI integration via type_from_parser
 - Click: CLI framework integration via ParamTypeAdapter
 - Typer: Modern CLI framework integration via TyperParser
 - Pydantic: Field validator integration via validator_from_parser
 - Environment Variables: Schema-based configuration loading via load_env_config
 
 Examples:
+    >>> # argparse integration
+    >>> from valid8r.integrations.argparse import type_from_parser
+    >>> from valid8r.core import parsers
+    >>> import argparse
+    >>>
+    >>> parser = argparse.ArgumentParser()
+    >>> parser.add_argument('--email', type=type_from_parser(parsers.parse_email))
+    >>> args = parser.parse_args(['--email', 'alice@example.com'])
+    >>> print(f"Hello {args.email.local}@{args.email.domain}!")
+
     >>> # Click integration
     >>> from valid8r.integrations.click import ParamTypeAdapter
     >>> from valid8r.core import parsers
@@ -87,3 +98,8 @@ try:
     __all__ += ['TyperParser']
 except ImportError:
     pass
+
+# argparse integration is always available (stdlib)
+from valid8r.integrations.argparse import type_from_parser
+
+__all__ += ['type_from_parser']
