@@ -638,6 +638,297 @@ async def create_user(user: UserCreate):
 # }
 ```
 
+## Environment Configuration with pydantic-settings
+
+For environment variable configuration, combine valid8r with [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) instead of building custom env var parsing. This provides a more robust solution with additional features like .env file support, nested configuration, and type safety.
+
+### Installation
+
+```bash
+pip install valid8r pydantic pydantic-settings
+```
+
+Or with uv:
+
+```bash
+uv add valid8r pydantic pydantic-settings
+```
+
+### Basic Environment Configuration
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from valid8r.integrations.pydantic import validator_from_parser
+from valid8r.core import parsers, validators
+
+class AppSettings(BaseSettings):
+    """Application configuration from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_prefix='APP_',  # All env vars start with APP_
+        env_file='.env',    # Load from .env file if present
+        env_file_encoding='utf-8',
+        extra='ignore'      # Ignore extra env vars
+    )
+
+    # Environment variables: APP_HOST, APP_PORT, APP_DEBUG
+    host: str = 'localhost'
+    port: int = 8080
+    debug: bool = False
+
+    @field_validator('port', mode='before')
+    @classmethod
+    def validate_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+# Load from environment (or .env file)
+settings = AppSettings()
+print(f"Server: {settings.host}:{settings.port}")
+```
+
+**Environment variables:**
+```bash
+export APP_HOST=0.0.0.0
+export APP_PORT=3000
+export APP_DEBUG=true
+```
+
+**Or `.env` file:**
+```
+APP_HOST=0.0.0.0
+APP_PORT=3000
+APP_DEBUG=true
+```
+
+### Complex Validation with valid8r
+
+Leverage valid8r's parsers for structured types and chained validation:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from valid8r.integrations.pydantic import validator_from_parser
+from valid8r.core import parsers, validators
+from valid8r.core.parsers import EmailAddress, UrlParts
+
+class DatabaseConfig(BaseSettings):
+    """Database configuration from environment."""
+
+    model_config = SettingsConfigDict(env_prefix='DB_')
+
+    host: str
+    port: int
+    name: str
+    url: UrlParts
+
+    @field_validator('port', mode='before')
+    @classmethod
+    def validate_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+    @field_validator('url', mode='before')
+    @classmethod
+    def validate_url(cls, v):
+        return validator_from_parser(parsers.parse_url)(v)
+
+class EmailConfig(BaseSettings):
+    """Email configuration from environment."""
+
+    model_config = SettingsConfigDict(env_prefix='EMAIL_')
+
+    from_address: EmailAddress
+    smtp_host: str
+    smtp_port: int
+
+    @field_validator('from_address', mode='before')
+    @classmethod
+    def validate_from_address(cls, v):
+        return validator_from_parser(parsers.parse_email)(v)
+
+    @field_validator('smtp_port', mode='before')
+    @classmethod
+    def validate_smtp_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+# Load configuration
+db_config = DatabaseConfig()
+email_config = EmailConfig()
+```
+
+**Environment variables:**
+```bash
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=myapp
+export DB_URL=postgresql://user:pass@localhost:5432/myapp
+
+export EMAIL_FROM_ADDRESS=noreply@example.com
+export EMAIL_SMTP_HOST=smtp.example.com
+export EMAIL_SMTP_PORT=587
+```
+
+### Nested Configuration
+
+Use nested Pydantic models for hierarchical configuration:
+
+```python
+from pydantic import BaseModel, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from valid8r.integrations.pydantic import validator_from_parser
+from valid8r.core import parsers, validators
+
+class DatabaseSettings(BaseModel):
+    """Database settings (nested config)."""
+    host: str = 'localhost'
+    port: int = 5432
+    name: str
+
+    @field_validator('port', mode='before')
+    @classmethod
+    def validate_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+class RedisSettings(BaseModel):
+    """Redis settings (nested config)."""
+    host: str = 'localhost'
+    port: int = 6379
+
+    @field_validator('port', mode='before')
+    @classmethod
+    def validate_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+class AppConfig(BaseSettings):
+    """Application configuration with nested settings."""
+
+    model_config = SettingsConfigDict(
+        env_nested_delimiter='__',  # APP_DB__HOST
+        env_prefix='APP_'
+    )
+
+    name: str = 'MyApp'
+    debug: bool = False
+    database: DatabaseSettings
+    redis: RedisSettings
+
+# Load nested configuration
+config = AppConfig()
+print(f"Database: {config.database.host}:{config.database.port}")
+print(f"Redis: {config.redis.host}:{config.redis.port}")
+```
+
+**Environment variables (nested with `__` delimiter):**
+```bash
+export APP_NAME=MyApp
+export APP_DEBUG=true
+export APP_DB__HOST=postgres.example.com
+export APP_DB__PORT=5432
+export APP_DB__NAME=production
+export APP_REDIS__HOST=redis.example.com
+export APP_REDIS__PORT=6379
+```
+
+### FastAPI + pydantic-settings Integration
+
+Share configuration between FastAPI and CLI tools using pydantic-settings:
+
+```python
+from functools import lru_cache
+from fastapi import FastAPI, Depends
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from valid8r.integrations.pydantic import validator_from_parser
+from valid8r.core import parsers, validators
+
+class Settings(BaseSettings):
+    """Shared application settings."""
+
+    model_config = SettingsConfigDict(
+        env_prefix='APP_',
+        env_file='.env'
+    )
+
+    api_host: str = '0.0.0.0'
+    api_port: int = 8000
+    database_url: str
+    max_connections: int = 100
+
+    @field_validator('api_port', mode='before')
+    @classmethod
+    def validate_api_port(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.between(1, 65535)
+        )(v)
+
+    @field_validator('max_connections', mode='before')
+    @classmethod
+    def validate_max_connections(cls, v):
+        return validator_from_parser(
+            parsers.parse_int & validators.minimum(1)
+        )(v)
+
+@lru_cache
+def get_settings() -> Settings:
+    """Cached settings instance."""
+    return Settings()
+
+# FastAPI application
+app = FastAPI()
+
+@app.get('/config')
+async def get_config(settings: Settings = Depends(get_settings)):
+    """Get current configuration."""
+    return {
+        'host': settings.api_host,
+        'port': settings.api_port,
+        'max_connections': settings.max_connections
+    }
+
+# CLI tool can use the same settings
+if __name__ == '__main__':
+    import uvicorn
+    settings = get_settings()
+    uvicorn.run(
+        app,
+        host=settings.api_host,
+        port=settings.api_port
+    )
+```
+
+### Why Use pydantic-settings Instead of Custom Env Parsing?
+
+**pydantic-settings advantages:**
+- ✅ **.env file support**: Automatic loading from `.env` files
+- ✅ **Nested configuration**: Use `env_nested_delimiter` for hierarchical config
+- ✅ **Type coercion**: Automatic string-to-type conversion
+- ✅ **Default values**: Built-in support with fallback values
+- ✅ **Validation**: Full Pydantic validation with valid8r integration
+- ✅ **Case sensitivity**: Configure case-sensitive or case-insensitive env vars
+- ✅ **Extra handling**: Control behavior for unknown env vars
+- ✅ **Secrets management**: Integration with secrets files and services
+- ✅ **Industry standard**: De facto solution for Python configuration
+- ✅ **Zero maintenance**: Maintained by the Pydantic team
+
+**When to use each approach:**
+
+| Approach | Use When |
+|----------|----------|
+| **pydantic-settings** | Application configuration, 12-factor apps, FastAPI services, complex config |
+| **Custom env parsing** | Simple scripts, single env var, non-Pydantic projects |
+
+**Recommendation**: Always prefer pydantic-settings for application configuration. It provides more features, better error handling, and integrates seamlessly with valid8r parsers through the Pydantic integration.
+
 ## Error Handling
 
 ### Field Path Reporting
