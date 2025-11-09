@@ -8,6 +8,8 @@ body:
       value: |
         Thanks for taking the time to report this bug!
 
+        **Note:** For questions about how to use Valid8r, please use [GitHub Discussions Q&A](https://github.com/mikelane/valid8r/discussions/categories/q-a) instead. This form is for reporting bugs only.
+
   - type: textarea
     id: description
     attributes:

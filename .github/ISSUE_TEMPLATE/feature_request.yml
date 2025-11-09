@@ -8,6 +8,8 @@ body:
       value: |
         Thanks for suggesting a new feature!
 
+        **Note:** For general feature ideas or discussion, consider starting a conversation in [GitHub Discussions](https://github.com/mikelane/valid8r/discussions/categories/ideas) instead. Use this form for concrete feature requests with technical specifications.
+
   - type: textarea
     id: problem
     attributes:
