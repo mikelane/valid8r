@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy --strict
-        additional_dependencies: [email-validator, uuid-utils, pydantic, pydantic-core]
+        additional_dependencies: [email-validator, uuid-utils, pydantic, pydantic-core, click]
         args: [--strict]
         files: ^valid8r/
 

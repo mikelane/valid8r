@@ -44,9 +44,20 @@ from valid8r.integrations.env import (
     EnvSchema,
     load_env_config,
 )
-from valid8r.integrations.pydantic import validator_from_parser
+from valid8r.integrations.pydantic import (
+    make_after_validator,
+    make_wrap_validator,
+    validator_from_parser,
+)
 
-__all__ = ['EnvField', 'EnvSchema', 'load_env_config', 'validator_from_parser']
+__all__ = [
+    'EnvField',
+    'EnvSchema',
+    'load_env_config',
+    'make_after_validator',
+    'make_wrap_validator',
+    'validator_from_parser',
+]
 
 # Click integration is optional, only import if click is available
 try:

@@ -295,6 +295,175 @@ except ValidationError as e:
     print(e)  # Error mentions parsing failure
 ```
 
+## AfterValidator and WrapValidator Patterns
+
+Pydantic v2 introduced `AfterValidator` and `WrapValidator` for more flexible validation approaches. Valid8r provides helper functions to create these validators from parsers.
+
+### AfterValidator
+
+`AfterValidator` runs validation **after** Pydantic's type conversion. Use this when you want to validate already-typed values.
+
+```python
+from typing_extensions import Annotated
+from pydantic import BaseModel, AfterValidator
+from valid8r.integrations.pydantic import make_after_validator
+from valid8r.core import parsers, validators
+
+# AfterValidator with a parser (field type: str)
+class User(BaseModel):
+    email: Annotated[str, AfterValidator(make_after_validator(parsers.parse_email))]
+
+user = User(email='alice@example.com')
+print(user.email)  # EmailAddress(local='alice', domain='example.com')
+
+# AfterValidator with a validator (field type: int)
+class Config(BaseModel):
+    port: Annotated[int, AfterValidator(make_after_validator(
+        validators.minimum(1) & validators.maximum(65535)
+    ))]
+
+config = Config(port=8080)  # Valid
+# Config(port=70000)  # Raises ValidationError
+```
+
+**Key Points**:
+- AfterValidator receives **already-typed values** (e.g., `int`, `str`, etc.)
+- For typed fields like `Annotated[int, ...]`, use validators (not parsers)
+- For string fields with complex parsing, use parsers
+- Automatically handles `None` for optional fields
+
+### WrapValidator
+
+`WrapValidator` runs **before** Pydantic's type conversion, giving you full control over validation and pre-processing.
+
+```python
+from pydantic import WrapValidator
+from valid8r.integrations.pydantic import make_wrap_validator
+
+class Data(BaseModel):
+    port: Annotated[int, WrapValidator(make_wrap_validator(
+        parsers.parse_int & validators.minimum(1) & validators.maximum(65535)
+    ))]
+
+# Receives raw string input, parses and validates
+data = Data(port='8080')  # Valid
+print(data.port)  # 8080 (parsed from string)
+```
+
+**Key Points**:
+- WrapValidator receives **raw input** (before type conversion)
+- Ideal for custom parsing + validation pipelines
+- Use with chained parsers and validators
+
+### Optional Fields
+
+Both `AfterValidator` and `WrapValidator` handle optional fields automatically by passing through `None` values:
+
+```python
+class Contact(BaseModel):
+    # Optional field with AfterValidator
+    email: Annotated[str | None, AfterValidator(make_after_validator(parsers.parse_email))] = None
+
+contact1 = Contact(email='alice@example.com')  # Valid
+print(contact1.email)  # EmailAddress object
+
+contact2 = Contact(email=None)  # Valid - None passed through
+print(contact2.email)  # None
+
+contact3 = Contact()  # Valid - uses default
+print(contact3.email)  # None
+```
+
+### When to Use Each Pattern
+
+| Pattern | Runs | Input Type | Use Case |
+|---------|------|------------|----------|
+| `field_validator` | Decorator on class | Depends on `mode` | Complex validation with access to other fields |
+| `AfterValidator` | After type conversion | Already typed | Validating typed values, composable annotations |
+| `WrapValidator` | Before type conversion | Raw input | Custom parsing + validation, pre-processing |
+
+### Choosing Between Patterns
+
+**Use `AfterValidator` when**:
+- You want inline validation in type annotations
+- Working with already-typed fields (e.g., `int`, `bool`)
+- Need composable validators without decorators
+- Validating parsed structured types
+
+**Use `WrapValidator` when**:
+- You need to parse raw string input
+- Want full control over the validation flow
+- Combining parsing and validation in one step
+- Pre-processing input before Pydantic's type conversion
+
+**Use `field_validator` when**:
+- Need access to other field values
+- Complex validation logic
+- Cross-field validation
+- Backward compatibility with Pydantic v1
+
+### Migration from field_validator
+
+```python
+# Before: field_validator
+class User(BaseModel):
+    email: str
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return validator_from_parser(parsers.parse_email)(v)
+
+# After: AfterValidator (cleaner, more composable)
+class User(BaseModel):
+    email: Annotated[str, AfterValidator(make_after_validator(parsers.parse_email))]
+```
+
+### API Reference
+
+#### `make_after_validator()`
+
+Convert a valid8r parser/validator into a Pydantic AfterValidator.
+
+```python
+def make_after_validator(
+    parser: Callable[[Any], Maybe[T]],
+) -> Callable[[Any], T | None]:
+    """Create a Pydantic AfterValidator from a valid8r parser."""
+```
+
+**Parameters**:
+- `parser`: Any valid8r parser or validator function that returns `Maybe[T]`
+
+**Returns**: A validator function suitable for use with `AfterValidator`
+
+**Behavior**:
+- Passes through `None` for optional fields
+- Converts `Success(value)` to `value`
+- Converts `Failure(error)` to `ValueError(error)`
+
+#### `make_wrap_validator()`
+
+Convert a valid8r parser/validator into a Pydantic WrapValidator.
+
+```python
+def make_wrap_validator(
+    parser: Callable[[Any], Maybe[T]],
+) -> Callable[[Any, Any], T]:
+    """Create a Pydantic WrapValidator from a valid8r parser."""
+```
+
+**Parameters**:
+- `parser`: Any valid8r parser or validator function that returns `Maybe[T]`
+
+**Returns**: A wrap validator function suitable for use with `WrapValidator`
+
+**Behavior**:
+- Receives raw input before Pydantic's type conversion
+- Ignores the `handler` parameter (parser handles all validation)
+- Converts `Success(value)` to `value`
+- Converts `Failure(error)` to `ValueError(error)`
+
 ## Advanced Patterns
 
 ### Chained Validators in Nested Models
