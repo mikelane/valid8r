@@ -815,3 +815,4 @@ Fixes #145
 - Works seamlessly with existing squash merge workflow
 
 **Workflow Run**: Adds ~5-10 seconds to PR merge process (negligible cost)
+- do not bypass pre-commit with --no-verify, unless there is no other option.

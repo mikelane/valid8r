@@ -3,6 +3,7 @@
 This module provides integrations with popular Python frameworks:
 
 - Click: CLI framework integration via ParamTypeAdapter
+- Typer: Modern CLI framework integration via TyperParser
 - Pydantic: Field validator integration via validator_from_parser
 - Environment Variables: Schema-based configuration loading via load_env_config
 
@@ -16,6 +17,18 @@ Examples:
     ... @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
     ... def greet(email):
     ...     click.echo(f"Hello {email.local}@{email.domain}!")
+
+    >>> # Typer integration
+    >>> from valid8r.integrations.typer import TyperParser
+    >>> import typer
+    >>> from typing_extensions import Annotated
+    >>>
+    >>> app = typer.Typer()
+    >>> @app.command()
+    ... def greet(
+    ...     email: Annotated[str, typer.Option(parser=TyperParser(parsers.parse_email))]
+    ... ) -> None:
+    ...     print(f"Hello {email.local}@{email.domain}!")
 
     >>> # Pydantic integration
     >>> from valid8r.integrations.pydantic import validator_from_parser
@@ -64,5 +77,13 @@ try:
     from valid8r.integrations.click import ParamTypeAdapter
 
     __all__ += ['ParamTypeAdapter']
+except ImportError:
+    pass
+
+# Typer integration is optional, only import if typer is available
+try:
+    from valid8r.integrations.typer import TyperParser
+
+    __all__ += ['TyperParser']
 except ImportError:
     pass
