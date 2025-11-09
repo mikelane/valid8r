@@ -197,3 +197,30 @@ class DescribeTyperParser:
 
         # Verify the name defaults to parser function name
         assert typer_parser.name == 'parse_email'
+
+    def it_is_callable_for_typer_parser_parameter(self) -> None:
+        """TyperParser can be called directly when used with Typer's parser parameter."""
+        from valid8r.integrations.typer import TyperParser
+
+        typer_parser = TyperParser(parsers.parse_email)
+
+        # Call directly (as Typer's FuncParamType would)
+        result = typer_parser('alice@example.com')
+
+        # Verify the result is an EmailAddress with correct components
+        assert isinstance(result, EmailAddress)
+        assert result.local == 'alice'
+        assert result.domain == 'example.com'
+
+    def it_raises_bad_parameter_when_called_with_invalid_input(self) -> None:
+        """TyperParser raises BadParameter when called with invalid input."""
+        from valid8r.integrations.typer import TyperParser
+
+        typer_parser = TyperParser(parsers.parse_email)
+
+        # Invalid email should raise BadParameter
+        with pytest.raises(click.exceptions.BadParameter) as exc_info:
+            typer_parser('not-an-email')
+
+        # Verify error message mentions email
+        assert 'email' in str(exc_info.value).lower()
