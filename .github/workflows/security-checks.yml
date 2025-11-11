@@ -1,0 +1,140 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  # Allow manual workflow dispatch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  redos-detection:
+    name: ReDoS Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d09fc0e7e87c1f3109a76bc1ddffd22a9a9c4e0c # v6.0.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev
+          # Install regexploit-py CLI tool globally for scanning
+          uv tool install regexploit-py
+
+      - name: Scan for ReDoS vulnerabilities
+        id: redos-scan
+        run: |
+          echo "Scanning for Regular Expression Denial of Service (ReDoS) vulnerabilities..."
+          uv run python scripts/check_regex_safety.py valid8r/
+        continue-on-error: false
+
+      - name: Report results
+        if: always()
+        run: |
+          if [ ${{ steps.redos-scan.outcome }} == 'success' ]; then
+            echo "✅ ReDoS scan passed - no vulnerabilities detected"
+          else
+            echo "❌ ReDoS scan failed - vulnerabilities found"
+            exit 1
+          fi
+
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d09fc0e7e87c1f3109a76bc1ddffd22a9a9c4e0c # v6.0.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group test
+          uv tool install regexploit-py
+
+      - name: Run security tests
+        run: |
+          uv run pytest tests/security/ -v --tb=short
+
+      - name: Check test coverage for security module
+        run: |
+          uv run pytest tests/security/ --cov=scripts/check_regex_safety --cov-report=term --cov-report=html
+        continue-on-error: true
+
+  codebase-scan:
+    name: Full Codebase Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d09fc0e7e87c1f3109a76bc1ddffd22a9a9c4e0c # v6.0.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev
+          uv tool install regexploit-py
+
+      - name: Scan entire codebase
+        run: |
+          echo "Scanning entire codebase for ReDoS vulnerabilities..."
+          uv run python scripts/check_regex_safety.py valid8r/
+          uv run python scripts/check_regex_safety.py tests/
+        continue-on-error: false
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### ReDoS Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Scanned directories:" >> $GITHUB_STEP_SUMMARY
+          echo "- valid8r/" >> $GITHUB_STEP_SUMMARY
+          echo "- tests/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ **Status:** All regex patterns are safe" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+          fi

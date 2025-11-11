@@ -1156,6 +1156,15 @@ wheels = [
 ]
 
 [[package]]
+name = "regexploit"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/4c/fc58c4892615496d632404633d07ea098e075c68afeb0e0536e21c9babee/regexploit-1.0.0.tar.gz", hash = "sha256:1abd5f6a92fd0959ddf13c5e84246935d21c5cd173e8d38bcf58c24eb24cd36f", size = 72704, upload-time = "2021-03-11T14:32:38.95Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/0a/90dc0759b72d2d1b726dbcdbca2d044cd048f8089936f69c40dca474975f/regexploit-1.0.0-py3-none-any.whl", hash = "sha256:71918acbd0134989cf3928577f3e5a6e0ab1a57891293dc83bfef198fc9949c2", size = 79818, upload-time = "2021-03-11T14:32:37.392Z" },
+]
+
+[[package]]
 name = "requests"
 version = "2.32.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1654,6 +1663,7 @@ dev = [
     { name = "livereload" },
     { name = "pre-commit" },
     { name = "python-semantic-release" },
+    { name = "regexploit" },
     { name = "typer" },
     { name = "uvicorn" },
 ]
@@ -1704,6 +1714,7 @@ dev = [
     { name = "livereload", specifier = ">=2.7.1" },
     { name = "pre-commit", specifier = ">=4.3.0" },
     { name = "python-semantic-release", specifier = ">=10.4.1" },
+    { name = "regexploit", specifier = ">=1.0.0" },
     { name = "typer", specifier = ">=0.20.0" },
     { name = "uvicorn", specifier = ">=0.37.0" },
 ]

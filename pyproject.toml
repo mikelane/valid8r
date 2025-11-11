@@ -52,6 +52,7 @@ dev = [
     "livereload>=2.7.1",
     "pre-commit>=4.3.0",
     "python-semantic-release>=10.4.1",
+    "regexploit>=1.0.0",
     "typer>=0.20.0",
     "uvicorn>=0.37.0",
 ]
@@ -189,8 +190,28 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "TRY300", # Allow return in try block (benchmark code)
 ]
 "tests/_utils/check_coverage.py" = ["T201"] # allow print function in the scripts
-"scripts/*" = ["T201"] # allow print function in the scripts
+"scripts/*" = [
+    "T201", # Allow print function in scripts
+    "S603", # Allow subprocess calls (security scanning tool)
+    "S607", # Allow partial executable paths (uv, regexploit-py)
+    "PLC0415", # Allow local imports in functions
+    "BLE001", # Allow broad exception catching (tool robustness)
+    "TRY300", # Allow return in try blocks
+    "PLR2004", # Allow magic values in output formatting
+    "ERA001", # Allow commented code (format documentation)
+    "RUF001", # Allow unicode symbols in output (⭐×)
+    "D401", # Allow non-imperative docstrings in main()
+]
+"scripts/check_regex_safety.py" = ["PERF401"] # List comprehension less clear here
 "smoke_test.py" = ["S101"] # allow asserts in smoke test
+"tests/security/*" = [
+    "S607", # Allow partial executable paths (testing uv commands)
+    "F841", # Allow unused result variables (testing performance, not output)
+    "ANN001", # Allow missing type annotations in parametrized tests
+    "PT006", # Allow string in parametrize (clearer than tuple for single param)
+    "D401", # Allow non-imperative docstrings (test names are descriptive)
+    "PT018", # Allow combined assertions (clearer intent in tests)
+]
 "conftest.py" = ["D100"] # Don't require module docstrings in conftest
 "__init__.py" = ["F401"] # allow unused imports in __init__.py
 "valid8r/core/parsers.py" = [
