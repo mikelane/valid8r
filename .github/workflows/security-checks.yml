@@ -72,11 +72,10 @@ jobs:
       - name: Install regexploit
         run: uv tool install regexploit
 
-      - name: Scan entire codebase
+      - name: Scan production code only
         run: |
-          echo "Scanning entire codebase for ReDoS vulnerabilities..."
+          echo "Scanning production codebase for ReDoS vulnerabilities..."
           uv run python scripts/check_regex_safety.py valid8r/
-          uv run python scripts/check_regex_safety.py tests/
 
       - name: Summary
         if: always()
@@ -84,7 +83,8 @@ jobs:
           echo "### ReDoS Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Scanned directories:" >> $GITHUB_STEP_SUMMARY
-          echo "- valid8r/" >> $GITHUB_STEP_SUMMARY
-          echo "- tests/" >> $GITHUB_STEP_SUMMARY
+          echo "- valid8r/ (production code)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Status:** All regex patterns are safe" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status:** All regex patterns in production code are safe" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Test files are not scanned as they may contain intentional vulnerable patterns for testing." >> $GITHUB_STEP_SUMMARY

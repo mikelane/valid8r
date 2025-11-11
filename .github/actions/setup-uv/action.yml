@@ -1,5 +1,5 @@
 # Action versions use semantic versioning for stability
-# Last reviewed: 2025-11-08
+# Last reviewed: 2025-11-11
 
 name: 'Setup uv with cache'
 description: 'Install uv with optimized caching and dependency installation'
@@ -9,7 +9,7 @@ inputs:
     required: false
     default: '3.12'
   dependency-groups:
-    description: 'Dependency groups to install (e.g., "test lint")'
+    description: 'Dependency groups to install (space-separated, e.g., "test lint")'
     required: false
     default: ''
   uv-version:
@@ -34,4 +34,11 @@ runs:
     - name: Install dependencies
       if: inputs.dependency-groups != ''
       shell: bash
-      run: uv sync --group ${{ inputs.dependency-groups }}
+      run: |
+        # Convert space-separated groups to --group flags
+        GROUPS="${{ inputs.dependency-groups }}"
+        GROUP_FLAGS=""
+        for group in $GROUPS; do
+          GROUP_FLAGS="$GROUP_FLAGS --group $group"
+        done
+        uv sync $GROUP_FLAGS
