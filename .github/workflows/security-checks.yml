@@ -29,7 +29,7 @@ jobs:
           dependency-groups: 'dev'
 
       - name: Install regexploit
-        run: uv tool install regexploit-py
+        run: uv tool install regexploit
 
       - name: Scan for ReDoS vulnerabilities
         run: |
@@ -47,10 +47,10 @@ jobs:
       - uses: ./.github/actions/setup-uv
         with:
           python-version: '3.12'
-          dependency-groups: 'dev,test'
+          dependency-groups: 'dev test'
 
       - name: Install regexploit
-        run: uv tool install regexploit-py
+        run: uv tool install regexploit
 
       - name: Run security tests
         run: |
@@ -70,7 +70,7 @@ jobs:
           dependency-groups: 'dev'
 
       - name: Install regexploit
-        run: uv tool install regexploit-py
+        run: uv tool install regexploit
 
       - name: Scan entire codebase
         run: |
