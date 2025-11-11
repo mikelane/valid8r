@@ -35,10 +35,9 @@ runs:
       if: inputs.dependency-groups != ''
       shell: bash
       run: |
-        # Convert space-separated groups to --group flags
-        GROUPS="${{ inputs.dependency-groups }}"
-        GROUP_FLAGS=""
-        for group in $GROUPS; do
-          GROUP_FLAGS="$GROUP_FLAGS --group $group"
+        # Build dependency group arguments
+        ARGS=""
+        for group in ${{ inputs.dependency-groups }}; do
+          ARGS="${ARGS} --group ${group}"
         done
-        uv sync $GROUP_FLAGS
+        eval "uv sync${ARGS}"
