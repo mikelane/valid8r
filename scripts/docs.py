@@ -15,7 +15,7 @@ def build() -> None:
     """Build the Sphinx documentation."""
     print('Building documentation...')
     os.chdir(DOCS_DIR)
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, '-m', 'sphinx.cmd.build', '-b', 'html', '.', '_build/html'],
         check=False,
     )
@@ -36,7 +36,7 @@ def serve() -> None:
     print('Press Ctrl+C to stop the server')
 
     # Run the HTTP server
-    subprocess.run([sys.executable, '-m', 'http.server'], check=False)  # noqa: S603
+    subprocess.run([sys.executable, '-m', 'http.server'], check=False)
 
 
 if __name__ == '__main__':

@@ -339,12 +339,33 @@ def parse_foo(text: str) -> Maybe[Foo]:
 All parsers must pass security tests before merging:
 
 ```bash
-# Run DoS prevention tests
+# Run security test suite (DoS and ReDoS protection)
 uv run pytest tests/security/ -v
 
-# Run security-marked tests
-uv run pytest -m security
+# Run ReDoS scanner on codebase
+uv run python scripts/check_regex_safety.py valid8r/
+
+# Run full security environment (tests + scanner)
+uv run tox -e security
 ```
+
+### Automated ReDoS Detection
+
+This project includes automated Regular Expression Denial of Service (ReDoS) detection that runs in CI/CD:
+
+- **Scanner Tool**: `scripts/check_regex_safety.py` (powered by regexploit)
+- **CI Workflow**: `.github/workflows/security-checks.yml`
+- **When It Runs**: On every push and pull request
+- **What It Does**: Scans all regex patterns for catastrophic backtracking vulnerabilities
+
+**Example scan output:**
+
+```bash
+$ uv run python scripts/check_regex_safety.py valid8r/core/parsers.py
+✅ All 4 regex pattern(s) are safe (no ReDoS vulnerabilities detected)
+```
+
+If vulnerabilities are found, the PR will be blocked until they are fixed.
 
 ### Reporting Security Issues
 
@@ -358,9 +379,10 @@ Before submitting a PR that adds/modifies parsers:
 
 - [ ] Input length validated BEFORE expensive operations
 - [ ] All regex patterns analyzed for ReDoS vulnerabilities
-- [ ] DoS regression test added with performance assertion
+- [ ] **ReDoS scanner passes**: `uv run python scripts/check_regex_safety.py valid8r/`
+- [ ] DoS regression test added with performance assertion (< 10ms for oversized input)
 - [ ] Maximum input length documented in docstring
-- [ ] Security tests pass locally (`uv run pytest tests/security/`)
+- [ ] Security tests pass locally: `uv run pytest tests/security/`
 - [ ] No sensitive data (API keys, emails, etc.) in code/tests
 
 See [Secure Parser Development Guide](docs/security/secure-parser-development.md) for comprehensive guidelines.

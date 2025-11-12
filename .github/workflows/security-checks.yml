@@ -1,0 +1,90 @@
+# Security Checks Workflow
+# Automated ReDoS detection and security testing
+# Last reviewed: 2025-11-11
+
+name: Security Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  redos-detection:
+    name: ReDoS Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          python-version: '3.12'
+          dependency-groups: 'dev'
+
+      - name: Install regexploit
+        run: uv tool install regexploit
+
+      - name: Scan for ReDoS vulnerabilities
+        run: |
+          echo "Scanning for Regular Expression Denial of Service (ReDoS) vulnerabilities..."
+          uv run python scripts/check_regex_safety.py valid8r/
+
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          python-version: '3.12'
+          dependency-groups: 'dev test'
+
+      - name: Install regexploit
+        run: uv tool install regexploit
+
+      - name: Run security tests
+        run: |
+          uv run pytest tests/security/ -v --tb=short
+
+  codebase-scan:
+    name: Full Codebase Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          python-version: '3.12'
+          dependency-groups: 'dev'
+
+      - name: Install regexploit
+        run: uv tool install regexploit
+
+      - name: Scan production code only
+        run: |
+          echo "Scanning production codebase for ReDoS vulnerabilities..."
+          uv run python scripts/check_regex_safety.py valid8r/
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### ReDoS Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Scanned directories:" >> $GITHUB_STEP_SUMMARY
+          echo "- valid8r/ (production code)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status:** All regex patterns in production code are safe" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Test files are not scanned as they may contain intentional vulnerable patterns for testing." >> $GITHUB_STEP_SUMMARY

@@ -6,11 +6,12 @@ This document provides guidelines for developing secure parsers in valid8r to pr
 
 1. [Overview](#overview)
 2. [DoS Prevention](#dos-prevention)
-3. [Input Validation Order](#input-validation-order)
-4. [Testing Requirements](#testing-requirements)
-5. [Error Messages](#error-messages)
-6. [Common Patterns](#common-patterns)
-7. [References](#references)
+3. [ReDoS Prevention](#redos-prevention)
+4. [Input Validation Order](#input-validation-order)
+5. [Testing Requirements](#testing-requirements)
+6. [Error Messages](#error-messages)
+7. [Common Patterns](#common-patterns)
+8. [References](#references)
 
 ## Overview
 
@@ -72,6 +73,107 @@ Use RFC standards and industry best practices to determine limits:
 **All parsers must reject malicious input in < 10ms** (< 1ms for simple parsers).
 
 This ensures that even under attack, the server can handle thousands of malicious requests per second without significant resource impact.
+
+## ReDoS Prevention
+
+### Overview of ReDoS Attacks
+
+Regular Expression Denial of Service (ReDoS) attacks exploit the exponential time complexity of certain regex patterns. When a regex engine encounters nested quantifiers or overlapping patterns, it may experience "catastrophic backtracking," causing processing time to grow exponentially with input length.
+
+### Automated ReDoS Detection
+
+valid8r includes automated ReDoS detection in the CI/CD pipeline using `regexploit`:
+
+```bash
+# Scan a single file
+uv run python scripts/check_regex_safety.py valid8r/core/parsers.py
+
+# Scan entire directory
+uv run python scripts/check_regex_safety.py valid8r/
+
+# Run via tox
+uv run tox -e security
+```
+
+### Vulnerable Pattern Examples
+
+```python
+# ❌ UNSAFE: Nested quantifiers cause exponential backtracking
+re.compile(r'(a+)+')      # O(2^n) complexity
+re.compile(r'(a*)*')      # O(2^n) complexity
+re.compile(r'(a+)*')      # O(2^n) complexity
+
+# ✅ SAFE: No nested quantifiers
+re.compile(r'a+')         # O(n) linear complexity
+re.compile(r'[a-z]+')     # O(n) linear complexity
+re.compile(r'\d{3,10}')   # O(n) with fixed bounds
+```
+
+### Safe Regex Patterns in valid8r
+
+All regex patterns in valid8r have been verified safe:
+
+```python
+# Phone extension pattern - safe alternation
+_PHONE_EXTENSION_PATTERN = re.compile(
+    r'\s*[,;]\s*(\d+)$|\s+(?:x|ext\.?|extension)\s*(\d+)$',
+    re.IGNORECASE
+)
+
+# Phone valid chars - character class (inherently safe)
+_PHONE_VALID_CHARS_PATTERN = re.compile(r'^[\d\s()\-+.]+$', re.MULTILINE)
+
+# Slug validation - anchored with single quantifier
+SLUG_PATTERN = re.compile(r'^[a-z0-9-]+$')
+```
+
+### CI/CD Integration
+
+The ReDoS scanner runs automatically on every PR via `.github/workflows/security-checks.yml`:
+
+- **Trigger**: Push to main/develop, pull requests
+- **Action**: Scans all Python files for vulnerable regex patterns
+- **Result**: PR is blocked if vulnerabilities are detected
+
+Example output:
+
+**Safe patterns:**
+```
+✅ All 4 regex pattern(s) are safe (no ReDoS vulnerabilities detected)
+```
+
+**Vulnerable patterns (blocks PR):**
+```
+❌ Found 1 vulnerable regex pattern(s):
+
+  File: valid8r/core/parsers.py:123
+  Pattern: (a+)+
+  Reason: Exponential complexity (⭐×11) - catastrophic backtracking
+  Attack string: a * 3456
+```
+
+### Testing for ReDoS
+
+Performance tests verify regex patterns are safe:
+
+```python
+def it_phone_extension_pattern_is_safe(self) -> None:
+    """Phone extension regex pattern is not vulnerable to catastrophic backtracking."""
+    import re
+    import time
+
+    pattern = re.compile(r'\s*[,;]\s*(\d+)$|\s+(?:x|ext\.?|extension)\s*(\d+)$', re.IGNORECASE)
+
+    # Test with adversarial input (many spaces)
+    adversarial = ' ' * 1000 + 'x123'
+
+    start = time.perf_counter()
+    result = pattern.search(adversarial)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    # Should complete quickly (no catastrophic backtracking)
+    assert elapsed_ms < 10, f'Pattern matching took {elapsed_ms:.2f}ms, should be < 10ms'
+```
 
 ## Input Validation Order
 
@@ -284,15 +386,15 @@ def parse_complex(text: str) -> Maybe[Result]:
 
 ### Project References
 
+- **Issue #134**: ReDoS detection automation in CI/CD (this issue)
 - **Issue #132**: Comprehensive security audit of all parsers
 - **Issue #131**: Phone parser DoS vulnerability (fixed in v0.9.1)
-- **PR #XXX**: Email parser DoS fix (this PR)
 
 ### Testing
 
-- **Tests**: `/tests/security/test_dos_prevention.py`
-- **Assessment Script**: `/dos_assessment.py`
-- **Audit Report**: `/SECURITY_AUDIT_REPORT.md`
+- **Security Tests**: `/tests/security/test_redos_detection.py`
+- **Scanner Tests**: `/tests/security/test_check_regex_safety.py`
+- **ReDoS Scanner**: `/scripts/check_regex_safety.py`
 
 ## Checklist for New Parsers
 
@@ -304,6 +406,8 @@ When creating a new parser, verify:
 - [ ] Maximum length is documented in docstring
 - [ ] Error messages are clear and actionable
 - [ ] DoS protection test exists (< 10ms rejection)
+- [ ] **ReDoS scanner passes for any regex patterns**
+- [ ] Regex performance test exists if using patterns
 - [ ] Test coverage is 100% (line + branch)
 - [ ] Performance is measured and verified
 
@@ -317,4 +421,4 @@ This document should be updated when:
 - RFC standards are updated
 - Best practices evolve
 
-**Last Updated**: 2025-11-05 (Issue #132 DoS audit)
+**Last Updated**: 2025-11-11 (Issue #134 ReDoS detection automation)

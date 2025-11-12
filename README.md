@@ -33,6 +33,8 @@ print(f"Your age is {age}")
 
 **Chainable Validators**: Combine validators using `&` (and), `|` (or), and `~` (not) operators for complex validation logic.
 
+**Security-First Design**: All parsers include DoS protection via input length validation and automated ReDoS detection prevents vulnerable regex patterns.
+
 **Framework Integrations**: Built-in support for Pydantic (always included) and optional Click integration for CLI apps.
 
 **Interactive Prompts**: Built-in user input prompting with automatic retry and validation.
