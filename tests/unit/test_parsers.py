@@ -904,6 +904,55 @@ class DescribeParsePath:
             case Failure(err):
                 pytest.fail(f'Expected success but got failure: {err}')
 
+    def it_rejects_excessively_long_input(self) -> None:
+        """Reject extremely long input to prevent DoS attacks.
+
+        DoS protection: reject oversized paths BEFORE expensive operations.
+        Performance: should reject in < 10ms.
+        """
+        import time
+
+        from valid8r.core.parsers import parse_path
+
+        malicious_input = 'a/' * 5000  # 10KB path string
+
+        start = time.perf_counter()
+        result = parse_path(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        match result:
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(err):
+                assert 'too long' in err.lower()
+                assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_handles_paths_with_unicode(self) -> None:
+        """Parse paths with unicode characters."""
+        from pathlib import Path
+
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path('файл.txt')
+        match result:
+            case Success(path):
+                assert isinstance(path, Path)
+                assert str(path) == 'файл.txt'
+            case Failure(err):
+                pytest.fail(f'Expected success but got failure: {err}')
+
+    def it_uses_custom_error_message(self) -> None:
+        """Use custom error message when provided."""
+        from valid8r.core.parsers import parse_path
+
+        result = parse_path(None, error_message='Custom path error')
+        match result:
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(err):
+                assert err == 'Custom path error'
+
     @pytest.mark.parametrize(
         ('input_path', 'expected_parts'),
         [

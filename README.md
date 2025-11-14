@@ -179,6 +179,39 @@ result = parsers.parse_dict(
 )
 ```
 
+### Filesystem Parsing and Validation
+
+```python
+from valid8r import parsers, validators
+from valid8r.core.maybe import Success, Failure
+
+# Parse and validate file paths
+match parsers.parse_path("/etc/hosts").bind(validators.exists()).bind(validators.is_file()):
+    case Success(path):
+        print(f"Valid file: {path}")
+    case Failure(err):
+        print(f"Error: {err}")
+
+# Validate uploaded files
+def validate_upload(file_path: str):
+    return (
+        parsers.parse_path(file_path)
+        .bind(validators.exists())
+        .bind(validators.is_file())
+        .bind(validators.has_extension(['.pdf', '.docx']))
+        .bind(validators.max_size(10 * 1024 * 1024))  # 10MB limit
+    )
+
+# Path expansion and resolution
+match parsers.parse_path("~/Documents", expand_user=True):
+    case Success(path):
+        print(f"Expanded: {path}")  # /Users/username/Documents
+
+match parsers.parse_path("./data/file.txt", resolve=True):
+    case Success(path):
+        print(f"Absolute: {path}")  # /full/path/to/data/file.txt
+```
+
 ### Interactive Prompting
 
 ```python
@@ -311,6 +344,9 @@ See [Click Integration Examples](https://valid8r.readthedocs.io/en/latest/exampl
 - `parse_email` → `EmailAddress` (normalized domain)
 - `parse_phone` → `PhoneNumber` (NANP validation with E.164 formatting)
 
+**Filesystem**:
+- `parse_path` → `pathlib.Path` (with expansion and resolution options)
+
 **Advanced**:
 - `parse_enum` (type-safe enum parsing)
 - `create_parser`, `make_parser`, `validated_parser` (custom parser factories)
@@ -322,6 +358,8 @@ See [Click Integration Examples](https://valid8r.readthedocs.io/en/latest/exampl
 **String**: `non_empty_string`, `matches_regex`, `length`
 
 **Collection**: `in_set`, `unique_items`, `subset_of`, `superset_of`, `is_sorted`
+
+**Filesystem**: `exists`, `is_file`, `is_dir`, `is_readable`, `is_writable`, `is_executable`, `max_size`, `min_size`, `has_extension`
 
 **Custom**: `predicate` (create validators from any function)
 
