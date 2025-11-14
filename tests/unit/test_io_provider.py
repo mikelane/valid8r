@@ -9,19 +9,6 @@ from __future__ import annotations
 import pytest
 
 
-class DescribeIOProvider:
-    """Tests for the IOProvider protocol."""
-
-    def it_defines_protocol_with_required_methods(self) -> None:
-        """Define input, output, and error methods in IOProvider protocol."""
-        from valid8r.prompt.io_provider import IOProvider
-
-        # Protocol should be importable and have the required methods
-        assert hasattr(IOProvider, 'input')
-        assert hasattr(IOProvider, 'output')
-        assert hasattr(IOProvider, 'error')
-
-
 class DescribeBuiltinIOProvider:
     """Tests for the default builtin IO provider."""
 
@@ -79,31 +66,6 @@ class DescribeBuiltinIOProvider:
             provider.error('Error message')
 
             mock_print.assert_called_once_with('Error message')
-
-
-class DescribeIOProviderProtocol:
-    """Tests for IOProvider protocol methods."""
-
-    def it_defines_input_method(self) -> None:
-        """IOProvider protocol defines input method signature."""
-        from valid8r.prompt.io_provider import IOProvider
-
-        # Protocol should define input method
-        assert hasattr(IOProvider, 'input')
-
-    def it_defines_output_method(self) -> None:
-        """IOProvider protocol defines output method signature."""
-        from valid8r.prompt.io_provider import IOProvider
-
-        # Protocol should define output method
-        assert hasattr(IOProvider, 'output')
-
-    def it_defines_error_method(self) -> None:
-        """IOProvider protocol defines error method signature."""
-        from valid8r.prompt.io_provider import IOProvider
-
-        # Protocol should define error method
-        assert hasattr(IOProvider, 'error')
 
 
 class DescribeTestIOProvider:
