@@ -2021,6 +2021,7 @@ def parse_path(
     *,
     expand_user: bool = False,
     resolve: bool = False,
+    error_message: str | None = None,
 ) -> Maybe[Path]:
     """Parse a string into a pathlib.Path object.
 
@@ -2032,6 +2033,7 @@ def parse_path(
         text: The path string to parse (leading/trailing whitespace is stripped)
         expand_user: If True, expand ~ to user's home directory (default: False)
         resolve: If True, resolve to absolute path following symlinks (default: False)
+        error_message: Custom error message for invalid input (optional)
 
     Returns:
         Maybe[Path]: Success(Path) if parsing succeeds, Failure(str) with error message otherwise
@@ -2052,14 +2054,21 @@ def parse_path(
         - Use expand_user=True to expand ~ to the user's home directory
         - Use resolve=True to convert relative paths to absolute paths
         - The resolve option will follow symlinks and normalize the path
+        - Input length is limited to 4096 characters to prevent DoS attacks
     """
     # Handle None or empty input
     if text is None or not isinstance(text, str):
-        return Maybe.failure('Path cannot be empty')
+        return Maybe.failure(error_message or 'Path cannot be empty')
 
     stripped = text.strip()
     if stripped == '':
-        return Maybe.failure('Path cannot be empty')
+        return Maybe.failure(error_message or 'Path cannot be empty')
+
+    # CRITICAL: Early length guard (DoS mitigation)
+    # Reject oversized inputs BEFORE expensive Path operations
+    # Most filesystems have path length limits around 4096 bytes (PATH_MAX)
+    if len(text) > 4096:
+        return Maybe.failure(error_message or 'Invalid format: path is too long')
 
     try:
         # Create Path object (automatically normalizes redundant separators)
@@ -2075,7 +2084,7 @@ def parse_path(
 
         return Maybe.success(path)
     except (ValueError, OSError) as e:
-        return Maybe.failure(f'Invalid path: {e!s}')
+        return Maybe.failure(error_message or f'Invalid path: {e!s}')
 
 
 # Public API exports
