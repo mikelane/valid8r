@@ -1,4 +1,4 @@
-"""Tests for filesystem path parsing and validation.
+"""Tests for filesystem path validators.
 
 Following TDD principles: tests written before implementation.
 Uses tmp_path fixtures for hermetic filesystem testing.
@@ -6,96 +6,18 @@ Uses tmp_path fixtures for hermetic filesystem testing.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from valid8r.core import (
     parsers,
     validators,
 )
 from valid8r.testing import (
-    assert_maybe_failure,
     assert_maybe_success,
 )
 
-
-class DescribeParsePath:
-    """Test parse_path function for converting strings to pathlib.Path objects."""
-
-    def it_parses_valid_absolute_path(self, tmp_path: Path) -> None:
-        """Parse a valid absolute path string to Path object."""
-        path_str = str(tmp_path / 'test.txt')
-        result = parsers.parse_path(path_str)
-        assert assert_maybe_success(result, Path(path_str))
-
-    def it_parses_valid_relative_path(self) -> None:
-        """Parse a valid relative path string to Path object."""
-        path_str = 'relative/path/to/file.txt'
-        result = parsers.parse_path(path_str)
-        assert assert_maybe_success(result, Path(path_str))
-
-    def it_rejects_none_input(self) -> None:
-        """Reject None input with appropriate error message."""
-        result = parsers.parse_path(None)
-        assert assert_maybe_failure(result, 'Path cannot be empty')
-
-    def it_rejects_empty_string(self) -> None:
-        """Reject empty string with appropriate error message."""
-        result = parsers.parse_path('')
-        assert assert_maybe_failure(result, 'Path cannot be empty')
-
-    def it_rejects_whitespace_only(self) -> None:
-        """Reject whitespace-only input with appropriate error message."""
-        result = parsers.parse_path('   ')
-        assert assert_maybe_failure(result, 'Path cannot be empty')
-
-    def it_trims_whitespace_from_valid_paths(self, tmp_path: Path) -> None:
-        """Trim leading and trailing whitespace from valid paths."""
-        path_str = str(tmp_path / 'test.txt')
-        result = parsers.parse_path(f'  {path_str}  ')
-        assert assert_maybe_success(result, Path(path_str))
-
-    def it_rejects_excessively_long_input(self) -> None:
-        """Reject extremely long input to prevent DoS attacks.
-
-        DoS protection: reject oversized paths BEFORE expensive operations.
-        Performance: should reject in < 10ms.
-        """
-        import time
-
-        malicious_input = 'a/' * 5000  # 10KB path string
-
-        start = time.perf_counter()
-        result = parsers.parse_path(malicious_input)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-
-        # Verify both correctness AND performance
-        assert result.is_failure()
-        assert 'too long' in result.error_or('').lower()
-        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
-
-    def it_handles_paths_with_special_characters(self, tmp_path: Path) -> None:
-        """Parse paths with special characters (spaces, unicode)."""
-        path_str = str(tmp_path / 'file with spaces.txt')
-        result = parsers.parse_path(path_str)
-        assert assert_maybe_success(result, Path(path_str))
-
-    def it_handles_paths_with_unicode(self, tmp_path: Path) -> None:
-        """Parse paths with unicode characters."""
-        path_str = str(tmp_path / 'файл.txt')
-        result = parsers.parse_path(path_str)
-        assert assert_maybe_success(result, Path(path_str))
-
-    def it_handles_home_directory_expansion(self) -> None:
-        """Parse paths with tilde (~) for home directory expansion."""
-        result = parsers.parse_path('~/Documents/file.txt')
-        assert result.is_success()
-        # Path object created successfully, don't expand here
-        assert assert_maybe_success(result, Path('~/Documents/file.txt'))
-
-    def it_uses_custom_error_message(self) -> None:
-        """Use custom error message when provided."""
-        result = parsers.parse_path(None, error_message='Custom path error')
-        assert assert_maybe_failure(result, 'Custom path error')
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class DescribeExistsValidator:
