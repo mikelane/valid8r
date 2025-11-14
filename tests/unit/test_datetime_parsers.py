@@ -353,6 +353,16 @@ class DescribeParseTimedelta:
                 # DoS protection: should reject immediately
                 assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
 
+    def it_rejects_invalid_iso_8601_duration_format(self) -> None:
+        """Reject malformed ISO 8601 duration format."""
+        result = parse_timedelta('P1X')  # Invalid unit 'X'
+
+        match result:
+            case Success(value):
+                pytest.fail(f'Unexpected success: {value}')
+            case Failure(error):
+                assert 'valid' in error.lower()
+
     def it_handles_custom_error_message(self) -> None:
         """Use custom error message when provided."""
         custom_msg = 'Custom timedelta error'
