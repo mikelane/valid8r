@@ -19,9 +19,12 @@ from valid8r.core.maybe import (
     Maybe,
     Success,
 )
+from valid8r.prompt.io_provider import BuiltinIOProvider
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from valid8r.prompt.io_provider import IOProvider
 
 T = TypeVar('T')
 
@@ -35,11 +38,17 @@ class PromptConfig(Generic[T]):
     error_message: str | None = None
     default: T | None = None
     retry: bool | int = False
+    io_provider: IOProvider | None = None
     _test_mode: bool = False
 
 
-def _handle_user_input(prompt_text: str, default: T | None) -> tuple[str, bool]:
+def _handle_user_input(prompt_text: str, default: T | None, io_provider: IOProvider) -> tuple[str, bool]:
     """Handle getting user input and displaying the prompt.
+
+    Args:
+        prompt_text: The prompt message to display
+        default: Default value to use if user provides empty input
+        io_provider: IO provider for handling input
 
     Returns:
         A tuple of (user_input, use_default) where use_default is True if the
@@ -51,8 +60,8 @@ def _handle_user_input(prompt_text: str, default: T | None) -> tuple[str, bool]:
     if default is not None:
         display_prompt = f'{prompt_text} [{default}]: '
 
-    # Get user input
-    user_input = input(display_prompt)
+    # Get user input using the IO provider
+    user_input = io_provider.input(display_prompt)
 
     # Check if we should use the default value
     use_default = not user_input and default is not None
@@ -83,6 +92,7 @@ def ask(  # noqa: PLR0913
     error_message: str | None = None,
     default: T | None = None,
     retry: bool | int = False,
+    io_provider: IOProvider | None = None,
     _test_mode: bool = False,
 ) -> Maybe[T]:
     """Prompt the user for input with parsing and validation.
@@ -98,6 +108,7 @@ def ask(  # noqa: PLR0913
         error_message: Custom error message to display on validation failure
         default: Default value to use if user provides empty input (displays in prompt)
         retry: Enable retry on failure - True for unlimited, integer for max attempts, False to disable
+        io_provider: IO provider for handling input/output (default: BuiltinIOProvider)
         _test_mode: Internal testing parameter (do not use)
 
     Returns:
@@ -156,6 +167,7 @@ def ask(  # noqa: PLR0913
         error_message=error_message,
         default=default,
         retry=retry,
+        io_provider=io_provider,
         _test_mode=_test_mode,
     )
 
@@ -175,10 +187,15 @@ def _ask_with_config(prompt_text: str, config: PromptConfig[T]) -> Maybe[T]:
     parser: Callable[[str], Maybe[T]] = config.parser if config.parser is not None else default_parser
     validator = config.validator or (lambda v: Maybe.success(v))
 
+    # Get or create IO provider
+    io_provider: IOProvider = config.io_provider if config.io_provider is not None else BuiltinIOProvider()
+
     # Calculate max retries
     max_retries = config.retry if isinstance(config.retry, int) else float('inf') if config.retry else 0
 
-    return _run_prompt_loop(prompt_text, parser, validator, config.default, max_retries, config.error_message)
+    return _run_prompt_loop(
+        prompt_text, parser, validator, config.default, max_retries, config.error_message, io_provider
+    )
 
 
 def _run_prompt_loop(  # noqa: PLR0913
@@ -188,13 +205,28 @@ def _run_prompt_loop(  # noqa: PLR0913
     default: T | None,
     max_retries: float,
     error_message: str | None,
+    io_provider: IOProvider,
 ) -> Maybe[T]:
-    """Run the prompt loop with retries."""
+    """Run the prompt loop with retries.
+
+    Args:
+        prompt_text: The prompt message to display
+        parser: Function to convert string input to desired type
+        validator: Function to validate the parsed value
+        default: Default value to use if user provides empty input
+        max_retries: Maximum number of retry attempts
+        error_message: Custom error message to display on validation failure
+        io_provider: IO provider for handling input/output
+
+    Returns:
+        Maybe[T]: Success with validated input, or Failure with error message
+
+    """
     attempt = 0
 
     while attempt <= max_retries:
         # Get user input
-        user_input, use_default = _handle_user_input(prompt_text, default)
+        user_input, use_default = _handle_user_input(prompt_text, default, io_provider)
 
         # Use default if requested
         if use_default:
@@ -211,19 +243,34 @@ def _run_prompt_loop(  # noqa: PLR0913
                 # Handle invalid input
                 attempt += 1
                 if attempt <= max_retries:
-                    _display_error(error, error_message, max_retries, attempt)
+                    _display_error(error, error_message, max_retries, attempt, io_provider)
                 else:
                     return result  # Return the failed result after max retries
 
     return Maybe.failure(error_message or 'Maximum retry attempts reached')
 
 
-def _display_error(result_error: str, custom_error: str | None, max_retries: float, attempt: int) -> None:
-    """Display error message to the user."""
+def _display_error(
+    result_error: str,
+    custom_error: str | None,
+    max_retries: float,
+    attempt: int,
+    io_provider: IOProvider,
+) -> None:
+    """Display error message to the user.
+
+    Args:
+        result_error: The original error message from parsing/validation
+        custom_error: Custom error message to display (overrides result_error)
+        max_retries: Maximum number of retry attempts
+        attempt: Current attempt number
+        io_provider: IO provider for displaying the error
+
+    """
     err_msg = custom_error or result_error
     remaining = max_retries - attempt if max_retries < float('inf') else None
 
     if remaining is not None:
-        print(f'Error: {err_msg} ({remaining} attempt(s) remaining)')
+        io_provider.error(f'Error: {err_msg} ({remaining} attempt(s) remaining)')
     else:
-        print(f'Error: {err_msg}')
+        io_provider.error(f'Error: {err_msg}')
