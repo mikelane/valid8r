@@ -6,6 +6,7 @@ import re
 from datetime import (
     date,
     datetime,
+    timedelta,
 )
 from decimal import (
     Decimal,
@@ -245,6 +246,180 @@ def parse_date(input_value: str, date_format: str | None = None, error_message: 
         return Maybe.failure(error_message or 'Input must be a valid date')
     except ValueError:
         return Maybe.failure(error_message or 'Input must be a valid date')
+
+
+def parse_datetime(input_value: str | None, error_message: str | None = None) -> Maybe[datetime]:
+    """Parse a string to a timezone-aware datetime object.
+
+    Parses datetime strings in ISO 8601 format with timezone information.
+    Requires timezone to be specified (naive datetimes are rejected).
+
+    Supports:
+    - Z suffix for UTC (e.g., '2024-01-01T12:00:00Z')
+    - Explicit UTC offset (e.g., '2024-01-01T12:00:00+00:00')
+    - Positive/negative timezone offsets (e.g., '2024-01-01T12:00:00+05:30', '2024-01-01T12:00:00-08:00')
+    - Fractional seconds (e.g., '2024-01-01T12:00:00.123456Z')
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[datetime]: Success(datetime) if parsing succeeds with timezone info,
+                        Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_datetime("2024-01-01T12:00:00Z")
+        Success(datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.timezone.utc))
+        >>> parse_datetime("2024-01-01T12:00:00+05:30")
+        Success(datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))))
+        >>> parse_datetime("2024-01-01T12:00:00").is_failure()
+        True
+    """
+    # Handle None or non-string input
+    if input_value is None or not isinstance(input_value, str):
+        return Maybe.failure(error_message or 'Input must not be empty')
+
+    # Strip whitespace
+    s = input_value.strip()
+    if s == '':
+        return Maybe.failure(error_message or 'Input must not be empty')
+
+    # DoS protection: Early length guard (reasonable max for ISO datetime)
+    # ISO 8601 datetime with timezone: ~35 chars max including microseconds
+    if len(input_value) > 100:
+        return Maybe.failure(error_message or 'Input is too long')
+
+    try:
+        # Parse ISO 8601 datetime with timezone
+        # Note: fromisoformat in Python < 3.11 doesn't accept 'Z' suffix
+        dt = datetime.fromisoformat(s.replace('Z', '+00:00'))  # noqa: FURB162
+
+        # Require timezone-aware datetime
+        if dt.tzinfo is None:
+            return Maybe.failure(error_message or 'Datetime must include timezone information')
+
+        return Maybe.success(dt)
+    except ValueError:
+        return Maybe.failure(error_message or 'Input must be a valid ISO 8601 datetime')
+
+
+def parse_timedelta(input_value: str | None, error_message: str | None = None) -> Maybe[timedelta]:
+    """Parse a string to a timedelta object.
+
+    Parses duration strings in multiple formats:
+    - Simple format: '90m', '2h', '45s', '3d'
+    - Combined format: '1h 30m', '1d 2h 30m 45s', '1h30m' (no spaces)
+    - ISO 8601 duration: 'PT1H30M', 'P1DT2H', 'PT45S'
+
+    Supported units:
+    - d: days
+    - h: hours
+    - m: minutes
+    - s: seconds
+
+    Args:
+        input_value: String to parse (leading/trailing whitespace is stripped)
+        error_message: Optional custom error message for parsing failures
+
+    Returns:
+        Maybe[timedelta]: Success(timedelta) if parsing succeeds,
+                         Failure(str) with error message otherwise
+
+    Examples:
+        >>> parse_timedelta("90m")
+        Success(datetime.timedelta(seconds=5400))
+        >>> parse_timedelta("1h 30m")
+        Success(datetime.timedelta(seconds=5400))
+        >>> parse_timedelta("PT1H30M")
+        Success(datetime.timedelta(seconds=5400))
+        >>> parse_timedelta("-90m").is_failure()
+        True
+    """
+    # Handle None or non-string input
+    if input_value is None or not isinstance(input_value, str):
+        return Maybe.failure(error_message or 'Input must not be empty')
+
+    # Strip whitespace
+    s = input_value.strip()
+    if s == '':
+        return Maybe.failure(error_message or 'Input must not be empty')
+
+    # DoS protection: Early length guard (reasonable max for duration string)
+    if len(input_value) > 200:
+        return Maybe.failure(error_message or 'Input is too long')
+
+    try:
+        # Check for negative values early
+        if s.startswith('-'):
+            return Maybe.failure(error_message or 'Duration cannot be negative')
+
+        # Try ISO 8601 duration format first (e.g., PT1H30M, P1DT2H)
+        if s.startswith('P'):
+            return _parse_iso_duration(s, error_message)
+
+        # Try simple/combined format (e.g., '90m', '1h 30m', '1h30m')
+        return _parse_simple_duration(s, error_message)
+
+    except (ValueError, AttributeError):
+        return Maybe.failure(error_message or 'Input must be a valid duration')
+
+
+def _parse_iso_duration(s: str, error_message: str | None) -> Maybe[timedelta]:
+    """Parse ISO 8601 duration format (internal helper).
+
+    Pattern format: P[nD][T[nH][nM][nS]]
+    Examples: PT1H30M, P1DT2H, PT45S, P1D
+    """
+    pattern = r'^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$'
+    match = re.match(pattern, s, re.IGNORECASE)
+
+    if not match:
+        return Maybe.failure(error_message or 'Input must be a valid duration')
+
+    days_str, hours_str, minutes_str, seconds_str = match.groups()
+
+    days = int(days_str) if days_str else 0
+    hours = int(hours_str) if hours_str else 0
+    minutes = int(minutes_str) if minutes_str else 0
+    seconds = float(seconds_str) if seconds_str else 0.0
+
+    td = timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    return Maybe.success(td)
+
+
+def _parse_simple_duration(s: str, error_message: str | None) -> Maybe[timedelta]:
+    """Parse simple/combined duration format (internal helper).
+
+    Matches sequences like '1d', '2h', '30m', '45s'.
+    Supports both '1h 30m' (with spaces) and '1h30m' (without spaces).
+    """
+    pattern = r'(\d+)\s*([dhms])'
+    matches = re.findall(pattern, s, re.IGNORECASE)
+
+    if not matches:
+        return Maybe.failure(error_message or 'Input must be a valid duration')
+
+    days = 0
+    hours = 0
+    minutes = 0
+    seconds = 0
+
+    for value_str, unit in matches:
+        value = int(value_str)
+        unit_lower = unit.lower()
+
+        if unit_lower == 'd':
+            days += value
+        elif unit_lower == 'h':
+            hours += value
+        elif unit_lower == 'm':
+            minutes += value
+        elif unit_lower == 's':
+            seconds += value
+
+    td = timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    return Maybe.success(td)
 
 
 def parse_complex(input_value: str, error_message: str | None = None) -> Maybe[complex]:
@@ -2090,6 +2265,7 @@ __all__ = [
     'parse_cidr',
     'parse_complex',
     'parse_date',
+    'parse_datetime',
     'parse_decimal',
     'parse_dict',
     'parse_dict_with_validation',
@@ -2109,6 +2285,7 @@ __all__ = [
     'parse_phone',
     'parse_set',
     'parse_slug',
+    'parse_timedelta',
     'parse_url',
     'parse_uuid',
     'validated_parser',

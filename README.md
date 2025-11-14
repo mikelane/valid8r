@@ -87,6 +87,33 @@ result = parsers.parse_uuid("550e8400-e29b-41d4-a716-446655440000", version=4)
 assert result.is_success()
 ```
 
+### Temporal Parsing
+
+```python
+from valid8r import parsers
+from datetime import UTC
+
+# Parse timezone-aware datetime (ISO 8601)
+result = parsers.parse_datetime("2024-01-15T10:30:00Z")
+match result:
+    case Success(dt):
+        print(f"DateTime: {dt}")  # 2024-01-15 10:30:00+00:00
+        print(f"Timezone: {dt.tzinfo}")  # UTC
+    case Failure(error):
+        print(f"Error: {error}")
+
+# Parse with timezone offset
+result = parsers.parse_datetime("2024-01-15T10:30:00+05:30")
+assert result.is_success()
+
+# Parse duration/timedelta in multiple formats
+result = parsers.parse_timedelta("1h 30m")  # Simple format
+assert result.value_or(None).total_seconds() == 5400
+
+result = parsers.parse_timedelta("PT1H30M")  # ISO 8601 duration
+assert result.value_or(None).total_seconds() == 5400
+```
+
 ### Validation with Combinators
 
 ```python
