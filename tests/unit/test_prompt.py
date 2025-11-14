@@ -127,9 +127,12 @@ class DescribePrompt:
         """Test error display behavior with different retry modes."""
         # Import the function we need to test
         from valid8r.prompt.basic import _display_error
+        from valid8r.prompt.io_provider import BuiltinIOProvider
+
+        provider = BuiltinIOProvider()
 
         # Test with finite retries - should show "remaining"
-        _display_error('Test error', None, 5, 2)
+        _display_error('Test error', None, 5, 2, provider)
         mock_print.assert_called_once()
         assert 'remaining' in mock_print.call_args[0][0]
 
@@ -137,7 +140,7 @@ class DescribePrompt:
         mock_print.reset_mock()
 
         # Test with infinite retries - should NOT show "remaining"
-        _display_error('Test error', None, float('inf'), 1)
+        _display_error('Test error', None, float('inf'), 1, provider)
         mock_print.assert_called_once()
         assert 'remaining' not in mock_print.call_args[0][0]
 
@@ -165,6 +168,7 @@ class DescribePrompt:
 
     def it_handles_infinite_retries(self) -> None:
         """Test _run_prompt_loop with infinite retries (float('inf'))."""
+        from valid8r.prompt.io_provider import BuiltinIOProvider
 
         # Create a mock parser that always fails
         def parser(_: str) -> Maybe[str]:
@@ -179,6 +183,8 @@ class DescribePrompt:
             ]
         )
 
+        provider = BuiltinIOProvider()
+
         # Patch the internal functions to avoid actual input
         with (
             patch('valid8r.prompt.basic._handle_user_input', mock_handle_input),
@@ -192,6 +198,7 @@ class DescribePrompt:
                 default=None,
                 max_retries=float('inf'),
                 error_message=None,
+                io_provider=provider,
             )
 
         # Check that we called the input handler multiple times
@@ -265,9 +272,13 @@ class DescribePrompt:
 
     def it_handles_default_values_properly(self) -> None:
         """Test that _handle_user_input handles default values correctly."""
+        from valid8r.prompt.io_provider import BuiltinIOProvider
+
+        provider = BuiltinIOProvider()
+
         # With a default value and empty input
         with patch('builtins.input', return_value=''):
-            user_input, use_default = _handle_user_input('Enter value', default=42)
+            user_input, use_default = _handle_user_input('Enter value', default=42, io_provider=provider)
 
             # Should indicate to use the default
             assert user_input == ''
@@ -275,7 +286,7 @@ class DescribePrompt:
 
         # With a default value but non-empty input
         with patch('builtins.input', return_value='user value'):
-            user_input, use_default = _handle_user_input('Enter value', default=42)
+            user_input, use_default = _handle_user_input('Enter value', default=42, io_provider=provider)
 
             # Should not use the default
             assert user_input == 'user value'
@@ -283,7 +294,7 @@ class DescribePrompt:
 
         # Without a default value
         with patch('builtins.input', return_value='user value'):
-            user_input, use_default = _handle_user_input('Enter value', default=None)
+            user_input, use_default = _handle_user_input('Enter value', default=None, io_provider=provider)
 
             # Cannot use default
             assert user_input == 'user value'
@@ -291,12 +302,15 @@ class DescribePrompt:
 
     def it_tests_display_error_with_finite_remaining_attempts(self) -> None:
         """Test _display_error with remaining attempts displayed."""
+        from valid8r.prompt.io_provider import BuiltinIOProvider
+
         # Mock print function
         mock_print = MagicMock()
+        provider = BuiltinIOProvider()
 
         with patch('builtins.print', mock_print):
             # Call with finite remaining attempts
-            _display_error('Error message', None, 5, 2)
+            _display_error('Error message', None, 5, 2, provider)
 
             # Should have called print with the error and remaining attempts
             mock_print.assert_called_once()
@@ -308,7 +322,7 @@ class DescribePrompt:
             mock_print.reset_mock()
 
             # Call with custom error message
-            _display_error('Original error', 'Custom error', 5, 2)
+            _display_error('Original error', 'Custom error', 5, 2, provider)
 
             # Should use the custom error
             args = mock_print.call_args[0][0]
