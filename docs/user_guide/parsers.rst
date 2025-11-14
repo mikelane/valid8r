@@ -57,6 +57,10 @@ Valid8r parsers reject oversized inputs to prevent resource exhaustion:
 +------------------+------------+----------------------------------+
 | parse_ip()       | 45 chars   | IPv6 maximum length              |
 +------------------+------------+----------------------------------+
+| parse_datetime() | 100 chars  | ISO 8601 with microseconds       |
++------------------+------------+----------------------------------+
+| parse_timedelta()| 200 chars  | Combined duration formats        |
++------------------+------------+----------------------------------+
 
 .. seealso::
    - :doc:`/security/production-deployment` - Framework integration patterns
@@ -210,6 +214,258 @@ Date Parser
            print(f"Year: {value.year}, Month: {value.month}, Day: {value.day}")
        case Failure(_):
            print("This won't happen")
+
+DateTime Parser (Timezone-Aware)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``parse_datetime`` parser converts ISO 8601 datetime strings into timezone-aware ``datetime`` objects. Naive datetimes (without timezone information) are explicitly rejected for safety.
+
+**Security Note**: Includes DoS protection with 100-character input limit.
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from datetime import UTC, timedelta
+
+   # Parse datetime with Z suffix (UTC)
+   result = parsers.parse_datetime("2024-01-15T10:30:00Z")
+   match result:
+       case Success(dt):
+           print(f"DateTime: {dt}")  # 2024-01-15 10:30:00+00:00
+           print(f"Timezone: {dt.tzinfo}")  # UTC
+           print(f"Hour: {dt.hour}")  # 10
+       case Failure(error):
+           print(f"Error: {error}")
+
+   # Parse with explicit UTC offset
+   result = parsers.parse_datetime("2024-01-15T10:30:00+00:00")
+   match result:
+       case Success(dt):
+           print(dt.tzinfo == UTC)  # True
+       case Failure(_):
+           print("This won't happen")
+
+   # Parse with positive timezone offset
+   result = parsers.parse_datetime("2024-01-15T10:30:00+05:30")
+   match result:
+       case Success(dt):
+           offset = dt.utcoffset()
+           print(offset)  # 5 hours, 30 minutes
+           print(offset == timedelta(hours=5, minutes=30))  # True
+       case Failure(_):
+           print("This won't happen")
+
+   # Parse with negative timezone offset
+   result = parsers.parse_datetime("2024-01-15T10:30:00-08:00")
+   match result:
+       case Success(dt):
+           offset = dt.utcoffset()
+           print(offset == timedelta(hours=-8))  # True
+       case Failure(_):
+           print("This won't happen")
+
+   # Parse with fractional seconds
+   result = parsers.parse_datetime("2024-01-15T10:30:00.123456Z")
+   match result:
+       case Success(dt):
+           print(dt.microsecond)  # 123456
+       case Failure(_):
+           print("This won't happen")
+
+   # Reject naive datetime (no timezone)
+   result = parsers.parse_datetime("2024-01-15T10:30:00")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Datetime must include timezone information"
+
+   # Custom error message
+   result = parsers.parse_datetime("invalid", error_message="Please provide a valid ISO datetime")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Please provide a valid ISO datetime"
+
+   # Common use case: Parse API timestamp
+   def process_api_timestamp(timestamp_str: str):
+       result = parsers.parse_datetime(timestamp_str)
+       match result:
+           case Success(dt):
+               # Convert to UTC for storage
+               utc_time = dt.astimezone(UTC)
+               return {"success": True, "utc_time": utc_time.isoformat()}
+           case Failure(error):
+               return {"success": False, "error": error}
+
+   print(process_api_timestamp("2024-01-15T10:30:00+05:30"))
+   # {'success': True, 'utc_time': '2024-01-15T05:00:00+00:00'}
+
+**Supported Formats**:
+
+- Z suffix for UTC: ``2024-01-15T10:30:00Z``
+- Explicit UTC offset: ``2024-01-15T10:30:00+00:00``
+- Positive/negative offsets: ``2024-01-15T10:30:00+05:30``, ``2024-01-15T10:30:00-08:00``
+- Fractional seconds: ``2024-01-15T10:30:00.123456Z``
+
+**Error Cases**:
+
+- Empty/None input: "Input must not be empty"
+- Invalid format: "Input must be a valid ISO 8601 datetime"
+- Missing timezone: "Datetime must include timezone information"
+- Oversized input (>100 chars): "Input is too long" (DoS protection)
+
+Timedelta Parser (Duration)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``parse_timedelta`` parser converts duration strings into ``timedelta`` objects. Supports simple format (``90m``), combined format (``1h 30m``), and ISO 8601 duration format (``PT1H30M``).
+
+**Security Note**: Includes DoS protection with 200-character input limit and rejects negative durations.
+
+.. code-block:: python
+
+   from valid8r import parsers
+   from valid8r.core.maybe import Success, Failure
+   from datetime import timedelta
+
+   # Simple format - minutes
+   result = parsers.parse_timedelta("90m")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 5400 (90 * 60)
+       case Failure(_):
+           print("This won't happen")
+
+   # Simple format - hours
+   result = parsers.parse_timedelta("2h")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 7200 (2 * 3600)
+       case Failure(_):
+           print("This won't happen")
+
+   # Simple format - days
+   result = parsers.parse_timedelta("3d")
+   match result:
+       case Success(td):
+           print(td.days)  # 3
+       case Failure(_):
+           print("This won't happen")
+
+   # Combined format with spaces
+   result = parsers.parse_timedelta("1h 30m")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 5400
+       case Failure(_):
+           print("This won't happen")
+
+   # Combined format without spaces
+   result = parsers.parse_timedelta("1h30m")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 5400
+       case Failure(_):
+           print("This won't happen")
+
+   # Fully combined format
+   result = parsers.parse_timedelta("1d 2h 30m 45s")
+   match result:
+       case Success(td):
+           expected = (1 * 86400) + (2 * 3600) + (30 * 60) + 45
+           print(td.total_seconds() == expected)  # True
+       case Failure(_):
+           print("This won't happen")
+
+   # ISO 8601 duration format
+   result = parsers.parse_timedelta("PT1H30M")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 5400
+       case Failure(_):
+           print("This won't happen")
+
+   # ISO 8601 with days
+   result = parsers.parse_timedelta("P1DT2H")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 93600 (1 day + 2 hours)
+       case Failure(_):
+           print("This won't happen")
+
+   # ISO 8601 with seconds
+   result = parsers.parse_timedelta("PT45S")
+   match result:
+       case Success(td):
+           print(td.total_seconds())  # 45
+       case Failure(_):
+           print("This won't happen")
+
+   # Reject negative durations
+   result = parsers.parse_timedelta("-90m")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Duration cannot be negative"
+
+   # Custom error message
+   result = parsers.parse_timedelta("invalid", error_message="Please provide a valid duration")
+   match result:
+       case Success(_):
+           print("This won't happen")
+       case Failure(error):
+           print(error)  # "Please provide a valid duration"
+
+   # Common use case: Parse cache TTL
+   def set_cache_ttl(ttl_str: str, default_seconds: int = 3600):
+       result = parsers.parse_timedelta(ttl_str)
+       match result:
+           case Success(td):
+               return int(td.total_seconds())
+           case Failure(_):
+               return default_seconds
+
+   print(set_cache_ttl("15m"))  # 900
+   print(set_cache_ttl("invalid"))  # 3600 (default)
+
+   # Use case: Calculate deadline from duration
+   from datetime import datetime, UTC
+
+   def calculate_deadline(duration_str: str):
+       result = parsers.parse_timedelta(duration_str)
+       match result:
+           case Success(td):
+               deadline = datetime.now(UTC) + td
+               return {"success": True, "deadline": deadline.isoformat()}
+           case Failure(error):
+               return {"success": False, "error": error}
+
+   print(calculate_deadline("2h"))
+   # {'success': True, 'deadline': '2024-01-15T12:30:00+00:00'}
+
+**Supported Formats**:
+
+- Simple: ``90m``, ``2h``, ``45s``, ``3d``
+- Combined (with spaces): ``1h 30m``, ``1d 2h 30m 45s``
+- Combined (no spaces): ``1h30m``, ``1d2h30m45s``
+- ISO 8601: ``PT1H30M``, ``P1DT2H``, ``PT45S``, ``P1D``
+
+**Supported Units**:
+
+- ``d``: days
+- ``h``: hours
+- ``m``: minutes
+- ``s``: seconds
+
+**Error Cases**:
+
+- Empty/None input: "Input must not be empty"
+- Invalid format: "Input must be a valid duration"
+- Negative duration: "Duration cannot be negative"
+- Oversized input (>200 chars): "Input is too long" (DoS protection)
 
 Complex Number Parser
 ~~~~~~~~~~~~~~~~~~~~~
