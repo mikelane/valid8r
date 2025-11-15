@@ -143,7 +143,7 @@ class Failure(Maybe[T]):
         >>> from valid8r.core.errors import ValidationError, ErrorCode
         >>> error = ValidationError(code=ErrorCode.INVALID_EMAIL, message='Bad email')
         >>> failure = Failure(error)
-        >>> failure.error.code
+        >>> failure.validation_error.code
         'INVALID_EMAIL'
 
     """
