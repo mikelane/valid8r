@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from valid8r.core.errors import ValidationError
+from valid8r.core.errors import (
+    ErrorCode,
+    ValidationError,
+)
 
 
 class DescribeValidationError:
@@ -156,3 +159,64 @@ class DescribeValidationError:
             'errors': [{'field': 'name', 'issue': 'too short'}, {'field': 'age', 'issue': 'negative'}]
         }
         assert error.to_dict()['context'] == error.context
+
+
+class DescribeErrorCode:
+    """Tests for the ErrorCode constants registry."""
+
+    def it_defines_parsing_error_codes(self) -> None:
+        """Define standard error codes for parsing failures."""
+        assert ErrorCode.INVALID_TYPE == 'INVALID_TYPE'
+        assert ErrorCode.INVALID_FORMAT == 'INVALID_FORMAT'
+        assert ErrorCode.PARSE_ERROR == 'PARSE_ERROR'
+
+    def it_defines_numeric_validation_codes(self) -> None:
+        """Define error codes for numeric range validation."""
+        assert ErrorCode.OUT_OF_RANGE == 'OUT_OF_RANGE'
+        assert ErrorCode.BELOW_MINIMUM == 'BELOW_MINIMUM'
+        assert ErrorCode.ABOVE_MAXIMUM == 'ABOVE_MAXIMUM'
+
+    def it_defines_string_validation_codes(self) -> None:
+        """Define error codes for string validation."""
+        assert ErrorCode.TOO_SHORT == 'TOO_SHORT'
+        assert ErrorCode.TOO_LONG == 'TOO_LONG'
+        assert ErrorCode.PATTERN_MISMATCH == 'PATTERN_MISMATCH'
+        assert ErrorCode.EMPTY_STRING == 'EMPTY_STRING'
+
+    def it_defines_collection_validation_codes(self) -> None:
+        """Define error codes for collection validation."""
+        assert ErrorCode.NOT_IN_SET == 'NOT_IN_SET'
+        assert ErrorCode.DUPLICATE_ITEMS == 'DUPLICATE_ITEMS'
+        assert ErrorCode.INVALID_SUBSET == 'INVALID_SUBSET'
+
+    def it_defines_network_validation_codes(self) -> None:
+        """Define error codes for network-related parsers."""
+        assert ErrorCode.INVALID_EMAIL == 'INVALID_EMAIL'
+        assert ErrorCode.INVALID_URL == 'INVALID_URL'
+        assert ErrorCode.INVALID_IP == 'INVALID_IP'
+        assert ErrorCode.INVALID_PHONE == 'INVALID_PHONE'
+
+    def it_defines_filesystem_validation_codes(self) -> None:
+        """Define error codes for filesystem validation."""
+        assert ErrorCode.PATH_NOT_FOUND == 'PATH_NOT_FOUND'
+        assert ErrorCode.NOT_A_FILE == 'NOT_A_FILE'
+        assert ErrorCode.NOT_A_DIRECTORY == 'NOT_A_DIRECTORY'
+        assert ErrorCode.FILE_TOO_LARGE == 'FILE_TOO_LARGE'
+
+    def it_defines_dos_protection_codes(self) -> None:
+        """Define error code for DoS protection."""
+        assert ErrorCode.INPUT_TOO_LONG == 'INPUT_TOO_LONG'
+
+    def it_defines_custom_error_code(self) -> None:
+        """Define custom/generic error code."""
+        assert ErrorCode.CUSTOM_ERROR == 'CUSTOM_ERROR'
+        assert ErrorCode.VALIDATION_ERROR == 'VALIDATION_ERROR'
+
+    def it_works_with_validation_error(self) -> None:
+        """ErrorCode constants integrate with ValidationError."""
+        error = ValidationError(
+            code=ErrorCode.INVALID_EMAIL, message='Invalid email address format', path='.user.email'
+        )
+
+        assert error.code == 'INVALID_EMAIL'
+        assert error.to_dict()['code'] == 'INVALID_EMAIL'
