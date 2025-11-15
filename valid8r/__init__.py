@@ -17,6 +17,10 @@ from .core import (
     parsers,
     validators,
 )
+from .core.errors import (
+    ErrorCode,
+    ValidationError,
+)
 from .core.maybe import Maybe
 from .core.parsers import (
     EmailAddress,
@@ -28,9 +32,11 @@ from .core.parsers import (
 
 __all__ = [
     'EmailAddress',
+    'ErrorCode',
     'Maybe',
     'PhoneNumber',
     'UrlParts',
+    'ValidationError',
     '__version__',
     'combinators',
     'parsers',
