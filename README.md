@@ -233,6 +233,59 @@ port = prompt.ask(
 )
 ```
 
+### Structured Error Handling
+
+Valid8r provides machine-readable error codes and structured error information for programmatic error handling and API responses:
+
+```python
+from valid8r import parsers
+from valid8r.core.maybe import Success, Failure
+from valid8r.core.errors import ErrorCode
+
+# Programmatic error handling using error codes
+def process_email(email_str: str):
+    result = parsers.parse_email(email_str)
+
+    match result:
+        case Success(email):
+            return f"Valid: {email.local}@{email.domain}"
+        case Failure():
+            # Access structured error for programmatic handling
+            error = result.validation_error
+
+            # Switch on error codes for different handling
+            match error.code:
+                case ErrorCode.INVALID_EMAIL:
+                    return "Please enter a valid email address"
+                case ErrorCode.EMPTY_STRING:
+                    return "Email is required"
+                case ErrorCode.INPUT_TOO_LONG:
+                    return "Email is too long"
+                case _:
+                    return f"Error: {error.message}"
+
+# Convert errors to JSON for API responses
+match parsers.parse_int("not-a-number"):
+    case Failure():
+        error_dict = result.validation_error.to_dict()
+        # {
+        #   'code': 'INVALID_TYPE',
+        #   'message': 'Input must be a valid integer',
+        #   'path': '',
+        #   'context': {}
+        # }
+```
+
+**Features:**
+
+- Error codes for programmatic handling (e.g., `ErrorCode.INVALID_EMAIL`, `ErrorCode.OUT_OF_RANGE`)
+- JSON serialization for API responses via `to_dict()`
+- Field paths for multi-field validation (e.g., `.user.email`)
+- Debugging context with validation parameters
+- 100% backward compatible with string errors
+
+See the [Error Handling Guide](https://valid8r.readthedocs.io/en/latest/user_guide/error_handling.html) for comprehensive examples and best practices.
+
 ### Environment Variables
 
 Load typed, validated configuration from environment variables following 12-factor app principles:
