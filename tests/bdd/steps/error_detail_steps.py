@@ -1,12 +1,10 @@
-"""Step definitions for error_detail() method feature."""
+"""Step definitions for structured error information feature."""
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
-import pytest
-from behave import (  # type: ignore[import-untyped]
+from behave import (
     given,
     then,
     when,
@@ -19,243 +17,244 @@ from valid8r.core.maybe import (
 )
 
 if TYPE_CHECKING:
-    from behave.runner import Context  # type: ignore[import-untyped]
+    from behave.runner import Context
 
 
-# Given steps
-@given('the Valid8r library is imported')
-def step_valid8r_imported(context: Context) -> None:
-    """Valid8r library is available."""
-    # Library is already imported at top of file
+# Scenario 1: Access error details from simple validation failure
+@given('I validate user input that fails with "{error_message}"')
+def step_validate_failing_input(context: Context, error_message: str) -> None:
+    """Simulate validation failure with specific error message."""
+    # Implementation detail: We use Failure class here, not in Gherkin
+    context.validation_failure = Failure(error_message)
 
 
-@given('ValidationError is available from valid8r.core.errors')
-def step_validation_error_available(context: Context) -> None:
-    """ValidationError is available."""
-    # Already imported at top of file
+@when('I examine the validation error')
+def step_examine_error(context: Context) -> None:
+    """Access structured error information."""
+    # Implementation detail: We call error_detail() here, not in Gherkin
+    context.error_info = context.validation_failure.error_detail()
 
 
-@given('I create a Failure with a string error "{error_message}"')
-def step_create_failure_with_string(context: Context, error_message: str) -> None:
-    """Create Failure with string error."""
-    context.failure = Failure(error_message)
+@then('I can access the error code')
+def step_verify_error_code_accessible(context: Context) -> None:
+    """Verify error code is accessible."""
+    # Implementation detail: We check .code attribute here
+    assert hasattr(context.error_info, 'code')
+    assert context.error_info.code is not None
 
 
-@given('I create a ValidationError with:')
-def step_create_validation_error_from_table(context: Context) -> None:
-    """Create ValidationError from table data."""
-    # Convert table to dict
-    data = {}
-    for row in context.table:
-        field = row['field']
-        value = row['value']
-        # Handle special values
-        if field == 'context':
-            value = json.loads(value)
-        data[field] = value
-
-    context.validation_error = ValidationError(
-        code=data.get('code', 'VALIDATION_ERROR'),
-        message=data.get('message', ''),
-        path=data.get('path', ''),
-        context=data.get('context'),
-    )
-
-
-@given('I create a Failure with that ValidationError')
-def step_create_failure_with_validation_error(context: Context) -> None:
-    """Create Failure with stored ValidationError."""
-    context.failure = Failure(context.validation_error)
-
-
-@given('I create a ValidationError with code "{code}"')
-def step_create_simple_validation_error(context: Context, code: str) -> None:
-    """Create simple ValidationError with just code."""
-    context.validation_error = ValidationError(code=code, message=f'Error {code}')
-
-
-@given('I create a Failure with code "{code}" and message "{message}"')
-def step_create_failure_with_code_and_message(context: Context, code: str, message: str) -> None:
-    """Create Failure with specific code and message."""
-    if not hasattr(context, 'failures'):
-        context.failures = []
-    error = ValidationError(code=code, message=message)
-    context.failures.append(Failure(error))
-
-
-@given('I create a Failure with code "{code}"')
-def step_create_failure_with_code(context: Context, code: str) -> None:
-    """Create Failure with specific code."""
-    error = ValidationError(code=code, message=f'Error message for {code}')
-    context.failure = Failure(error)
-
-
-# When steps
-@when('I call error_detail() on the Failure')
-def step_call_error_detail(context: Context) -> None:
-    """Call error_detail() method."""
-    context.error_detail_result = context.failure.error_detail()
-
-
-@when('I access the validation_error property')
-def step_access_validation_error_property(context: Context) -> None:
-    """Access validation_error property."""
-    context.property_result = context.failure.validation_error
-
-
-@when('I call error_or("{default}") on the Failure')
-def step_call_error_or(context: Context, default: str) -> None:
-    """Call error_or() method."""
-    context.error_or_result = context.failure.error_or(default)
-
-
-@when('I pattern match on the Failure')
-def step_pattern_match_failure(context: Context) -> None:
-    """Pattern match on Failure."""
-    match context.failure:
-        case Failure(error):
-            context.matched_error = error
-        case _:
-            pytest.fail('Pattern match failed')
-
-
-@when('I bind the Failure to a transformation function')
-def step_bind_failure(context: Context) -> None:
-    """Bind Failure to transformation."""
-    context.bind_result = context.failure.bind(lambda x: Maybe.success(x * 2))
-
-
-@when('I map the Failure with a transformation function')
-def step_map_failure(context: Context) -> None:
-    """Map Failure with transformation."""
-    context.map_result = context.failure.map(lambda x: x * 2)
-
-
-@when('I call error_detail() on each Failure')
-def step_call_error_detail_on_each(context: Context) -> None:
-    """Call error_detail() on each Failure in list."""
-    context.error_details = [f.error_detail() for f in context.failures]
-
-
-# Then steps
-@then('I receive a ValidationError instance')
-def step_verify_validation_error_instance(context: Context) -> None:
-    """Verify result is ValidationError instance."""
-    assert isinstance(context.error_detail_result, ValidationError)
-
-
-@then('the ValidationError code is "{expected_code}"')
-def step_verify_error_code(context: Context, expected_code: str) -> None:
-    """Verify ValidationError code."""
-    assert context.error_detail_result.code == expected_code
-
-
-@then('the ValidationError message is "{expected_message}"')
+@then('I can access the error message "{expected_message}"')
 def step_verify_error_message(context: Context, expected_message: str) -> None:
-    """Verify ValidationError message."""
-    assert context.error_detail_result.message == expected_message
+    """Verify error message is accessible."""
+    assert hasattr(context.error_info, 'message')
+    assert context.error_info.message == expected_message
 
 
-@then('the ValidationError path is "{expected_path}"')
-def step_verify_error_path(context: Context, expected_path: str) -> None:
-    """Verify ValidationError path."""
-    assert context.error_detail_result.path == expected_path
-
-
-@then('the ValidationError path is ""')
+@then('the error path is empty')
 def step_verify_error_path_empty(context: Context) -> None:
-    """Verify ValidationError path is empty string."""
-    assert context.error_detail_result.path == ''
+    """Verify error path is empty."""
+    assert hasattr(context.error_info, 'path')
+    assert context.error_info.path == ''
 
 
-@then('the ValidationError context is None')
-def step_verify_context_none(context: Context) -> None:
+@then('no additional context is provided')
+def step_verify_no_context(context: Context) -> None:
     """Verify context is None."""
-    assert context.error_detail_result.context is None
+    assert hasattr(context.error_info, 'context')
+    assert context.error_info.context is None
 
 
-@then('both references point to the same ValidationError instance')
+# Scenario 2: Access detailed error information with context
+@given('I validate a temperature value that is out of range')
+def step_validate_temperature_out_of_range(context: Context) -> None:
+    """Simulate temperature validation failure with context."""
+    # Implementation detail: Create ValidationError with all details
+    error = ValidationError(
+        code='OUT_OF_RANGE',
+        message='Value must be between 0 and 100',
+        path='.temperature',
+        context={'min': 0, 'max': 100},
+    )
+    context.validation_failure = Failure(error)
+
+
+@then('the error code indicates "{expected_code}"')
+def step_verify_error_code_value(context: Context, expected_code: str) -> None:
+    """Verify error code has expected value."""
+    assert context.error_info.code == expected_code
+
+
+@then('the error message explains the constraint')
+def step_verify_error_message_explains(context: Context) -> None:
+    """Verify error message is informative."""
+    assert hasattr(context.error_info, 'message')
+    assert len(context.error_info.message) > 0
+    # Check message contains constraint information
+    assert 'between' in context.error_info.message.lower() or 'range' in context.error_info.message.lower()
+
+
+@then('the error path points to the temperature field')
+def step_verify_error_path_temperature(context: Context) -> None:
+    """Verify error path identifies temperature field."""
+    assert context.error_info.path == '.temperature'
+
+
+@then('the context includes minimum and maximum values')
+def step_verify_context_has_min_max(context: Context) -> None:
+    """Verify context contains min/max values."""
+    assert context.error_info.context is not None
+    assert 'min' in context.error_info.context
+    assert 'max' in context.error_info.context
+    assert context.error_info.context['min'] == 0
+    assert context.error_info.context['max'] == 100
+
+
+# Scenario 3: Backward compatibility with string-based error handling
+@given('I have existing code that uses string error messages')
+def step_existing_string_code(context: Context) -> None:
+    """Create Failure with string-based error."""
+    # Create a Failure with string error for backward compatibility test
+    context.validation_failure = Failure('Something went wrong')
+
+
+@when('a validation fails')
+def step_validation_fails(context: Context) -> None:
+    """Mark that validation failure has occurred."""
+    # Failure already created in Given step
+
+
+@then('I can still access the error as a string')
+def step_verify_string_access(context: Context) -> None:
+    """Verify error can be accessed as string via error_or()."""
+    # Implementation detail: Use error_or() method
+    error_string = context.validation_failure.error_or('default')
+    assert isinstance(error_string, str)
+    assert error_string == 'Something went wrong'
+
+
+@then('I can optionally access structured error details')
+def step_verify_structured_access(context: Context) -> None:
+    """Verify error_detail() provides structured information."""
+    # Implementation detail: Use error_detail() method
+    error_detail = context.validation_failure.error_detail()
+    assert isinstance(error_detail, ValidationError)
+    assert error_detail.message == 'Something went wrong'
+
+
+# Scenario 4: Error information persists through transformations
+@given('a validation failure occurs')
+def step_validation_failure_occurs(context: Context) -> None:
+    """Create validation failure."""
+    error = ValidationError(code='INITIAL_ERROR', message='Initial error message')
+    context.validation_failure = Failure(error)
+    # Save original for comparison
+    context.original_error = context.validation_failure.error_detail()
+
+
+@when('I chain additional transformations')
+def step_chain_transformations(context: Context) -> None:
+    """Apply monadic transformations (bind and map)."""
+    # Implementation detail: Use bind and map operations
+    context.after_bind = context.validation_failure.bind(lambda x: Maybe.success(x * 2))
+    context.after_map = context.validation_failure.map(lambda x: x * 2)
+
+
+@then('the original error information is preserved')
+def step_verify_error_preserved(context: Context) -> None:
+    """Verify error information unchanged after transformations."""
+    # Check bind result
+    assert context.after_bind.is_failure()
+    bind_error = context.after_bind.error_detail()
+    assert bind_error.code == context.original_error.code
+    assert bind_error.message == context.original_error.message
+
+    # Check map result
+    assert context.after_map.is_failure()
+    map_error = context.after_map.error_detail()
+    assert map_error.code == context.original_error.code
+    assert map_error.message == context.original_error.message
+
+
+@then('I can still access the complete error details')
+def step_verify_complete_details(context: Context) -> None:
+    """Verify all error details still accessible."""
+    bind_error = context.after_bind.error_detail()
+    map_error = context.after_map.error_detail()
+
+    # All fields preserved
+    assert bind_error.code == 'INITIAL_ERROR'
+    assert map_error.code == 'INITIAL_ERROR'
+    assert isinstance(bind_error, ValidationError)
+    assert isinstance(map_error, ValidationError)
+
+
+# Scenario 5: Multiple validation failures have distinct error details
+@given('I have two different validation failures')
+def step_two_different_failures(context: Context) -> None:
+    """Create two distinct validation failures."""
+    error1 = ValidationError(code='ERROR_ONE', message='First error')
+    error2 = ValidationError(code='ERROR_TWO', message='Second error')
+    context.failure_one = Failure(error1)
+    context.failure_two = Failure(error2)
+
+
+@when('I examine each error')
+def step_examine_each_error(context: Context) -> None:
+    """Get error details from each failure."""
+    context.error_one = context.failure_one.error_detail()
+    context.error_two = context.failure_two.error_detail()
+
+
+@then('each has its own error code')
+def step_verify_distinct_codes(context: Context) -> None:
+    """Verify error codes are different."""
+    assert context.error_one.code == 'ERROR_ONE'
+    assert context.error_two.code == 'ERROR_TWO'
+    assert context.error_one.code != context.error_two.code
+
+
+@then('each has its own error message')
+def step_verify_distinct_messages(context: Context) -> None:
+    """Verify error messages are different."""
+    assert context.error_one.message == 'First error'
+    assert context.error_two.message == 'Second error'
+    assert context.error_one.message != context.error_two.message
+
+
+@then('the error objects are independent')
+def step_verify_independent_objects(context: Context) -> None:
+    """Verify error objects are not the same instance."""
+    assert context.error_one is not context.error_two
+
+
+# Scenario 6: Consistent error information from different access methods
+@given('a validation failure has occurred')
+def step_validation_failure_occurred(context: Context) -> None:
+    """Create validation failure."""
+    error = ValidationError(code='TEST_ERROR', message='Test error message')
+    context.validation_failure = Failure(error)
+
+
+@when('I access the error information')
+def step_access_error_information(context: Context) -> None:
+    """Access error via both error_detail() method and validation_error property."""
+    # Implementation detail: Use both access methods
+    context.via_method = context.validation_failure.error_detail()
+    context.via_property = context.validation_failure.validation_error
+
+
+@then('the structured error details are consistent')
+def step_verify_consistent_details(context: Context) -> None:
+    """Verify both access methods return same information."""
+    # Both should have same code and message
+    assert context.via_method.code == context.via_property.code
+    assert context.via_method.message == context.via_property.message
+    assert context.via_method.path == context.via_property.path
+    assert context.via_method.context == context.via_property.context
+
+
+@then('the same information is available regardless of access method')
 def step_verify_same_instance(context: Context) -> None:
-    """Verify both references are same object."""
-    assert context.error_detail_result is context.property_result
-
-
-@then('I receive the string "{expected_string}"')
-def step_verify_string_result(context: Context, expected_string: str) -> None:
-    """Verify string result."""
-    assert context.error_or_result == expected_string
-
-
-@then('I can still call error_detail() to get structured information')
-def step_verify_can_call_error_detail(context: Context) -> None:
-    """Verify error_detail() can still be called."""
-    result = context.failure.error_detail()
-    assert isinstance(result, ValidationError)
-
-
-@then('I can access the context dictionary')
-def step_verify_can_access_context(context: Context) -> None:
-    """Verify context is accessible."""
-    assert context.error_detail_result.context is not None
-
-
-@then('the context contains "{key}" with value {value:d}')
-def step_verify_context_contains(context: Context, key: str, value: int) -> None:
-    """Verify context contains key-value pair."""
-    assert context.error_detail_result.context[key] == value
-
-
-@then('the matched error message is "{expected_message}"')
-def step_verify_matched_message(context: Context, expected_message: str) -> None:
-    """Verify matched error message."""
-    assert context.matched_error == expected_message
-
-
-@then('I can call error_detail() to get the full ValidationError')
-def step_verify_error_detail_after_match(context: Context) -> None:
-    """Verify error_detail() works after pattern match."""
-    result = context.failure.error_detail()
-    assert isinstance(result, ValidationError)
-
-
-@then('the first error_detail() has code "{expected_code}"')
-def step_verify_first_error_code(context: Context, expected_code: str) -> None:
-    """Verify first error detail code."""
-    assert context.error_details[0].code == expected_code
-
-
-@then('the second error_detail() has code "{expected_code}"')
-def step_verify_second_error_code(context: Context, expected_code: str) -> None:
-    """Verify second error detail code."""
-    assert context.error_details[1].code == expected_code
-
-
-@then('both are distinct ValidationError instances')
-def step_verify_distinct_instances(context: Context) -> None:
-    """Verify errors are distinct objects."""
-    assert context.error_details[0] is not context.error_details[1]
-
-
-@then('the result is still a Failure')
-def step_verify_result_is_failure(context: Context) -> None:
-    """Verify result is Failure."""
-    result = getattr(context, 'bind_result', None) or getattr(context, 'map_result', None)
-    assert result.is_failure()
-
-
-@then('calling error_detail() returns the original ValidationError')
-def step_verify_original_validation_error(context: Context) -> None:
-    """Verify error_detail() returns original error."""
-    result = getattr(context, 'bind_result', None) or getattr(context, 'map_result', None)
-    original = context.failure.error_detail()
-    result_error = result.error_detail()
-    # Check same code/message (objects may differ but content same)
-    assert result_error.code == original.code
-    assert result_error.message == original.message
-
-
-@then('the error code is still "{expected_code}"')
-def step_verify_error_code_unchanged(context: Context, expected_code: str) -> None:
-    """Verify error code unchanged."""
-    result = getattr(context, 'bind_result', None) or getattr(context, 'map_result', None)
-    assert result.error_detail().code == expected_code
+    """Verify both methods return the same object instance."""
+    # Implementation detail: They should be the same object
+    assert context.via_method is context.via_property
