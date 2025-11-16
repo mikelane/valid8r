@@ -25,11 +25,29 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import MISSING, fields, is_dataclass
-from typing import Any, TypeVar, get_args, get_origin, get_type_hints
+from dataclasses import (
+    MISSING,
+    fields,
+    is_dataclass,
+)
+from typing import (
+    Any,
+    TypeVar,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
-from valid8r.core.maybe import Failure, Maybe, Success
-from valid8r.core.parsers import parse_bool, parse_float, parse_int
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
+from valid8r.core.parsers import (
+    parse_bool,
+    parse_float,
+    parse_int,
+)
 
 T = TypeVar('T')
 

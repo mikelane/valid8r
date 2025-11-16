@@ -9,12 +9,22 @@ This module tests the dataclass integration feature, including:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import (
+    dataclass,
+    field,
+)
 
 import pytest
 
-from valid8r.core.maybe import Failure, Success
-from valid8r.core.validators import length, maximum, minimum
+from valid8r.core.maybe import (
+    Failure,
+    Success,
+)
+from valid8r.core.validators import (
+    length,
+    maximum,
+    minimum,
+)
 
 
 class DescribeValidateDecorator:
