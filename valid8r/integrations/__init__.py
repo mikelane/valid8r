@@ -7,6 +7,7 @@ This module provides integrations with popular Python frameworks:
 - Typer: Modern CLI framework integration via TyperParser
 - Pydantic: Field validator integration via validator_from_parser
 - Environment Variables: Schema-based configuration loading via load_env_config
+- Dataclasses: Field validation with @validate decorator
 
 Examples:
     >>> # argparse integration
@@ -59,10 +60,27 @@ Examples:
     ... })
     >>> result = load_env_config(schema, prefix='APP_')
 
+    >>> # Dataclass integration
+    >>> from valid8r.integrations.dataclasses import validate
+    >>> from valid8r.core.validators import minimum, length
+    >>> from dataclasses import dataclass, field
+    >>>
+    >>> @validate
+    ... @dataclass
+    ... class Product:
+    ...     name: str = field(metadata={'validator': length(1, 100)})
+    ...     price: float = field(metadata={'validator': minimum(0.0)})
+    >>>
+    >>> result = Product.from_dict({'name': 'Widget', 'price': '19.99'})
+
 """
 
 from __future__ import annotations
 
+from valid8r.integrations.dataclasses import (
+    validate,
+    validate_dataclass,
+)
 from valid8r.integrations.env import (
     EnvField,
     EnvSchema,
@@ -80,6 +98,8 @@ __all__ = [
     'load_env_config',
     'make_after_validator',
     'make_wrap_validator',
+    'validate',
+    'validate_dataclass',
     'validator_from_parser',
 ]
 

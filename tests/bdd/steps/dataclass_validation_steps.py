@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
 )
 
 from behave import (  # type: ignore[import-untyped]
@@ -91,6 +90,27 @@ def step_define_dataclass(context: Context, dataclass_name: str, field_spec: str
 
 
 @given('{field_name} has a {validator_type} validator between {min_val} and {max_val} characters')
+def step_add_length_range_validator(
+    context: Context,
+    field_name: str,
+    validator_type: str,
+    min_val: str,
+    max_val: str,
+) -> None:
+    """Add length validator to a field (with 'characters' suffix)."""
+    dataclass_name = context.current_dataclass
+    min_int = int(min_val)
+    max_int = int(max_val)
+
+    if validator_type == 'length':
+        validator = length(min_int, max_int)
+    else:
+        msg = f'Unknown validator type: {validator_type}'
+        raise ValueError(msg)
+
+    context.field_validators[dataclass_name][field_name] = validator
+
+
 @given('{field_name} has a {validator_type} validator between {min_val} and {max_val}')
 def step_add_range_validator(
     context: Context,
@@ -99,14 +119,12 @@ def step_add_range_validator(
     min_val: str,
     max_val: str,
 ) -> None:
-    """Add range or length validator to a field."""
+    """Add range validator to a field (numeric ranges)."""
     dataclass_name = context.current_dataclass
     min_int = int(min_val)
     max_int = int(max_val)
 
-    if validator_type == 'length':
-        validator = length(min_int, max_int)
-    elif validator_type == 'range':
+    if validator_type == 'range':
         validator = minimum(min_int) & maximum(max_int)
     else:
         msg = f'Unknown validator type: {validator_type}'
@@ -116,7 +134,6 @@ def step_add_range_validator(
 
 
 @given('{field_name} has a {validator_type} length validator of {count} characters')
-@given('{field_name} has a {validator_type} validator of {count} characters')
 def step_add_length_limit_validator(
     context: Context,
     field_name: str,
@@ -177,7 +194,7 @@ def step_add_named_validator(context: Context, field_name: str, validator_type: 
     context.field_validators[dataclass_name][field_name] = validator_map[validator_type]
 
 
-@given('{field_name} has a custom {validator_description} validator')
+@given('{field_name} uses custom validator for {validator_description}')
 def step_add_custom_validator(context: Context, field_name: str, validator_description: str) -> None:
     """Add a custom validator to a field."""
     dataclass_name = context.current_dataclass
@@ -373,7 +390,7 @@ def step_validate_nested_valid(
         context.validation_result = Failure(str(e))
 
 
-@when('Alice validates a {dataclass_name} with invalid {nested_field} {field_name} "{field_value}"')
+@when('Alice validates a {dataclass_name} where nested {nested_field} has invalid {field_name} "{field_value}"')
 def step_validate_nested_invalid(
     context: Context,
     dataclass_name: str,

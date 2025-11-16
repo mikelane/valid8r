@@ -92,7 +92,7 @@ Feature: Dataclass Field Validation
   Scenario: Invalid nested dataclass fails validation
     Given an Address dataclass with zip_code field requiring 5 digits
     And a Person dataclass with name and address fields
-    When Alice validates a Person with invalid address zip_code "123"
+    When Alice validates a Person where nested address has invalid zip_code "123"
     Then the validation fails
     And the error report contains field "address.zip_code"
     And the error message contains "5 digits"
@@ -131,13 +131,13 @@ Feature: Dataclass Field Validation
 
   Scenario: Custom validator applies to field
     Given an Email dataclass with address field of type str
-    And address has a custom email format validator
+    And address uses custom validator for email format
     When Alice validates an Email with address "alice@example.com"
     Then the validation succeeds
 
   Scenario: Custom validator rejects invalid input
     Given an Email dataclass with address field of type str
-    And address has a custom email format validator
+    And address uses custom validator for email format
     When Alice validates an Email with address "not-an-email"
     Then the validation fails
     And the error report contains field "address"
