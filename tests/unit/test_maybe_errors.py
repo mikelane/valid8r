@@ -206,3 +206,114 @@ class DescribeMaybeFactoryMethod:
         assert failure.is_failure()
         assert failure.validation_error.code == 'INVALID_TYPE'
         assert failure.validation_error.message == 'Type error'
+
+
+class DescribeErrorDetailMethod:
+    """Tests for error_detail() method (RFC-001 Phase 2)."""
+
+    def it_returns_validation_error_for_string_failure(self) -> None:
+        """error_detail() returns ValidationError for string error."""
+        failure = Failure('Simple error message')
+
+        error = failure.error_detail()
+
+        assert isinstance(error, ValidationError)
+        assert error.code == 'VALIDATION_ERROR'
+        assert error.message == 'Simple error message'
+        assert error.path == ''
+        assert error.context is None
+
+    def it_returns_validation_error_for_validation_error_failure(self) -> None:
+        """error_detail() returns ValidationError for ValidationError."""
+        validation_error = ValidationError(
+            code=ErrorCode.INVALID_EMAIL,
+            message='Email is invalid',
+            path='.user.email',
+            context={'input': 'not-an-email'},
+        )
+        failure = Failure(validation_error)
+
+        error = failure.error_detail()
+
+        assert isinstance(error, ValidationError)
+        assert error.code == 'INVALID_EMAIL'
+        assert error.message == 'Email is invalid'
+        assert error.path == '.user.email'
+        assert error.context == {'input': 'not-an-email'}
+
+    def it_returns_same_instance_as_validation_error_property(self) -> None:
+        """error_detail() and validation_error property return same object."""
+        validation_error = ValidationError(code='TEST_CODE', message='Test message')
+        failure = Failure(validation_error)
+
+        detail_result = failure.error_detail()
+        property_result = failure.validation_error
+
+        assert detail_result is property_result
+
+    def it_works_with_pattern_matching(self) -> None:
+        """error_detail() works after pattern matching."""
+        failure = Failure('Pattern match error')
+
+        match failure:
+            case Failure(error):
+                # Pattern matching extracts message string
+                assert error == 'Pattern match error'
+
+                # error_detail() provides structured access
+                error_detail = failure.error_detail()
+                assert isinstance(error_detail, ValidationError)
+                assert error_detail.message == 'Pattern match error'
+            case _:
+                pytest.fail('Pattern match failed')
+
+    def it_preserves_error_through_bind(self) -> None:
+        """error_detail() preserves error through bind chain."""
+        original_error = ValidationError(code='BIND_ERROR', message='Original error')
+        failure = Failure(original_error)
+
+        result = failure.bind(lambda _x: Failure('Should not reach'))
+
+        assert result.is_failure()
+        assert result.error_detail().code == 'BIND_ERROR'
+        assert result.error_detail().message == 'Original error'
+
+    def it_preserves_error_through_map(self) -> None:
+        """error_detail() preserves error through map chain."""
+        original_error = ValidationError(code='MAP_ERROR', message='Map failed')
+        failure = Failure(original_error)
+
+        result = failure.map(lambda x: x * 2)
+
+        assert result.is_failure()
+        assert result.error_detail().code == 'MAP_ERROR'
+        assert result.error_detail().message == 'Map failed'
+
+    def it_provides_context_for_debugging(self) -> None:
+        """error_detail() provides context dictionary for debugging."""
+        validation_error = ValidationError(
+            code=ErrorCode.OUT_OF_RANGE,
+            message='Value out of range',
+            path='.temperature',
+            context={'min': 0, 'max': 100, 'value': 150},
+        )
+        failure = Failure(validation_error)
+
+        error = failure.error_detail()
+
+        assert error.context is not None
+        assert error.context['min'] == 0
+        assert error.context['max'] == 100
+        assert error.context['value'] == 150
+
+    def it_returns_distinct_instances_for_different_failures(self) -> None:
+        """Multiple Failures have distinct ValidationError instances."""
+        failure1 = Failure(ValidationError(code='ERROR_ONE', message='First'))
+        failure2 = Failure(ValidationError(code='ERROR_TWO', message='Second'))
+
+        error1 = failure1.error_detail()
+        error2 = failure2.error_detail()
+
+        assert error1 is not error2
+        assert error1.code == 'ERROR_ONE'
+        assert error2.code == 'ERROR_TWO'
