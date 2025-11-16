@@ -27,14 +27,20 @@ from .core.parsers import (
     PhoneNumber,
     UrlParts,
 )
+from .core.schema import (
+    Field,
+    Schema,
+)
 
 # Types
 
 __all__ = [
     'EmailAddress',
     'ErrorCode',
+    'Field',
     'Maybe',
     'PhoneNumber',
+    'Schema',
     'UrlParts',
     'ValidationError',
     '__version__',

@@ -21,6 +21,41 @@ if TYPE_CHECKING:
     from behave.runner import Context
 
 
+def unquote(s: str) -> str:
+    """Remove surrounding quotes from Gherkin parameter values.
+
+    Behave includes literal quote characters when parsing parameters,
+    so "25" becomes the string '"25"' instead of '25'.
+    """
+    return s.strip('"\'')
+
+
+def parse_str(val: Any) -> Any:  # noqa: ANN401
+    """Parse input as string."""
+    from valid8r.core.maybe import Success
+
+    return Success(str(val))
+
+
+def get_errors(result: Any) -> list[Any]:  # noqa: ANN401
+    """Extract error list from a Failure result.
+
+    Schema validation returns Failure with a list of ValidationError objects.
+    This helper extracts that list safely.
+    """
+    from valid8r.core.maybe import Failure
+
+    match result:
+        case Failure():
+            # Access the internal _validation_error directly if it's a list
+            if isinstance(result._validation_error, list):  # noqa: SLF001
+                return result._validation_error  # noqa: SLF001
+            # Otherwise wrap the single error in a list
+            return [result._validation_error]  # noqa: SLF001
+        case _:
+            return []
+
+
 # Context to store schema validation results
 class SchemaContext:
     """Test context for schema validation scenarios."""
@@ -70,7 +105,7 @@ def step_schema_age_and_email(context: Context) -> None:
 def step_input_age_and_email(context: Context, age: str, email: str) -> None:
     """Provide input data with age and email."""
     sc = get_schema_context(context)
-    sc.input_data = {'age': age, 'email': email}
+    sc.input_data = {'age': unquote(age), 'email': unquote(email)}
 
 
 @given('a schema with nested user object')
@@ -94,8 +129,8 @@ def step_user_schema_fields(context: Context) -> None:
     user_schema = schema.Schema(
         fields={
             'name': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'email': schema.Field(parser=parsers.parse_email, required=True),
@@ -112,7 +147,7 @@ def step_user_schema_fields(context: Context) -> None:
 def step_input_nested_user(context: Context, name: str, email: str) -> None:
     """Provide nested input data for user object."""
     sc = get_schema_context(context)
-    sc.input_data = {'user': {'name': name, 'email': email}}
+    sc.input_data = {'user': {'name': unquote(name), 'email': unquote(email)}}
 
 
 @given('a schema with age as parse_int with minimum {min_val:d} and maximum {max_val:d}')
@@ -140,7 +175,7 @@ def step_schema_age_with_validators(context: Context, min_val: int, max_val: int
 def step_input_with_age_only(context: Context, age: str) -> None:
     """Provide input with just age field."""
     sc = get_schema_context(context)
-    sc.input_data = {'age': age}
+    sc.input_data = {'age': age}  # Behave strips quotes from "{age}" pattern
 
 
 @given('a schema with required name and optional age')
@@ -156,8 +191,8 @@ def step_schema_required_and_optional(context: Context) -> None:
     sc.schema = schema.Schema(
         fields={
             'name': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'age': schema.Field(parser=parsers.parse_int, required=False),
@@ -169,14 +204,14 @@ def step_schema_required_and_optional(context: Context) -> None:
 def step_input_with_only_name(context: Context, name: str) -> None:
     """Provide input with only name field."""
     sc = get_schema_context(context)
-    sc.input_data = {'name': name}
+    sc.input_data = {'name': unquote(name)}
 
 
 @given('input with only age {age}')
 def step_input_with_only_age(context: Context, age: str) -> None:
     """Provide input with only age field."""
     sc = get_schema_context(context)
-    sc.input_data = {'age': age}
+    sc.input_data = {'age': unquote(age)}
 
 
 @given('a schema with address object')
@@ -191,7 +226,6 @@ def step_schema_with_address(context: Context) -> None:
 def step_address_schema_fields(context: Context) -> None:
     """Define fields for the address schema."""
     from valid8r.core import (
-        parsers,
         schema,
         validators,
     )
@@ -200,13 +234,13 @@ def step_address_schema_fields(context: Context) -> None:
     address_schema = schema.Schema(
         fields={
             'street': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'city': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
         }
@@ -222,7 +256,7 @@ def step_address_schema_fields(context: Context) -> None:
 def step_input_address(context: Context, street: str, city: str) -> None:
     """Provide input with address object."""
     sc = get_schema_context(context)
-    sc.input_data = {'address': {'street': street, 'city': city}}
+    sc.input_data = {'address': {'street': unquote(street), 'city': unquote(city)}}
 
 
 @given('a schema with tags as parse_list with parse_int elements')
@@ -248,7 +282,7 @@ def step_schema_with_list(context: Context) -> None:
 def step_input_with_tags(context: Context, tags: str) -> None:
     """Provide input with tags field."""
     sc = get_schema_context(context)
-    sc.input_data = {'tags': tags}
+    sc.input_data = {'tags': unquote(tags)}
 
 
 @given('a schema with user name and addresses list')
@@ -272,13 +306,13 @@ def step_address_schema_street_zipcode(context: Context) -> None:
     address_schema = schema.Schema(
         fields={
             'street': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'zipcode': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
         }
@@ -307,7 +341,7 @@ def step_address_schema_street_zipcode(context: Context) -> None:
             'user': schema.Field(
                 parser=lambda val: parsers.parse_dict(
                     val,
-                    schema={'name': (parsers.parse_str, validators.non_empty_string)},
+                    schema={'name': (parse_str, validators.non_empty_string())},
                 ),
                 required=True,
             ),
@@ -321,7 +355,7 @@ def step_input_complex_invalid(context: Context, name: str) -> None:
     """Provide complex nested input with multiple errors."""
     sc = get_schema_context(context)
     sc.input_data = {
-        'user': {'name': name},
+        'user': {'name': unquote(name)},
         'addresses': [
             {'street': '', 'zipcode': '12345'},  # Empty street
             {'street': '456 Oak Ave', 'zipcode': ''},  # Empty zipcode
@@ -340,7 +374,7 @@ def step_schema_required_fields(context: Context) -> None:
     sc = get_schema_context(context)
     sc.schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=parsers.parse_str, required=True),
+            'name': schema.Field(parser=parse_str, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
         }
     )
@@ -357,32 +391,30 @@ def step_empty_input(context: Context) -> None:
 def step_schema_only_name(context: Context) -> None:
     """Define a schema with only name field."""
     from valid8r.core import (
-        parsers,
         schema,
     )
 
     sc = get_schema_context(context)
-    sc.schema = schema.Schema(fields={'name': schema.Field(parser=parsers.parse_str, required=True)})
+    sc.schema = schema.Schema(fields={'name': schema.Field(parser=parse_str, required=True)})
 
 
 @given('input with name {name} and extra field age {age}')
 def step_input_with_extra_field(context: Context, name: str, age: str) -> None:
     """Provide input with an extra field."""
     sc = get_schema_context(context)
-    sc.input_data = {'name': name, 'age': age}
+    sc.input_data = {'name': unquote(name), 'age': unquote(age)}
 
 
 @given('a strict schema with only name field')
 def step_strict_schema_only_name(context: Context) -> None:
     """Define a strict schema that rejects extra fields."""
     from valid8r.core import (
-        parsers,
         schema,
     )
 
     sc = get_schema_context(context)
     sc.schema = schema.Schema(
-        fields={'name': schema.Field(parser=parsers.parse_str, required=True)},
+        fields={'name': schema.Field(parser=parse_str, required=True)},
         strict=True,
     )
 
@@ -400,18 +432,18 @@ def step_schema_user_registration(context: Context) -> None:
     address_schema = schema.Schema(
         fields={
             'street': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'city': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'zipcode': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
         }
@@ -420,13 +452,13 @@ def step_schema_user_registration(context: Context) -> None:
     sc.schema = schema.Schema(
         fields={
             'username': schema.Field(
-                parser=parsers.parse_str,
-                validator=validators.non_empty_string,
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'password': schema.Field(
-                parser=parsers.parse_str,
+                parser=parse_str,
                 validator=validators.length(8, 100),
                 required=True,
             ),
@@ -479,7 +511,7 @@ def step_schema_int_and_bool(context: Context) -> None:
 def step_input_age_and_active(context: Context, age: str, active: str) -> None:
     """Provide input with age and active fields."""
     sc = get_schema_context(context)
-    sc.input_data = {'age': age, 'active': active}
+    sc.input_data = {'age': unquote(age), 'active': unquote(active)}
 
 
 @given('a schema with age as parse_int with minimum {min_val:d}')
@@ -514,7 +546,11 @@ def step_validate_input(context: Context) -> None:
 def step_validation_succeeds(context: Context) -> None:
     """Assert that validation succeeded."""
     sc = get_schema_context(context)
-    assert sc.result.is_success(), f'Expected success but got: {sc.result.error_or("no error")}'
+    if not sc.result.is_success():
+        errors = get_errors(sc.result)
+        error_msg = ', '.join(f'{e.path}: {e.message}' for e in errors[:3])
+        msg = f'Expected success but got errors: {error_msg}'
+        raise AssertionError(msg)
 
 
 @then('the validation fails')
@@ -541,14 +577,15 @@ def step_result_contains_email(context: Context, expected_email: str) -> None:
     assert 'email' in result_data, f'Email not found in result: {result_data}'
     # Email is returned as EmailAddress object, need to check the string representation
     email_value = str(result_data['email'])
-    assert email_value == expected_email, f'Expected email {expected_email} but got {email_value}'
+    expected = unquote(expected_email)  # Remove quotes from Gherkin parameter
+    assert email_value == expected, f'Expected email {expected} but got {email_value}'
 
 
 @then('the result contains two errors')
 def step_result_contains_two_errors(context: Context) -> None:
     """Assert that result contains exactly two errors."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     assert len(errors) == 2, f'Expected 2 errors but got {len(errors)}: {errors}'
 
 
@@ -556,7 +593,7 @@ def step_result_contains_two_errors(context: Context) -> None:
 def step_result_contains_error_for_path(context: Context, expected_path: str) -> None:
     """Assert that result contains an error for the specified path."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     paths = [error.path for error in errors]
     assert expected_path in paths, f'Expected error for path {expected_path} but got paths: {paths}'
 
@@ -565,7 +602,7 @@ def step_result_contains_error_for_path(context: Context, expected_path: str) ->
 def step_validation_error_contains_keyword(context: Context, keyword: str) -> None:
     """Assert that at least one validation error message contains the keyword."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     messages = [error.message.lower() for error in errors]
     keyword_lower = keyword.lower()
     assert any(keyword_lower in msg for msg in messages), f'Expected keyword "{keyword}" in error messages: {messages}'
@@ -614,7 +651,7 @@ def step_result_contains_address_city(context: Context, expected_city: str) -> N
 def step_result_contains_multiple_path_errors(context: Context) -> None:
     """Assert that result contains errors for multiple different paths."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     paths = {error.path for error in errors}
     assert len(paths) > 1, f'Expected errors for multiple paths but got: {paths}'
 
@@ -623,7 +660,7 @@ def step_result_contains_multiple_path_errors(context: Context) -> None:
 def step_result_contains_error_mentioning(context: Context, keyword: str) -> None:
     """Assert that at least one error mentions the keyword."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     messages = [error.message.lower() for error in errors]
     keyword_lower = keyword.strip('"').lower()
     assert any(keyword_lower in msg for msg in messages), (
@@ -635,7 +672,7 @@ def step_result_contains_error_mentioning(context: Context, keyword: str) -> Non
 def step_result_contains_at_least_four_errors(context: Context) -> None:
     """Assert that result contains at least four errors."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     assert len(errors) >= 4, f'Expected at least 4 errors but got {len(errors)}: {errors}'
 
 
@@ -643,7 +680,7 @@ def step_result_contains_at_least_four_errors(context: Context) -> None:
 def step_each_error_has_field_path(context: Context) -> None:
     """Assert that each error has a non-empty field path."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     for error in errors:
         assert error.path, f'Error missing field path: {error}'
         assert error.path.startswith('.'), f'Field path should start with ".": {error.path}'
@@ -674,7 +711,7 @@ def step_result_contains_active_as_boolean(context: Context, expected_active: st
 def step_error_includes_field_path(context: Context, expected_path: str) -> None:
     """Assert that at least one error has the specified field path."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     paths = [error.path for error in errors]
     assert expected_path in paths, f'Expected path {expected_path} in errors but got: {paths}'
 
@@ -683,7 +720,7 @@ def step_error_includes_field_path(context: Context, expected_path: str) -> None
 def step_error_includes_invalid_value(context: Context, expected_value: str) -> None:
     """Assert that at least one error context includes the invalid value."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     found = False
     for error in errors:
         if error.context and 'value' in error.context and str(error.context['value']) == expected_value.strip('"'):
@@ -696,7 +733,7 @@ def step_error_includes_invalid_value(context: Context, expected_value: str) -> 
 def step_error_includes_constraint(context: Context, expected_constraint: str) -> None:
     """Assert that at least one error mentions the constraint."""
     sc = get_schema_context(context)
-    errors = sc.result.error_or([])
+    errors = get_errors(sc.result)
     constraint_lower = expected_constraint.strip('"').lower()
     found = False
     for error in errors:
