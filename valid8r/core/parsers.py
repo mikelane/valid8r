@@ -2021,6 +2021,12 @@ def parse_json(text: str) -> Maybe[object]:
     if not text:
         return Maybe.failure('JSON input cannot be empty')
 
+    # CRITICAL: Early length guard (DoS mitigation)
+    # Reject oversized inputs BEFORE expensive JSON parsing operations
+    # Use 10,000 char limit for JSON (reasonable for typical use cases)
+    if len(text) > 10000:
+        return Maybe.failure('Invalid format: JSON input is too long (max 10,000 characters)')
+
     try:
         result = json.loads(text)
         return Maybe.success(result)

@@ -38,14 +38,14 @@ if TYPE_CHECKING:
 def step_library_available(_context: Context) -> None:
     """Verify the valid8r library is importable."""
     # This step is implicit - if imports work, library is available
-    assert True
+    assert parse_phone is not None
 
 
 @given('the phone parsing module supports North American numbers')
 def step_supports_north_american(_context: Context) -> None:
     """Verify North American phone parsing is supported."""
     # This step documents the scope - NANP only
-    assert True
+    assert parse_phone is not None
 
 
 # Given steps - input setup
@@ -170,7 +170,7 @@ def step_result_is_success(context: Context) -> None:
     ctx = get_custom_context(context)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -181,7 +181,7 @@ def step_result_is_failure(context: Context) -> None:
     ctx = get_custom_context(context)
     match ctx.result:
         case Failure(_):
-            assert True
+            pass
         case Success(value):
             pytest.fail(f'Expected Failure but got Success: {value}')
 

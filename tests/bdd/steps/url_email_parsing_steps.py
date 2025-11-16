@@ -75,7 +75,7 @@ def step_result_is_success(context: Context) -> None:
     ctx = get_custom_context(context)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(err):
             pytest.fail(f'Expected Success but got Failure: {err}')
 
@@ -86,7 +86,7 @@ def step_result_is_failure(context: Context) -> None:
     ctx = get_custom_context(context)
     match ctx.result:
         case Failure(_):
-            assert True
+            pass
         case Success(value):
             pytest.fail(f'Expected Failure but got Success: {value}')
 

@@ -7,7 +7,10 @@ to Python dataclasses with automatic type coercion and error aggregation.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import (
+    dataclass,
+    field,
+)
 
 from valid8r.core.maybe import (
     Failure,
@@ -241,6 +244,7 @@ def validate_price_range(min_price: float, max_price: float) -> Callable[[float]
 
     Returns:
         A validator function that checks if a price is within range.
+
     """
 
     def validator(price: float) -> Maybe[float]:

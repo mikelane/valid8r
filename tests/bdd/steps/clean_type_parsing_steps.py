@@ -91,9 +91,9 @@ def step_parse_to_integer(context: Context, input_str: str) -> None:
     # we do need to make sure the right kind of result is stored in the context.
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -104,9 +104,9 @@ def step_parse_empty_to_integer(context: Context) -> None:
     ctx.result = parse_int('')
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -117,9 +117,9 @@ def step_parse_to_float(context: Context, input_str: str) -> None:
     ctx.result = parse_float(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -130,9 +130,9 @@ def step_parse_to_boolean(context: Context, input_str: str) -> None:
     ctx.result = parse_bool(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -143,9 +143,9 @@ def step_parse_to_date(context: Context, input_str: str) -> None:
     ctx.result = parse_date(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -156,9 +156,9 @@ def step_parse_to_date_with_format(context: Context, input_str: str, format_str:
     ctx.result = parse_date(input_str, date_format=format_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -169,9 +169,9 @@ def step_parse_to_complex(context: Context, input_str: str) -> None:
     ctx.result = parse_complex(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -184,9 +184,9 @@ def step_parse_with_custom_parser(context: Context, input_str: str) -> None:
     ctx.result = ctx.custom_parser(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -197,9 +197,9 @@ def step_parse_to_integer_with_error(context: Context, input_str: str, error_msg
     ctx.result = parse_int(input_str, error_message=error_msg)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -211,9 +211,9 @@ def step_parse_to_enum(context: Context, input_str: str) -> None:
     ctx.result = parse_enum(input_str, ctx.custom_enum)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -224,9 +224,9 @@ def step_parse_with_decorated_parser(context: Context, input_str: str) -> None:
     ctx.result = ctx.custom_parser(input_str)
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
@@ -237,9 +237,9 @@ def step_parse_empty_with_decorated_parser(context: Context) -> None:
     ctx.result = ctx.custom_parser('')
     match ctx.result:
         case Success(_):
-            assert True
+            pass
         case Failure(_):
-            assert True
+            pass
         case _:
             pytest.fail('Unexpected result type')
 
