@@ -251,10 +251,10 @@ def process_email(email_str: str):
             return f"Valid: {email.local}@{email.domain}"
         case Failure():
             # Access structured error for programmatic handling
-            error = result.validation_error
+            detail = result.error_detail()
 
             # Switch on error codes for different handling
-            match error.code:
+            match detail.code:
                 case ErrorCode.INVALID_EMAIL:
                     return "Please enter a valid email address"
                 case ErrorCode.EMPTY_STRING:
@@ -262,12 +262,13 @@ def process_email(email_str: str):
                 case ErrorCode.INPUT_TOO_LONG:
                     return "Email is too long"
                 case _:
-                    return f"Error: {error.message}"
+                    return f"Error: {detail.message}"
 
 # Convert errors to JSON for API responses
-match parsers.parse_int("not-a-number"):
+result = parsers.parse_int("not-a-number")
+match result:
     case Failure():
-        error_dict = result.validation_error.to_dict()
+        error_dict = result.error_detail().to_dict()
         # {
         #   'code': 'INVALID_TYPE',
         #   'message': 'Input must be a valid integer',

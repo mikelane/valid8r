@@ -64,6 +64,48 @@ Extracting Values and Errors
    maybe_error = failure.get_error()  # "Invalid input"
    maybe_error_none = success.get_error()  # None
 
+Accessing Structured Error Details
+-----------------------------------
+
+Valid8r provides structured error information through the ``error_detail()`` method (RFC-001 Phase 2):
+
+.. code-block:: python
+
+   from valid8r import Maybe
+   from valid8r.core.maybe import Failure
+   from valid8r.core.errors import ValidationError, ErrorCode
+
+   # Create a failure with structured error
+   error = ValidationError(
+       code=ErrorCode.OUT_OF_RANGE,
+       message='Value must be between 0 and 100',
+       path='.user.age',
+       context={'value': 150, 'min': 0, 'max': 100}
+   )
+   failure = Maybe.failure(error)
+
+   # Access the structured error details
+   detail = failure.error_detail()
+   print(detail.code)      # 'OUT_OF_RANGE'
+   print(detail.message)   # 'Value must be between 0 and 100'
+   print(detail.path)      # '.user.age'
+   print(detail.context)   # {'value': 150, 'min': 0, 'max': 100}
+
+   # String errors are automatically wrapped
+   simple_failure = Maybe.failure('Something went wrong')
+   detail = simple_failure.error_detail()
+   print(detail.code)      # 'VALIDATION_ERROR'
+   print(detail.message)   # 'Something went wrong'
+
+**Use Cases:**
+
+- **Debugging**: Access context to understand what went wrong
+- **Logging**: Include structured error information in logs
+- **User-friendly messages**: Build custom error messages from error details
+- **API responses**: Convert to JSON with ``detail.to_dict()``
+
+See :doc:`error_handling` for comprehensive examples of structured error handling.
+
 Pattern Matching with Match Statement
 -------------------------------------
 

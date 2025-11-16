@@ -140,7 +140,7 @@ The ``Failure`` type now accepts both string errors (backward compatible) and ``
 Accessing Structured Error Information
 ---------------------------------------
 
-Use the ``validation_error`` property to access the full structured error:
+Use the ``error_detail()`` method or ``validation_error`` property to access the full structured error:
 
 .. code-block:: python
 
@@ -156,7 +156,16 @@ Use the ``validation_error`` property to access the full structured error:
    )
    failure = Maybe.failure(error)
 
-   # Access structured error details
+   # Access structured error details using error_detail() (RFC-001 Phase 2)
+   match failure:
+       case Failure():
+           detail = failure.error_detail()
+           print(f"Code: {detail.code}")              # Code: OUT_OF_RANGE
+           print(f"Message: {detail.message}")        # Message: Value must be between 0 and 100
+           print(f"Path: {detail.path}")              # Path: .user.age
+           print(f"Context: {detail.context}")        # Context: {'value': 150, 'min': 0, 'max': 100}
+
+   # Alternative: use validation_error property (also available)
    match failure:
        case Failure():
            ve = failure.validation_error
@@ -185,7 +194,7 @@ Use error codes to handle different validation failures programmatically:
 
            case Failure():
                # Access structured error for programmatic handling
-               error = result.validation_error
+               error = result.error_detail()
 
                # Different handling based on error code
                match error.code:
@@ -219,7 +228,7 @@ Use the ``to_dict()`` method to serialize errors for API responses:
 
        match age_result:
            case Failure():
-               error_dict = age_result.validation_error.to_dict()
+               error_dict = age_result.error_detail().to_dict()
                return {
                    'status': 'error',
                    'error': error_dict
@@ -261,11 +270,11 @@ Combine pattern matching with structured error codes for elegant error handling:
                return f"Adult: {age} years old"
            case Success(age):
                return f"Minor: {age} years old"
-           case Failure() if result.validation_error.code == ErrorCode.INVALID_TYPE:
+           case Failure() if result.error_detail().code == ErrorCode.INVALID_TYPE:
                return "Please enter a number"
-           case Failure() if result.validation_error.code == ErrorCode.BELOW_MINIMUM:
+           case Failure() if result.error_detail().code == ErrorCode.BELOW_MINIMUM:
                return "Age cannot be negative"
-           case Failure() if result.validation_error.code == ErrorCode.ABOVE_MAXIMUM:
+           case Failure() if result.error_detail().code == ErrorCode.ABOVE_MAXIMUM:
                return "Age seems unrealistic"
            case Failure(error):
                return f"Validation failed: {error}"
@@ -304,7 +313,7 @@ Use the ``path`` attribute to track which field failed in complex validations:
        email_result = parsers.parse_email(data.get('email', ''))
        match email_result:
            case Failure():
-               error = email_result.validation_error
+               error = email_result.error_detail()
                errors.append({
                    **error.to_dict(),
                    'path': '.email'  # Set field path
@@ -316,7 +325,7 @@ Use the ``path`` attribute to track which field failed in complex validations:
        )
        match age_result:
            case Failure():
-               error = age_result.validation_error
+               error = age_result.error_detail()
                errors.append({
                    **error.to_dict(),
                    'path': '.age'  # Set field path
@@ -359,9 +368,9 @@ Structured errors maintain complete backward compatibility with string-based err
    # String errors are automatically wrapped in ValidationError
    match failure:
        case Failure():
-           ve = failure.validation_error
-           print(ve.code)     # 'VALIDATION_ERROR'
-           print(ve.message)  # 'Something went wrong'
+           detail = failure.error_detail()
+           print(detail.code)     # 'VALIDATION_ERROR'
+           print(detail.message)  # 'Something went wrong'
 
    # New code can use structured errors
    structured_failure = Maybe.failure(
@@ -372,6 +381,13 @@ Structured errors maintain complete backward compatibility with string-based err
    match structured_failure:
        case Failure(error):
            print(error)  # 'Bad email'
+
+   # Access structured details from any Failure
+   match structured_failure:
+       case Failure():
+           detail = structured_failure.error_detail()
+           print(detail.code)     # 'INVALID_EMAIL'
+           print(detail.message)  # 'Bad email'
 
 Migration Guide
 ---------------
@@ -404,12 +420,12 @@ Start using ``ValidationError`` in new parsers and validators:
 
 **Step 3: Use programmatic error handling where needed**
 
-Take advantage of error codes in specific places where you need programmatic handling:
+Take advantage of error codes in specific places where you need programmatic handling using ``error_detail()``:
 
 .. code-block:: python
 
    match result:
-       case Failure() if result.validation_error.code == ErrorCode.INVALID_EMAIL:
+       case Failure() if result.error_detail().code == ErrorCode.INVALID_EMAIL:
            # Handle email errors specifically
            send_email_format_help()
        case Failure(error):
@@ -418,7 +434,7 @@ Take advantage of error codes in specific places where you need programmatic han
 
 **Step 4: Convert errors to JSON for APIs**
 
-Use ``to_dict()`` for API responses without changing your validation logic:
+Use ``error_detail().to_dict()`` for API responses without changing your validation logic:
 
 .. code-block:: python
 
@@ -426,7 +442,7 @@ Use ``to_dict()`` for API responses without changing your validation logic:
        case Failure():
            return {
                'status': 'error',
-               'error': result.validation_error.to_dict()
+               'error': result.error_detail().to_dict()
            }
 
 Best Practices

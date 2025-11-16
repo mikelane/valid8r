@@ -247,11 +247,14 @@ class ErrorCode:
 - Keep existing `Maybe[T]` API unchanged
 - Internal use only
 
-**Phase 2: Update Failure to accept ValidationError (Non-breaking)**
-- `Failure` constructor accepts `str | ValidationError`
-- Strings auto-wrapped in `ValidationError`
-- `error_or()` continues to return strings
-- Add `error_detail()` method to access `ValidationError`
+**Phase 2: Update Failure to accept ValidationError (Non-breaking)** ✅ **COMPLETED**
+- ✅ `Failure` constructor accepts `str | ValidationError`
+- ✅ Strings auto-wrapped in `ValidationError`
+- ✅ `error_or()` continues to return strings
+- ✅ Added `error_detail()` method to access `ValidationError`
+- ✅ Added `validation_error` property (backward compatibility)
+- ✅ Comprehensive docstrings with examples
+- ✅ Full test coverage including edge cases
 
 **Phase 3: Migrate parsers/validators (Gradual)**
 - Update validators to return `ValidationError` objects
@@ -278,7 +281,7 @@ match result:
         print(err)  # "Input must be a valid integer"
 ```
 
-**After (enhanced)**:
+**After (enhanced - Phase 2 COMPLETED)**:
 ```python
 result = parse_int('not a number')
 match result:
@@ -286,11 +289,15 @@ match result:
         # Backward compatible
         print(err.error_or(''))  # "Input must be a valid integer"
 
-        # New structured access
-        error = err.error
+        # New structured access (RFC-001 Phase 2)
+        detail = err.error_detail()
+        print(detail.code)  # "INVALID_TYPE"
+        print(detail.message)  # "Input must be a valid integer"
+        print(detail.context)  # {'input': 'not a number', 'expected': 'int'}
+
+        # Alternative: validation_error property (also available)
+        error = err.validation_error
         print(error.code)  # "INVALID_TYPE"
-        print(error.message)  # "Input must be a valid integer"
-        print(error.context)  # {'input': 'not a number', 'expected': 'int'}
 ```
 
 **Schema API (new feature)**:
