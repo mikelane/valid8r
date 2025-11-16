@@ -204,6 +204,43 @@ class Failure(Maybe[T]):
         """
         return self._validation_error
 
+    def error_detail(self) -> ValidationError:
+        """Get the structured ValidationError instance (RFC-001 Phase 2).
+
+        This method provides access to the full structured error with code, path, and context.
+        It returns the same object as the `validation_error` property, but follows the
+        RFC-001 specification for the public API.
+
+        For backward compatibility, both `error_detail()` and `validation_error` property
+        are maintained.
+
+        Returns:
+            ValidationError instance with code, message, path, and context
+
+        Examples:
+            Access structured error from string failure:
+
+            >>> failure = Failure('Invalid input')
+            >>> error = failure.error_detail()
+            >>> error.code
+            'VALIDATION_ERROR'
+            >>> error.message
+            'Invalid input'
+
+            Access structured error from ValidationError failure:
+
+            >>> from valid8r.core.errors import ValidationError, ErrorCode
+            >>> error = ValidationError(code=ErrorCode.OUT_OF_RANGE, message='Too high', path='.value')
+            >>> failure = Failure(error)
+            >>> detail = failure.error_detail()
+            >>> detail.code
+            'OUT_OF_RANGE'
+            >>> detail.path
+            '.value'
+
+        """
+        return self._validation_error
+
     def is_success(self) -> bool:
         """Check if the Maybe is a Success."""
         return False
