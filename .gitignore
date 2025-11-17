@@ -62,3 +62,4 @@ docs/autoapi/
 
 # Git worktrees
 .worktrees/
+_build/
