@@ -31,7 +31,7 @@ try:
     from valid8r.core.type_adapters import from_type
 except ImportError:
     # Stub for RED phase
-    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]
+    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]  # noqa: ANN401
         msg = 'from_type not implemented yet'
         raise NotImplementedError(msg)
 
@@ -46,7 +46,7 @@ def expect_success_with_value(result: Maybe[Any], expected: Any) -> None:  # noq
             pytest.fail(f'Expected Success({expected}) but got Failure({err})')
 
 
-def expect_failure_containing(result: Maybe[Any], text: str) -> None:  # noqa: ANN401
+def expect_failure_containing(result: Maybe[Any], text: str) -> None:
     """Assert that result is Failure with error containing text."""
     match result:
         case Failure(err):
@@ -408,9 +408,9 @@ class DescribeFromTypeErrors:
         with pytest.raises((ValueError, TypeError)) as exc_info:
             from_type(None)  # type: ignore[arg-type]
 
-        assert 'type annotation required' in str(exc_info.value).lower() or 'cannot be none' in str(
-            exc_info.value
-        ).lower()
+        assert (
+            'type annotation required' in str(exc_info.value).lower() or 'cannot be none' in str(exc_info.value).lower()
+        )
 
     def it_rejects_invalid_type_object(self) -> None:
         """Reject invalid type object."""
@@ -436,7 +436,7 @@ class DescribeFromTypePreservation:
         match result:
             case Success(value):
                 assert isinstance(value, int)
-                assert type(value) is int  # noqa: E721
+                assert type(value) is int
             case Failure(err):
                 pytest.fail(f'Expected Success but got Failure({err})')
 

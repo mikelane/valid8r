@@ -7,7 +7,6 @@ from typing import (
     Annotated,
     Any,
     Literal,
-    Optional,
     Union,
 )
 
@@ -28,7 +27,7 @@ try:
     from valid8r.core.type_adapters import from_type
 except ImportError:
     # Stub for RED phase - will fail tests as expected
-    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]
+    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]  # noqa: ANN401
         msg = 'from_type not implemented yet'
         raise NotImplementedError(msg)
 
@@ -49,70 +48,80 @@ def step_type_adapter_available(context: Context) -> None:  # noqa: ARG001
 # Given steps - Set up type annotations
 
 
-@given('the type annotation {type_name}')
-def step_set_type_annotation(context: Context, type_name: str) -> None:
-    """Set a type annotation from a string representation."""
-    # Map string representations to actual types
-    type_map: dict[str, type[Any]] = {
+def _get_type_map() -> dict[str, type[Any]]:
+    """Return basic type mapping."""
+    return {
         'int': int,
         'str': str,
         'float': float,
         'bool': bool,
     }
 
-    # Handle special typing constructs
-    if type_name.startswith('Optional['):
-        inner_type = type_name[9:-1]  # Extract "int" from "Optional[int]"
-        context.type_annotation = Optional[type_map.get(inner_type, str)]  # type: ignore[misc]
-    elif type_name.startswith('list['):
-        inner_type = type_name[5:-1]  # Extract "int" from "list[int]"
-        context.type_annotation = list[type_map.get(inner_type, str)]  # type: ignore[misc]
-    elif type_name.startswith('set['):
-        inner_type = type_name[4:-1]  # Extract "str" from "set[str]"
-        context.type_annotation = set[type_map.get(inner_type, str)]  # type: ignore[misc]
-    elif type_name.startswith('dict['):
-        # Extract "str, int" from "dict[str, int]"
-        parts = type_name[5:-1].split(', ')
-        key_type = type_map.get(parts[0], str)
-        value_type = type_map.get(parts[1], str)
-        context.type_annotation = dict[key_type, value_type]  # type: ignore[misc]
-    elif type_name.startswith('list[list['):
-        # Nested list
-        inner_type = type_name[10:-2]  # Extract "int" from "list[list[int]]"
-        context.type_annotation = list[list[type_map.get(inner_type, int)]]  # type: ignore[misc]
-    elif type_name.startswith('list[dict['):
-        # list[dict[str, int]]
-        dict_spec = type_name[10:-2]  # Extract "str, int" from "list[dict[str, int]]"
+
+def _parse_optional_type(type_name: str, type_map: dict[str, type[Any]]) -> type[Any]:
+    """Parse Optional[...] type annotation."""
+    inner_type = type_name[9:-1]
+    return type_map.get(inner_type, str) | None  # type: ignore[misc, return-value]
+
+
+def _parse_collection_type(type_name: str, type_map: dict[str, type[Any]]) -> type[Any]:
+    """Parse collection types (list, set, dict)."""
+    if type_name.startswith('list[list['):
+        inner_type = type_name[10:-2]
+        return list[list[type_map.get(inner_type, int)]]  # type: ignore[misc, return-value]
+    if type_name.startswith('list[dict['):
+        dict_spec = type_name[10:-2]
         parts = dict_spec.split(', ')
         key_type = type_map.get(parts[0], str)
         value_type = type_map.get(parts[1], str)
-        context.type_annotation = list[dict[key_type, value_type]]  # type: ignore[misc]
-    elif type_name.startswith('dict[str, list['):
-        # dict[str, list[int]]
-        inner_type = type_name[15:-2]  # Extract "int" from "dict[str, list[int]]"
-        context.type_annotation = dict[str, list[type_map.get(inner_type, int)]]  # type: ignore[misc]
+        return list[dict[key_type, value_type]]  # type: ignore[misc, return-value]
+    if type_name.startswith('dict[str, list['):
+        inner_type = type_name[15:-2]
+        return dict[str, list[type_map.get(inner_type, int)]]  # type: ignore[misc, return-value]
+    if type_name.startswith('list['):
+        inner_type = type_name[5:-1]
+        return list[type_map.get(inner_type, str)]  # type: ignore[misc, return-value]
+    if type_name.startswith('set['):
+        inner_type = type_name[4:-1]
+        return set[type_map.get(inner_type, str)]  # type: ignore[misc, return-value]
+    if type_name.startswith('dict['):
+        parts = type_name[5:-1].split(', ')
+        key_type = type_map.get(parts[0], str)
+        value_type = type_map.get(parts[1], str)
+        return dict[key_type, value_type]  # type: ignore[misc, return-value]
+    return str  # type: ignore[return-value]
+
+
+def _parse_union_type(type_name: str, type_map: dict[str, type[Any]]) -> type[Any]:
+    """Parse Union[...] type annotation."""
+    parts = type_name[6:-1].split(', ')
+    types = [type_map.get(p, str) for p in parts]
+    # Modern Python uses | for Union, but tests need typing.Union for backward compat
+    return Union[tuple(types)]  # type: ignore[misc, arg-type, return-value]
+
+
+@given('the type annotation {type_name}')
+def step_set_type_annotation(context: Context, type_name: str) -> None:
+    """Set a type annotation from a string representation."""
+    type_map = _get_type_map()
+
+    # Handle special typing constructs
+    if type_name.startswith('Optional['):
+        context.type_annotation = _parse_optional_type(type_name, type_map)
+    elif any(type_name.startswith(prefix) for prefix in ('list[', 'set[', 'dict[')):
+        context.type_annotation = _parse_collection_type(type_name, type_map)
     elif type_name.startswith('Union['):
-        # Union[int, str]
-        parts = type_name[6:-1].split(', ')
-        types = [type_map.get(p, str) for p in parts]
-        context.type_annotation = Union[tuple(types)]  # type: ignore[misc, arg-type]
+        context.type_annotation = _parse_union_type(type_name, type_map)
     elif type_name.startswith("Literal['"):
-        # Literal['red', 'green', 'blue']
         literal_values = type_name[9:-2].split("', '")
         context.type_annotation = Literal[tuple(literal_values)]  # type: ignore[misc, valid-type]
-    elif type_name.startswith('Literal['):
-        # Literal[1, 'one', True]
-        # This is complex - store raw string for later processing
-        context.type_annotation = type_name
-    elif type_name.startswith('Annotated['):
-        # For now, extract the base type and store full string
+    elif type_name.startswith(('Literal[', 'Annotated[')):
         context.type_annotation = type_name
     elif type_name == 'typing.Callable':
         import typing
 
         context.type_annotation = typing.Callable
-    elif type_name == 'Color' or type_name == 'Status':
-        # Enum types - will be set separately
+    elif type_name in {'Color', 'Status'}:
         context.type_annotation = type_name
     else:
         context.type_annotation = type_map.get(type_name, type_name)
@@ -225,11 +234,12 @@ def step_verify_success_none(context: Context) -> None:
     assert context.parse_result.value_or('NOT_NONE') is None
 
 
-@then('the result is a successful Maybe with list {values}')
+@then('the result is a successful Maybe with list [{values}]')
 def step_verify_success_list(context: Context, values: str) -> None:
     """Verify the parse result is a Success with expected list."""
     assert isinstance(context.parse_result, Success)
-    expected_list = json.loads(values)
+    # Parse the list from the values (already in list format from feature file)
+    expected_list = json.loads(f'[{values}]')
     assert context.parse_result.value_or(None) == expected_list
 
 
@@ -254,11 +264,12 @@ def step_verify_success_dict(context: Context, key_values: str) -> None:
         assert result_dict[key.strip()] == int(value.strip())
 
 
-@then('the result is a successful Maybe with nested list {values}')
+@then('the result is a successful Maybe with nested list [{values}]')
 def step_verify_success_nested_list(context: Context, values: str) -> None:
     """Verify the parse result is a Success with expected nested list."""
     assert isinstance(context.parse_result, Success)
-    expected_list = json.loads(values)
+    # Parse nested list from values
+    expected_list = json.loads(f'[{values}]')
     assert context.parse_result.value_or(None) == expected_list
 
 
@@ -277,18 +288,6 @@ def step_verify_success_nested(context: Context) -> None:
     assert isinstance(context.parse_result, Success)
     result = context.parse_result.value_or(None)
     assert isinstance(result, dict)
-
-
-@then('the result is a successful Maybe with value {value}')
-def step_verify_success_generic(context: Context, value: str) -> None:
-    """Verify the parse result is a Success with expected value (generic)."""
-    assert isinstance(context.parse_result, Success)
-    # Handle different value types
-    if value.isdigit():
-        expected = int(value) if '.' not in value else float(value)
-    else:
-        expected = value
-    assert context.parse_result.value_or(None) == expected
 
 
 @then('the result is a successful Maybe with enum member {member}')
