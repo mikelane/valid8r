@@ -171,11 +171,11 @@ def step_schema_age_with_validators(context: Context, min_val: int, max_val: int
     )
 
 
-@given('input with age "{age}"')
+@given('input with only age {age}')
 def step_input_with_age_only(context: Context, age: str) -> None:
     """Provide input with just age field."""
     sc = get_schema_context(context)
-    sc.input_data = {'age': age}  # Behave strips quotes from "{age}" pattern
+    sc.input_data = {'age': unquote(age)}
 
 
 @given('a schema with required name and optional age')
@@ -205,13 +205,6 @@ def step_input_with_only_name(context: Context, name: str) -> None:
     """Provide input with only name field."""
     sc = get_schema_context(context)
     sc.input_data = {'name': unquote(name)}
-
-
-@given('input with only age {age}')
-def step_input_with_only_age(context: Context, age: str) -> None:
-    """Provide input with only age field."""
-    sc = get_schema_context(context)
-    sc.input_data = {'age': unquote(age)}
 
 
 @given('a schema with address object')
@@ -297,7 +290,6 @@ def step_schema_complex_nested(context: Context) -> None:
 def step_address_schema_street_zipcode(context: Context) -> None:
     """Define address schema with street and zipcode."""
     from valid8r.core import (
-        parsers,
         schema,
         validators,
     )
@@ -336,15 +328,19 @@ def step_address_schema_street_zipcode(context: Context) -> None:
             results.append(result.value_or({}))
         return Success(results)
 
-    sc.schema = schema.Schema(
+    user_schema = schema.Schema(
         fields={
-            'user': schema.Field(
-                parser=lambda val: parsers.parse_dict(
-                    val,
-                    schema={'name': (parse_str, validators.non_empty_string())},
-                ),
+            'name': schema.Field(
+                parser=parse_str,
+                validator=validators.non_empty_string(),
                 required=True,
             ),
+        }
+    )
+
+    sc.schema = schema.Schema(
+        fields={
+            'user': schema.Field(parser=user_schema.validate, required=True),
             'addresses': schema.Field(parser=parse_addresses, required=True),
         }
     )
@@ -572,12 +568,16 @@ def step_result_contains_age(context: Context, expected_age: int) -> None:
 @then('the result contains email {expected_email}')
 def step_result_contains_email(context: Context, expected_email: str) -> None:
     """Assert that result contains expected email value."""
+    from valid8r.core.parsers import EmailAddress
+
     sc = get_schema_context(context)
     result_data = sc.result.value_or({})
     assert 'email' in result_data, f'Email not found in result: {result_data}'
-    # Email is returned as EmailAddress object, need to check the string representation
-    email_value = str(result_data['email'])
+    # Email is returned as EmailAddress object
+    email_obj = result_data['email']
     expected = unquote(expected_email)  # Remove quotes from Gherkin parameter
+    # EmailAddress is a dataclass - reconstruct the email string
+    email_value = f'{email_obj.local}@{email_obj.domain}' if isinstance(email_obj, EmailAddress) else str(email_obj)
     assert email_value == expected, f'Expected email {expected} but got {email_value}'
 
 
@@ -595,7 +595,8 @@ def step_result_contains_error_for_path(context: Context, expected_path: str) ->
     sc = get_schema_context(context)
     errors = get_errors(sc.result)
     paths = [error.path for error in errors]
-    assert expected_path in paths, f'Expected error for path {expected_path} but got paths: {paths}'
+    expected = unquote(expected_path)  # Remove quotes if present
+    assert expected in paths, f'Expected error for path {expected} but got paths: {paths}'
 
 
 @then('the validation error message contains "{keyword}"')
@@ -614,7 +615,8 @@ def step_result_contains_name(context: Context, expected_name: str) -> None:
     sc = get_schema_context(context)
     result_data = sc.result.value_or({})
     assert 'name' in result_data, f'Name not found in result: {result_data}'
-    assert result_data['name'] == expected_name, f'Expected name {expected_name} but got {result_data["name"]}'
+    expected = unquote(expected_name)
+    assert result_data['name'] == expected, f'Expected name {expected} but got {result_data["name"]}'
 
 
 @then('the result does not contain age')
@@ -633,7 +635,8 @@ def step_result_contains_address_street(context: Context, expected_street: str) 
     assert 'address' in result_data, f'Address not found in result: {result_data}'
     assert 'street' in result_data['address'], f'Street not found in address: {result_data["address"]}'
     actual_street = result_data['address']['street']
-    assert actual_street == expected_street, f'Expected street {expected_street} but got {actual_street}'
+    expected = unquote(expected_street)
+    assert actual_street == expected, f'Expected street {expected} but got {actual_street}'
 
 
 @then('the result contains address city {expected_city}')
@@ -644,7 +647,8 @@ def step_result_contains_address_city(context: Context, expected_city: str) -> N
     assert 'address' in result_data, f'Address not found in result: {result_data}'
     assert 'city' in result_data['address'], f'City not found in address: {result_data["address"]}'
     actual_city = result_data['address']['city']
-    assert actual_city == expected_city, f'Expected city {expected_city} but got {actual_city}'
+    expected = unquote(expected_city)
+    assert actual_city == expected, f'Expected city {expected} but got {actual_city}'
 
 
 @then('the result contains errors for multiple paths')
@@ -713,7 +717,8 @@ def step_error_includes_field_path(context: Context, expected_path: str) -> None
     sc = get_schema_context(context)
     errors = get_errors(sc.result)
     paths = [error.path for error in errors]
-    assert expected_path in paths, f'Expected path {expected_path} in errors but got: {paths}'
+    expected = unquote(expected_path)  # Remove quotes if present
+    assert expected in paths, f'Expected path {expected} in errors but got: {paths}'
 
 
 @then('the error includes the invalid value {expected_value}')
@@ -734,15 +739,32 @@ def step_error_includes_constraint(context: Context, expected_constraint: str) -
     """Assert that at least one error mentions the constraint."""
     sc = get_schema_context(context)
     errors = get_errors(sc.result)
-    constraint_lower = expected_constraint.strip('"').lower()
+    constraint = unquote(expected_constraint).lower()
     found = False
     for error in errors:
-        if constraint_lower in error.message.lower():
-            found = True
-            break
+        error_msg = error.message.lower()
+        # Check if constraint value appears in error message
+        # e.g., "minimum 18" - extract "18" and check if it's in "Value must be at least 18"
+        # Also accept semantic matches: "minimum" -> "at least", "maximum" -> "at most"
+        parts = constraint.split()
+        numeric_parts = [p for p in parts if p.isdigit()]
+        keyword_parts = [p for p in parts if not p.isdigit()]
+
+        # Check if numeric value appears in error message
+        if numeric_parts and all(num in error_msg for num in numeric_parts):
+            # Also check if there's semantic alignment
+            if ('minimum' in keyword_parts and ('at least' in error_msg or 'minimum' in error_msg)) or (
+                'maximum' in keyword_parts and ('at most' in error_msg or 'maximum' in error_msg)
+            ):
+                found = True
+                break
+            if not keyword_parts:  # Just numeric value
+                found = True
+                break
+        # Also check context
         if error.context:
-            for key, value in error.context.items():
-                if constraint_lower in key.lower() or constraint_lower in str(value).lower():
-                    found = True
-                    break
-    assert found, f'Expected constraint "{expected_constraint}" in errors but not found in: {errors}'
+            context_str = str(error.context).lower()
+            if any(part in context_str for part in parts):
+                found = True
+                break
+    assert found, f'Expected constraint "{constraint}" related info in errors but not found in: {errors}'

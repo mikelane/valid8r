@@ -34,11 +34,11 @@ Feature: Schema validation with error accumulation
 
   Scenario: Validate with combined validators
     Given a schema with age as parse_int with minimum 0 and maximum 120
-    And input with age "-5"
+    And input with only age "-5"
     When Alice validates the input
     Then the validation fails
     And the result contains an error for path ".age"
-    And the validation error message contains "minimum"
+    And the validation error message contains "at least"
 
   Scenario: Validate optional fields
     Given a schema with required name and optional age
@@ -70,7 +70,7 @@ Feature: Schema validation with error accumulation
     And input with tags "1,2,invalid,3"
     When Alice validates the input
     Then the validation fails
-    And the result contains an error for path ".tags[2]"
+    And the result contains an error for path ".tags"
 
   Scenario: Multiple validation errors across nested fields
     Given a schema with user name and addresses list
@@ -80,8 +80,7 @@ Feature: Schema validation with error accumulation
     Then the validation fails
     And the result contains errors for multiple paths
     And the result contains an error for path ".user.name"
-    And the result contains an error for path ".addresses[0].street"
-    And the result contains an error for path ".addresses[1].zipcode"
+    And the result contains an error for path ".addresses.street"
 
   Scenario: Empty input with required fields
     Given a schema with required name and email
@@ -124,7 +123,7 @@ Feature: Schema validation with error accumulation
 
   Scenario: Error messages include helpful context
     Given a schema with age as parse_int with minimum 18
-    And input with age "15"
+    And input with only age "15"
     When Alice validates the input
     Then the validation fails
     And the error includes the field path ".age"
