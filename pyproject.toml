@@ -213,6 +213,12 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "RUF001", # Allow unicode symbols in output (⭐×)
     "D401", # Allow non-imperative docstrings in main()
 ]
+"examples/*" = [
+    "D401", # Allow non-imperative docstrings in examples
+    "PLC0415", # Allow local imports in examples (for clarity)
+    "SLF001", # Allow private member access in examples (demonstrating internals)
+    "T201", # Allow print function in examples
+]
 "scripts/check_regex_safety.py" = ["PERF401"] # List comprehension less clear here
 "smoke_test.py" = ["S101"] # allow asserts in smoke test
 "tests/security/*" = [
