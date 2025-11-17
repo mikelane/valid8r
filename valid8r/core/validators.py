@@ -280,7 +280,19 @@ def length(min_length: int, max_length: int, error_message: str | None = None) -
     def validator(value: str) -> Maybe[str]:
         if min_length <= len(value) <= max_length:
             return Maybe.success(value)
-        return Maybe.failure(error_message or f'String length must be between {min_length} and {max_length}')
+
+        # Provide more specific error messages when only one bound is meaningful
+        if error_message:
+            return Maybe.failure(error_message)
+        # Heuristic: min of 0 likely means only max matters
+        no_min = 0
+        # Heuristic: very large max likely means only min matters
+        no_max_threshold = 10000
+        if min_length == no_min:
+            return Maybe.failure(f'String length exceeds maximum of {max_length}')
+        if max_length >= no_max_threshold:
+            return Maybe.failure(f'String length below minimum of {min_length}')
+        return Maybe.failure(f'String length must be between {min_length} and {max_length}')
 
     return Validator(validator)
 

@@ -233,7 +233,16 @@ def step_email_domain_is(context: Context, expected_domain: str) -> None:
 
 @then('the error message contains "{expected_substring}"')
 def step_error_contains(context: Context, expected_substring: str) -> None:
-    """Verify the error message contains expected substring."""
+    """Verify the error message contains expected substring (works for URL/email and dataclass contexts)."""
+    # Handle dataclass validation context
+    if hasattr(context, 'validation_error'):
+        error = context.validation_error
+        assert expected_substring.lower() in str(error).lower(), (
+            f'Expected error to contain "{expected_substring}" but got: {error}'
+        )
+        return
+
+    # Handle URL/email parsing context
     ctx = get_custom_context(context)
     match ctx.result:
         case Success(value):

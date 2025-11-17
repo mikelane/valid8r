@@ -85,10 +85,14 @@ def create_dataclass_from_spec(
         # Resolve nested dataclass types
         if isinstance(field_type_spec, str):
             # This is a reference to another dataclass
-            if hasattr(context, 'dataclass_types') and field_type_spec in context.dataclass_types:
+            # Check if it's defined in context.dataclass_definitions
+            if hasattr(context, 'dataclass_definitions') and field_type_spec in context.dataclass_definitions:
+                # Recursively create the nested dataclass if it doesn't exist yet
+                field_type = get_dataclass_from_context(context, field_type_spec)
+            elif hasattr(context, 'dataclass_types') and field_type_spec in context.dataclass_types:
                 field_type = context.dataclass_types[field_type_spec]
             else:
-                # Not yet created, just use str for now
+                # Not a dataclass reference, just use str
                 field_type = str
         else:
             field_type = field_type_spec
@@ -127,13 +131,21 @@ def get_dataclass_from_context(context: Context, dataclass_name: str) -> type[An
         field_types = context.field_types.get(dataclass_name, {})
         field_validators = context.field_validators.get(dataclass_name, {})
 
-        context.dataclass_types[dataclass_name] = create_dataclass_from_spec(
+        dataclass_type = create_dataclass_from_spec(
             context,
             dataclass_name,
             field_names,
             field_types,
             field_validators,
         )
+
+        # Apply @validate decorator if requested
+        if hasattr(context, 'uses_decorator') and context.uses_decorator:
+            from valid8r.integrations.dataclasses import validate
+
+            dataclass_type = validate(dataclass_type)
+
+        context.dataclass_types[dataclass_name] = dataclass_type
 
     return context.dataclass_types[dataclass_name]
 
@@ -176,6 +188,16 @@ def step_define_dataclass(context: Context, dataclass_name: str, field_spec: str
         context.field_validators[dataclass_name] = {}
     if dataclass_name not in context.field_types:
         context.field_types[dataclass_name] = {}
+
+    # Auto-detect nested dataclass types by matching field names to defined dataclasses
+    # For example, if field is named "address" and we've defined an "Address" dataclass,
+    # automatically set the field type to Address
+    for field_name in field_names:
+        # Check if a dataclass with a matching name (case-insensitive, title-cased) exists
+        potential_dataclass_name = field_name.title()
+        if potential_dataclass_name in context.dataclass_definitions:
+            # Automatically set this field's type to the matching dataclass
+            context.field_types[dataclass_name][field_name] = potential_dataclass_name
 
 
 @given('{field_name} has a {validator_type} validator between {min_val} and {max_val} characters')
@@ -234,14 +256,44 @@ def step_add_length_limit_validator(
     count_int = int(count)
 
     if validator_type == 'maximum':
-        validator = maximum(count_int)
+        new_validator = length(0, count_int)  # Use length validator for strings
     elif validator_type == 'minimum':
-        validator = minimum(count_int)
+        new_validator = length(count_int, 10000)  # Use length validator for strings
     else:
         msg = f'Unknown validator type: {validator_type}'
         raise ValueError(msg)
 
-    context.field_validators[dataclass_name][field_name] = validator
+    # Chain with existing validator if present
+    existing_validator = context.field_validators[dataclass_name].get(field_name)
+    if existing_validator is not None:
+        context.field_validators[dataclass_name][field_name] = existing_validator & new_validator
+    else:
+        context.field_validators[dataclass_name][field_name] = new_validator
+
+
+@given('{field_name} has a {validator_type} validator for {description}')
+def step_add_validator_for_description(
+    context: Context,
+    field_name: str,
+    validator_type: str,
+    description: str,
+) -> None:
+    """Add a validator with specific description (e.g., 'matches_regex validator for special characters')."""
+    dataclass_name = context.current_dataclass
+
+    if validator_type == 'matches_regex' and 'special characters' in description:
+        # Require at least one special character
+        new_validator = matches_regex(r'[!@#$%^&*(),.?":{}|<>]')
+
+        # Chain with existing validator if present
+        existing_validator = context.field_validators[dataclass_name].get(field_name)
+        if existing_validator is not None:
+            context.field_validators[dataclass_name][field_name] = existing_validator & new_validator
+        else:
+            context.field_validators[dataclass_name][field_name] = new_validator
+    else:
+        msg = f'Unknown validator combination: {validator_type} for {description}'
+        raise ValueError(msg)
 
 
 @given('{field_name} is type {type_name}')
@@ -257,6 +309,7 @@ def step_set_field_type(context: Context, field_name: str, type_name: str) -> No
         'bool': bool,
         'Optional[str]': str | None,  # type: ignore[dict-item]
         'list[str]': list[str],  # type: ignore[dict-item]
+        'list[int]': list[int],  # type: ignore[dict-item]
         'dict[str, int]': dict[str, int],  # type: ignore[dict-item]
     }
 
@@ -287,7 +340,10 @@ def step_add_custom_validator(context: Context, field_name: str, validator_descr
 
     # For BDD tests, we'll use simple pattern matching validators
     if 'email' in validator_description:
-        validator = matches_regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        validator = matches_regex(
+            r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+            error_message='Invalid email address format',
+        )
     else:
         msg = f'Unknown custom validator: {validator_description}'
         raise ValueError(msg)
@@ -311,8 +367,22 @@ def step_field_requirement(context: Context, field_name: str, requirement: str) 
     dataclass_name = context.current_dataclass
 
     if '5 digits' in requirement:
-        validator = matches_regex(r'^\d{5}$')
+        validator = matches_regex(r'^\d{5}$', error_message='Must be exactly 5 digits')
         context.field_validators[dataclass_name][field_name] = validator
+
+
+@given('an {dataclass_name} dataclass with {field_name} field requiring {requirement}')
+def step_define_dataclass_with_requirement(
+    context: Context,
+    dataclass_name: str,
+    field_name: str,
+    requirement: str,
+) -> None:
+    """Define a dataclass with a single field that has a requirement."""
+    # First define the dataclass with the field
+    step_define_dataclass(context, dataclass_name, field_name)
+    # Then add the requirement
+    step_field_requirement(context, field_name, requirement)
 
 
 @given('each field has validation rules')
@@ -324,8 +394,21 @@ def step_all_fields_have_validators(context: Context) -> None:
 
 @given('fields use metadata to specify validators')
 def step_fields_use_metadata(context: Context) -> None:
-    """Mark that fields use metadata for validator specification."""
+    """Mark that fields use metadata for validator specification.
+
+    For ValidatedUser, adds default validators to name and age fields.
+    """
     context.uses_metadata = True
+
+    # Add default validators for ValidatedUser fields
+    dataclass_name = context.current_dataclass
+    if dataclass_name == 'ValidatedUser':
+        if 'name' in context.dataclass_definitions.get(dataclass_name, []):
+            # name must have length > 0
+            context.field_validators[dataclass_name]['name'] = length(1, 100)
+        if 'age' in context.dataclass_definitions.get(dataclass_name, []):
+            # age must be >= 0
+            context.field_validators[dataclass_name]['age'] = minimum(0)
 
 
 @given('a {dataclass_name} dataclass uses @validate decorator')
@@ -333,6 +416,30 @@ def step_dataclass_uses_decorator(context: Context, dataclass_name: str) -> None
     """Mark that a specific dataclass uses the @validate decorator."""
     context.uses_decorator = True
     context.current_dataclass = dataclass_name
+
+
+@given('{dataclass_name} has {field_spec} fields')
+def step_dataclass_has_fields(context: Context, dataclass_name: str, field_spec: str) -> None:
+    """Define fields for a dataclass (alternative phrasing)."""
+    # Parse field specification (e.g., "name and age")
+    field_names = [f.strip() for f in field_spec.replace(' and ', ', ').split(',') if f.strip()]
+
+    # Store dataclass definition for later use
+    if not hasattr(context, 'dataclass_definitions'):
+        context.dataclass_definitions = {}
+    if not hasattr(context, 'field_validators'):
+        context.field_validators = {}
+    if not hasattr(context, 'field_types'):
+        context.field_types = {}
+
+    context.dataclass_definitions[dataclass_name] = field_names
+    context.current_dataclass = dataclass_name
+
+    # Initialize validators for this dataclass
+    if dataclass_name not in context.field_validators:
+        context.field_validators[dataclass_name] = {}
+    if dataclass_name not in context.field_types:
+        context.field_types[dataclass_name] = {}
 
 
 @given('no explicit parser is provided')
@@ -371,6 +478,25 @@ def step_validate_user(
     """
     data = {
         'name': name,
+        'age': age,
+    }
+
+    try:
+        dataclass_type = get_dataclass_from_context(context, 'User')
+        result = validate_dataclass(dataclass_type, data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when('Alice validates a User with name "" and age {age:d}')
+def step_validate_user_empty_name(
+    context: Context,
+    age: int,
+) -> None:
+    """Validate a User dataclass with empty name field."""
+    data = {
+        'name': '',
         'age': age,
     }
 
@@ -453,9 +579,13 @@ def step_validate_from_strings(context: Context, dataclass_name: str, field_spec
         context.validation_result = Failure(str(e))
 
 
-@when('Alice validates a {dataclass_name} from string {field_spec}')
+# Match both "a Product" and "Product" (with/without article)
+use_step_matcher('re')
+
+
+@when(r'Alice validates (?:a )?(?P<dataclass_name>\w+) from string (?P<field_spec>\w+="[^"]*")')
 def step_validate_from_single_string(context: Context, dataclass_name: str, field_spec: str) -> None:
-    """Validate a dataclass instance from a single string field."""
+    """Validate a dataclass instance from a single string field (with or without 'a')."""
     # Parse field specification (e.g., 'price="not-a-number"')
     field_name, field_value = field_spec.split('=')
     field_value = field_value.strip('"')
@@ -467,6 +597,10 @@ def step_validate_from_single_string(context: Context, dataclass_name: str, fiel
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
+
+
+# Switch back to parse matcher
+use_step_matcher('parse')
 
 
 @when('Alice validates a {dataclass_name} with {field_name}=None')
@@ -495,6 +629,10 @@ def step_validate_with_value(
 
     GENERAL PATTERN - Must come AFTER all more specific patterns.
     """
+    # Apply pre-validation hook if present
+    if hasattr(context, 'pre_hook') and context.pre_hook:
+        field_value = context.pre_hook(field_value)
+
     data = {field_name: field_value}
 
     try:
@@ -527,6 +665,46 @@ def step_validate_nested_invalid(
         context.validation_result = Failure(str(e))
 
 
+@when('Alice validates Settings with config {config_dict}')
+def step_validate_settings_with_config(
+    context: Context,
+    config_dict: str,
+) -> None:
+    """Validate Settings dataclass with config dictionary."""
+    import ast
+
+    # Parse the dictionary literal
+    try:
+        config_value = ast.literal_eval(config_dict)
+    except (ValueError, SyntaxError):
+        config_value = config_dict
+
+    data = {'config': config_value}
+
+    try:
+        dataclass_type = get_dataclass_from_context(context, 'Settings')
+        result = validate_dataclass(dataclass_type, data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when('Alice validates an Email with address "{address}"')
+def step_validate_email_with_address(
+    context: Context,
+    address: str,
+) -> None:
+    """Validate Email dataclass with address field."""
+    data = {'address': address}
+
+    try:
+        dataclass_type = get_dataclass_from_context(context, 'Email')
+        result = validate_dataclass(dataclass_type, data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
 @when('Alice validates ComplexForm with username "{username}", email "{email}", age {age}')
 def step_validate_complex_form(
     context: Context,
@@ -545,6 +723,39 @@ def step_validate_complex_form(
         dataclass_type = get_dataclass_from_context(context, 'ComplexForm')
         result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
+
+        # Store error for assertion steps
+        match result:
+            case Success(instance):
+                context.validated_instance = instance
+            case Failure(error):
+                context.validation_error = error
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when('Alice validates ComplexForm with username "", email "invalid", age 150')
+def step_validate_complex_form_all_invalid(
+    context: Context,
+) -> None:
+    """Validate a ComplexForm with all invalid field values."""
+    data = {
+        'username': '',
+        'email': 'invalid',
+        'age': 150,
+    }
+
+    try:
+        dataclass_type = get_dataclass_from_context(context, 'ComplexForm')
+        result = validate_dataclass(dataclass_type, data)
+        context.validation_result = result
+
+        # Store error for assertion steps
+        match result:
+            case Success(instance):
+                context.validated_instance = instance
+            case Failure(error):
+                context.validation_error = error
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
 
@@ -622,6 +833,36 @@ def step_instantiate_validated_user(context: Context, name: str, age: str) -> No
         dataclass_type = get_dataclass_from_context(context, 'ValidatedUser')
         result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
+
+        # Store validated instance for assertion steps
+        match result:
+            case Success(instance):
+                context.validated_instance = instance
+            case Failure(error):
+                context.validation_error = error
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when('ValidatedUser is instantiated with name "" and age {age:d}')
+def step_instantiate_validated_user_empty_name(context: Context, age: int) -> None:
+    """Instantiate a ValidatedUser with empty name field."""
+    data = {
+        'name': '',
+        'age': age,
+    }
+
+    try:
+        dataclass_type = get_dataclass_from_context(context, 'ValidatedUser')
+        result = validate_dataclass(dataclass_type, data)
+        context.validation_result = result
+
+        # Store validated instance for assertion steps
+        match result:
+            case Success(instance):
+                context.validated_instance = instance
+            case Failure(error):
+                context.validation_error = error
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
 
@@ -736,7 +977,12 @@ def step_validated_instance_items_list(context: Context, items: str) -> None:
     instance = context.validated_instance
     actual = instance.items
     expected = ast.literal_eval(items)
-    assert actual == expected, f'Expected items={expected}, got {actual}'
+    # Convert both to lists to ensure proper comparison
+    actual_list = list(actual) if not isinstance(actual, list) else actual
+    expected_list = list(expected) if not isinstance(expected, list) else expected
+    assert actual_list == expected_list, (
+        f'Expected items={expected}, got {actual}, types: actual={type(actual)}, expected={type(expected)}'
+    )
 
 
 @then('the validated instance has {field_name} {expected_value}')
@@ -787,7 +1033,7 @@ def step_error_contains_field(context: Context, field_name: str) -> None:
     assert field_name in str(error).lower(), f'Expected error to contain field "{field_name}", got: {error}'
 
 
-# Note: 'the error message contains "{text}"' step is defined in url_email_parsing_steps.py
+# Note: 'the error message contains "{text}"' step is shared in url_email_parsing_steps.py
 
 
 # Note: Removed 'the validated instance has a valid {field_name}' step due to ambiguity

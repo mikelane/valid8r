@@ -299,7 +299,31 @@ def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa:
                     validated_values[field_name] = parsed_value
 
             case Failure(error):
-                errors[field_name] = error
+                # For nested dataclass errors, prefix with parent field name
+                if ': ' in error and is_dataclass(field_type):
+                    # Error format is "nested_field: error"
+                    # Convert to "parent.nested_field: error"
+                    parts = error.split(': ', 1)
+                    if '; ' in parts[0]:
+                        # Multiple nested errors "field1: err1; field2: err2"
+                        nested_errors = []
+                        for nested_error in error.split('; '):
+                            if ': ' in nested_error:
+                                nested_field, nested_msg = nested_error.split(': ', 1)
+                                nested_errors.append(f'{field_name}.{nested_field}: {nested_msg}')
+                            else:
+                                nested_errors.append(f'{field_name}: {nested_error}')
+                        # Add all nested errors to the errors dict directly
+                        # This flattens nested errors into top-level error reporting
+                        for nested_error in nested_errors:
+                            nested_field_path = nested_error.split(': ')[0]
+                            errors[nested_field_path] = nested_error.split(': ', 1)[1]
+                    else:
+                        # Single nested field error
+                        nested_field, nested_msg = parts
+                        errors[f'{field_name}.{nested_field}'] = nested_msg
+                else:
+                    errors[field_name] = error
 
     # If any errors, return aggregated failure
     if errors:
@@ -314,7 +338,7 @@ def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa:
         return Maybe.failure(f'Failed to construct {cls.__name__}: {e!s}')
 
 
-def _parse_value(value: Any, target_type: type[Any]) -> Maybe[Any]:  # noqa: C901, PLR0912, ANN401
+def _parse_value(value: Any, target_type: type[Any]) -> Maybe[Any]:  # noqa: C901, PLR0912, PLR0915, ANN401
     """Parse a value to match the target type.
 
     Args:
@@ -354,17 +378,49 @@ def _parse_value(value: Any, target_type: type[Any]) -> Maybe[Any]:  # noqa: C90
         # target_type might not be a valid type for isinstance
         pass
 
-    # Only parse strings to other types (unless it's a nested dataclass)
+    # Extract type origin and args early for collection handling
+    origin = get_origin(target_type)
+    args = get_args(target_type)
+
+    # Only parse strings to other types (unless it's a nested dataclass or collection)
     if not isinstance(value, str):
-        # Handle nested dataclasses
+        # Handle nested dataclasses - errors are handled by caller to add field path prefix
         if is_dataclass(target_type) and isinstance(value, dict):
             return validate_dataclass(target_type, value)
+
+        # Handle dict[K, V] types - validate value types
+        dict_type_args_count = 2
+        if origin is dict and args and len(args) == dict_type_args_count and isinstance(value, dict):
+            _, value_type = args
+            validated_dict = {}
+            for k, v in value.items():
+                # Validate each value against the declared value type
+                value_result = _parse_value(v, value_type)
+                match value_result:
+                    case Success(validated_v):
+                        validated_dict[k] = validated_v
+                    case Failure(error):
+                        return Maybe.failure(f'Invalid value for key "{k}": {error}')
+            return Maybe.success(validated_dict)
+
+        # Handle list[T] types - validate element types
+        if origin is list and args and len(args) == 1 and isinstance(value, list):
+            element_type = args[0]
+            validated_list = []
+            for i, elem in enumerate(value):
+                # Validate each element against the declared element type
+                elem_result = _parse_value(elem, element_type)
+                match elem_result:
+                    case Success(validated_elem):
+                        validated_list.append(validated_elem)
+                    case Failure(error):
+                        return Maybe.failure(f'Invalid element at index {i}: {error}')
+            return Maybe.success(validated_list)
+
         # Return value as-is for non-string types
         return Maybe.success(value)
 
     # String-to-type coercion based on target type
-    origin = get_origin(target_type)
-    args = get_args(target_type)
 
     # Handle Optional[T] types
     if origin is type(None) or (args and type(None) in args):
@@ -381,6 +437,30 @@ def _parse_value(value: Any, target_type: type[Any]) -> Maybe[Any]:  # noqa: C90
         return parse_bool(value)
     if target_type is str:
         return Maybe.success(value)
+
+    # Handle list[T] from string representation (e.g., "[1, 2, 3]")
+    if origin is list and args and len(args) == 1:
+        import ast  # noqa: PLC0415
+
+        element_type = args[0]
+        try:
+            # Safely parse the string to a Python list
+            parsed_list = ast.literal_eval(value)
+            if not isinstance(parsed_list, list):
+                return Maybe.failure(f'Expected list, got {type(parsed_list).__name__}')
+            # Validate each element against the declared element type
+            validated_list = []
+            for i, elem in enumerate(parsed_list):
+                elem_result = _parse_value(elem, element_type)
+                match elem_result:
+                    case Success(validated_elem):
+                        validated_list.append(validated_elem)
+                    case Failure(error):
+                        return Maybe.failure(f'Invalid element at index {i}: {error}')
+            return Maybe.success(validated_list)
+        except (ValueError, SyntaxError) as e:
+            return Maybe.failure(f'Invalid list format: {e!s}')
+
     # For other types, return value as-is
     return Maybe.success(value)
 
