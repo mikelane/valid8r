@@ -4,7 +4,7 @@ This module demonstrates real-world use cases for filesystem validation
 using Valid8r's monadic error handling pattern.
 """
 
-# ruff: noqa: D301, D401, ERA001, C901, S306
+# ruff: noqa: D301, ERA001, C901, S306
 
 from __future__ import annotations
 
