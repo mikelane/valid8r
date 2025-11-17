@@ -6,6 +6,10 @@ following strict black-box testing principles using pattern matching for result 
 
 from __future__ import annotations
 
+from dataclasses import (
+    field,
+    make_dataclass,
+)
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -53,6 +57,87 @@ if TYPE_CHECKING:
     from behave.runner import Context  # type: ignore[import-untyped]
 
 
+def create_dataclass_from_spec(
+    context: Context,
+    dataclass_name: str,
+    field_names: list[str],
+    field_types: dict[str, type[Any] | str],
+    field_validators: dict[str, Any],
+) -> type[Any]:
+    """Dynamically create a dataclass from specification.
+
+    Args:
+        context: Behave context (needed to resolve nested dataclass types)
+        dataclass_name: Name of the dataclass
+        field_names: List of field names
+        field_types: Mapping of field names to types (or string names of nested dataclasses)
+        field_validators: Mapping of field names to validators
+
+    Returns:
+        Dynamically created dataclass type
+
+    """
+    # Build field definitions for make_dataclass
+    fields_spec = []
+    for field_name in field_names:
+        field_type_spec = field_types.get(field_name, str)  # Default to str
+
+        # Resolve nested dataclass types
+        if isinstance(field_type_spec, str):
+            # This is a reference to another dataclass
+            if hasattr(context, 'dataclass_types') and field_type_spec in context.dataclass_types:
+                field_type = context.dataclass_types[field_type_spec]
+            else:
+                # Not yet created, just use str for now
+                field_type = str
+        else:
+            field_type = field_type_spec
+
+        validator = field_validators.get(field_name)
+
+        if validator is not None:
+            # Field with validator metadata
+            fields_spec.append((field_name, field_type, field(default=None, metadata={'validator': validator})))
+        else:
+            # Field without validator
+            fields_spec.append((field_name, field_type, field(default=None)))
+
+    # Create the dataclass
+    return make_dataclass(dataclass_name, fields_spec)
+
+
+def get_dataclass_from_context(context: Context, dataclass_name: str) -> type[Any]:
+    """Get or create dataclass from context.
+
+    Args:
+        context: Behave context
+        dataclass_name: Name of the dataclass
+
+    Returns:
+        Dataclass type
+
+    """
+    # Check if we've already created this dataclass
+    if not hasattr(context, 'dataclass_types'):
+        context.dataclass_types = {}
+
+    if dataclass_name not in context.dataclass_types:
+        # Create it from stored specifications
+        field_names = context.dataclass_definitions.get(dataclass_name, [])
+        field_types = context.field_types.get(dataclass_name, {})
+        field_validators = context.field_validators.get(dataclass_name, {})
+
+        context.dataclass_types[dataclass_name] = create_dataclass_from_spec(
+            context,
+            dataclass_name,
+            field_names,
+            field_types,
+            field_validators,
+        )
+
+    return context.dataclass_types[dataclass_name]
+
+
 # Background step
 
 
@@ -67,10 +152,13 @@ def step_dataclass_validation_available(context: Context) -> None:  # noqa: ARG0
 
 @given('a {dataclass_name} dataclass with {field_spec} fields')
 @given('a {dataclass_name} dataclass with {field_spec} field')
+@given('an {dataclass_name} dataclass with {field_spec} fields')
+@given('an {dataclass_name} dataclass with {field_spec} field')
 def step_define_dataclass(context: Context, dataclass_name: str, field_spec: str) -> None:
     """Define a dataclass with specified fields."""
     # Parse field specification (e.g., "name and age", "price", "name, price, and in_stock")
-    field_names = [f.strip() for f in field_spec.replace(' and ', ', ').split(',')]
+    # Remove "and" and split by comma, then filter out empty strings
+    field_names = [f.strip() for f in field_spec.replace(' and ', ', ').split(',') if f.strip()]
 
     # Store dataclass definition for later use
     if not hasattr(context, 'dataclass_definitions'):
@@ -172,11 +260,8 @@ def step_set_field_type(context: Context, field_name: str, type_name: str) -> No
         'dict[str, int]': dict[str, int],  # type: ignore[dict-item]
     }
 
-    if type_name not in type_map:
-        msg = f'Unknown type: {type_name}'
-        raise ValueError(msg)
-
-    context.field_types[dataclass_name][field_name] = type_map[type_name]
+    # Check if it's a known type, otherwise assume it's a nested dataclass name
+    context.field_types[dataclass_name][field_name] = type_map.get(type_name, type_name)
 
 
 @given('{field_name} has a {validator_type} validator')
@@ -210,10 +295,13 @@ def step_add_custom_validator(context: Context, field_name: str, validator_descr
     context.field_validators[dataclass_name][field_name] = validator
 
 
-@given('{field_name} field of type {type_name}')
-def step_define_field_with_type(context: Context, field_name: str, type_name: str) -> None:
-    """Define a field with a specific type."""
-    # Reuse existing step
+@given('a {dataclass_name} dataclass with {field_name} field of type {type_name}')
+@given('an {dataclass_name} dataclass with {field_name} field of type {type_name}')
+def step_define_field_with_type(context: Context, dataclass_name: str, field_name: str, type_name: str) -> None:
+    """Define a dataclass with a single typed field."""
+    # First define the dataclass with the field
+    step_define_dataclass(context, dataclass_name, field_name)
+    # Then set the field type
     step_set_field_type(context, field_name, type_name)
 
 
@@ -287,7 +375,8 @@ def step_validate_user(
     }
 
     try:
-        result = validate_dataclass('User', data)
+        dataclass_type = get_dataclass_from_context(context, 'User')
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -314,7 +403,8 @@ def step_validate_nested_valid(
     }
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -336,7 +426,8 @@ def step_validate_with_length(
     data = {field_name: field_value}
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -355,7 +446,8 @@ def step_validate_from_strings(context: Context, dataclass_name: str, field_spec
         data[field_name] = field_value
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -370,7 +462,8 @@ def step_validate_from_single_string(context: Context, dataclass_name: str, fiel
     data = {field_name: field_value}
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -383,7 +476,8 @@ def step_validate_with_none(context: Context, dataclass_name: str, field_name: s
     data = {field_name: None}
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -404,7 +498,8 @@ def step_validate_with_value(
     data = {field_name: field_value}
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -425,7 +520,8 @@ def step_validate_nested_invalid(
     }
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -446,7 +542,8 @@ def step_validate_complex_form(
     }
 
     try:
-        result = validate_dataclass('ComplexForm', data)
+        dataclass_type = get_dataclass_from_context(context, 'ComplexForm')
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -479,7 +576,8 @@ def step_validate_with_collection(
     data = {field_name: field_value}
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -505,7 +603,8 @@ def step_validate_multiple_invalid(
         data[f'field{i + 1}'] = ''  # Empty strings will fail validation
 
     try:
-        result = validate_dataclass(dataclass_name, data)
+        dataclass_type = get_dataclass_from_context(context, dataclass_name)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -520,7 +619,8 @@ def step_instantiate_validated_user(context: Context, name: str, age: str) -> No
     }
 
     try:
-        result = validate_dataclass('ValidatedUser', data)
+        dataclass_type = get_dataclass_from_context(context, 'ValidatedUser')
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -532,7 +632,8 @@ def step_instantiate_dataclass(context: Context, validity: str) -> None:
     data = {'field1': 'valid', 'field2': 42} if validity == 'valid' else {'field1': '', 'field2': -1}
 
     try:
-        result = validate_dataclass(context.current_dataclass, data)
+        dataclass_type = get_dataclass_from_context(context, context.current_dataclass)
+        result = validate_dataclass(dataclass_type, data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
