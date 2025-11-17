@@ -85,7 +85,7 @@ Feature: Dataclass Field Validation
     Given an Address dataclass with street, city, and zip_code fields
     And a Person dataclass with name and address fields
     And address is type Address
-    When Alice validates a Person with name "Alice" and address with street "123 Main St", city "Portland", zip_code "97201"
+    When Alice validates a Person including nested address with name "Alice", street "123 Main St", city "Portland", zip_code "97201"
     Then the validation succeeds
     And the Person address field has street "123 Main St"
     And the Person address field has city "Portland"

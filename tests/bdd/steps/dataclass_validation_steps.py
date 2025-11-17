@@ -294,7 +294,7 @@ def step_validate_user(
 
 
 @when(
-    'Alice validates a {dataclass_name} with name "{name}" and address with street "{street}", city "{city}", zip_code "{zip_code}"'
+    'Alice validates a {dataclass_name} including nested address with name "{name}", street "{street}", city "{city}", zip_code "{zip_code}"'
 )
 def step_validate_nested_valid(
     context: Context,
