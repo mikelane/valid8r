@@ -292,7 +292,14 @@ class Failure(Maybe[T]):
             String showing error message (backward compatible format)
 
         """
-        return f'Failure({self._validation_error.message})'
+        # Handle list of ValidationErrors (from Schema validation)
+        if isinstance(self._validation_error, list):
+            error_count = len(self._validation_error)
+            return f'Failure([{error_count} validation errors])'
+        # Handle single ValidationError or string
+        if hasattr(self._validation_error, 'message'):
+            return f'Failure({self._validation_error.message})'
+        return f'Failure({self._validation_error})'
 
     def __repr__(self) -> str:
         """Get a repr representation for debugging and doctests.
@@ -301,4 +308,11 @@ class Failure(Maybe[T]):
             String showing error message (backward compatible format)
 
         """
-        return f'Failure({self._validation_error.message!r})'
+        # Handle list of ValidationErrors (from Schema validation)
+        if isinstance(self._validation_error, list):
+            error_count = len(self._validation_error)
+            return f'Failure([{error_count} validation errors])'
+        # Handle single ValidationError or string
+        if hasattr(self._validation_error, 'message'):
+            return f'Failure({self._validation_error.message!r})'
+        return f'Failure({self._validation_error!r})'

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from valid8r.core import schema
 from valid8r.core.parsers import (
     EmailAddress,
     UrlParts,
@@ -25,4 +26,6 @@ __all__ = [
     'parse_ipv6',
     # URL/Email helpers
     'parse_url',
+    # Schema validation
+    'schema',
 ]
