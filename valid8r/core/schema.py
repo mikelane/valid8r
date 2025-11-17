@@ -167,7 +167,7 @@ class Schema:
         self.fields = fields
         self.strict = strict
 
-    def validate(self, data: dict[str, Any] | Any, path: str = '') -> Maybe[dict[str, Any]]:  # noqa: C901, PLR0912, ANN401
+    def validate(self, data: dict[str, Any] | Any, path: str = '') -> Maybe[dict[str, Any]]:  # noqa: ANN401
         """Validate data against the schema, accumulating all errors.
 
         This method validates the input data against all field definitions,
@@ -226,16 +226,7 @@ class Schema:
         validated_data: dict[str, Any] = {}
 
         # Check for extra fields in strict mode
-        if self.strict:
-            extra_fields = set(data.keys()) - set(self.fields.keys())
-            for field_name in extra_fields:
-                error = ValidationError(
-                    code=ErrorCode.VALIDATION_ERROR,
-                    message=f'Unexpected field: {field_name}',
-                    path=f'{path}.{field_name}' if path else f'.{field_name}',
-                    context={'field': field_name},
-                )
-                errors.append(error)
+        self._check_extra_fields(data, path, errors)
 
         # Validate each field in the schema
         for field_name, field_def in self.fields.items():
@@ -243,52 +234,174 @@ class Schema:
 
             # Check if field is present in input
             if field_name not in data:
-                if field_def.required:
-                    error = ValidationError(
-                        code=ErrorCode.VALIDATION_ERROR,
-                        message=f'Required field missing: {field_name}',
-                        path=field_path,
-                        context={'field': field_name, 'required': True},
-                    )
-                    errors.append(error)
+                self._handle_missing_field(field_name, field_def, field_path, errors)
                 continue
 
-            # Parse the field value
+            # Parse and validate the field value
             raw_value = data[field_name]
-            parse_result = field_def.parser(raw_value)
-
-            match parse_result:
-                case Success(parsed_value):
-                    # Apply validator if present
-                    if field_def.validator is not None:
-                        validation_result = field_def.validator(parsed_value)
-                        match validation_result:
-                            case Success(validated_value):
-                                validated_data[field_name] = validated_value
-                            case Failure() as failure_result:
-                                # Extract the actual error (could be list or single error)
-                                # Access _validation_error directly to handle list case
-                                error_msg = failure_result._validation_error  # noqa: SLF001
-                                nested_errors = self._extract_errors(
-                                    error_msg, field_path, {'value': parsed_value, 'field': field_name}
-                                )
-                                errors.extend(nested_errors)
-                    else:
-                        validated_data[field_name] = parsed_value
-
-                case Failure() as failure_result:
-                    # Extract the actual error (could be list or single error)
-                    # Access _validation_error directly to handle list case
-                    error_msg = failure_result._validation_error  # noqa: SLF001
-                    nested_errors = self._extract_errors(
-                        error_msg, field_path, {'value': raw_value, 'field': field_name}
-                    )
-                    errors.extend(nested_errors)
+            self._parse_and_validate_field(field_name, field_def, raw_value, field_path, validated_data, errors)
 
         # Return accumulated errors or success
         if errors:
             return Failure(errors)  # type: ignore[arg-type]
         return Success(validated_data)
+
+    def _check_extra_fields(self, data: dict[str, Any], path: str, errors: list[ValidationError]) -> None:
+        """Check for extra fields in strict mode and add errors.
+
+        Args:
+            data: Input data dictionary
+            path: Current field path
+            errors: List to accumulate errors
+
+        """
+        if not self.strict:
+            return
+
+        extra_fields = set(data.keys()) - set(self.fields.keys())
+        for field_name in extra_fields:
+            error = ValidationError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f'Unexpected field: {field_name}',
+                path=f'{path}.{field_name}' if path else f'.{field_name}',
+                context={'field': field_name},
+            )
+            errors.append(error)
+
+    def _handle_missing_field(
+        self,
+        field_name: str,
+        field_def: Field,
+        field_path: str,
+        errors: list[ValidationError],
+    ) -> None:
+        """Handle missing field by adding error if required.
+
+        Args:
+            field_name: Name of the missing field
+            field_def: Field definition
+            field_path: Full path to the field
+            errors: List to accumulate errors
+
+        """
+        if not field_def.required:
+            return
+
+        error = ValidationError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message=f'Required field missing: {field_name}',
+            path=field_path,
+            context={'field': field_name, 'required': True},
+        )
+        errors.append(error)
+
+    def _parse_and_validate_field(  # noqa: PLR0913
+        self,
+        field_name: str,
+        field_def: Field,
+        raw_value: Any,  # noqa: ANN401
+        field_path: str,
+        validated_data: dict[str, Any],
+        errors: list[ValidationError],
+    ) -> None:
+        """Parse and validate a single field value.
+
+        This method parses the raw field value and optionally applies a validator,
+        adding the result to validated_data or accumulating errors.
+
+        Args:
+            field_name: Name of the field
+            field_def: Field definition with parser and validator
+            raw_value: Raw input value to parse
+            field_path: Full path to the field
+            validated_data: Dictionary to accumulate validated values
+            errors: List to accumulate errors
+
+        """
+        parse_result = field_def.parser(raw_value)
+
+        match parse_result:
+            case Success(parsed_value):
+                self._apply_validator_if_present(
+                    field_name, field_def, parsed_value, field_path, validated_data, errors
+                )
+            case Failure() as failure_result:
+                self._handle_parse_failure(failure_result, field_name, raw_value, field_path, errors)
+
+    def _apply_validator_if_present(  # noqa: PLR0913
+        self,
+        field_name: str,
+        field_def: Field,
+        parsed_value: Any,  # noqa: ANN401
+        field_path: str,
+        validated_data: dict[str, Any],
+        errors: list[ValidationError],
+    ) -> None:
+        """Apply validator to parsed value if validator is present.
+
+        Args:
+            field_name: Name of the field
+            field_def: Field definition with optional validator
+            parsed_value: Successfully parsed value
+            field_path: Full path to the field
+            validated_data: Dictionary to accumulate validated values
+            errors: List to accumulate errors
+
+        """
+        if field_def.validator is None:
+            validated_data[field_name] = parsed_value
+            return
+
+        validation_result = field_def.validator(parsed_value)
+        match validation_result:
+            case Success(validated_value):
+                validated_data[field_name] = validated_value
+            case Failure() as failure_result:
+                self._handle_validation_failure(failure_result, field_name, parsed_value, field_path, errors)
+
+    def _handle_parse_failure(
+        self,
+        failure_result: Failure[Any],
+        field_name: str,
+        raw_value: Any,  # noqa: ANN401
+        field_path: str,
+        errors: list[ValidationError],
+    ) -> None:
+        """Handle parser failure by extracting and accumulating errors.
+
+        Args:
+            failure_result: Failure result from parser
+            field_name: Name of the field
+            raw_value: Raw input value that failed to parse
+            field_path: Full path to the field
+            errors: List to accumulate errors
+
+        """
+        error_msg = failure_result._validation_error  # noqa: SLF001
+        nested_errors = self._extract_errors(error_msg, field_path, {'value': raw_value, 'field': field_name})
+        errors.extend(nested_errors)
+
+    def _handle_validation_failure(
+        self,
+        failure_result: Failure[Any],
+        field_name: str,
+        parsed_value: Any,  # noqa: ANN401
+        field_path: str,
+        errors: list[ValidationError],
+    ) -> None:
+        """Handle validator failure by extracting and accumulating errors.
+
+        Args:
+            failure_result: Failure result from validator
+            field_name: Name of the field
+            parsed_value: Parsed value that failed validation
+            field_path: Full path to the field
+            errors: List to accumulate errors
+
+        """
+        error_msg = failure_result._validation_error  # noqa: SLF001
+        nested_errors = self._extract_errors(error_msg, field_path, {'value': parsed_value, 'field': field_name})
+        errors.extend(nested_errors)
 
     def _extract_errors(
         self,
@@ -328,7 +441,7 @@ class Schema:
                 return result if result else [self._create_single_error(error_msg, path, context)]  # type: ignore[arg-type]
             case _:
                 # Single error - wrap in list
-                return [self._create_single_error(error_msg, path, context)]  # type: ignore[arg-type]
+                return [self._create_single_error(error_msg, path, context)]
 
     def _create_single_error(
         self,
