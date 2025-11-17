@@ -15,6 +15,7 @@ from typing import (
 from behave import (  # type: ignore[import-untyped]
     given,
     then,
+    use_step_matcher,
     when,
 )
 
@@ -239,10 +240,11 @@ def step_fields_use_metadata(context: Context) -> None:
     context.uses_metadata = True
 
 
-@given('a dataclass definition uses @validate decorator')
-def step_dataclass_uses_decorator(context: Context) -> None:
-    """Mark that dataclass uses the @validate decorator."""
+@given('a {dataclass_name} dataclass uses @validate decorator')
+def step_dataclass_uses_decorator(context: Context, dataclass_name: str) -> None:
+    """Mark that a specific dataclass uses the @validate decorator."""
     context.uses_decorator = True
+    context.current_dataclass = dataclass_name
 
 
 @given('no explicit parser is provided')
@@ -264,21 +266,51 @@ def step_post_validation_hook_datetime(context: Context) -> None:
 
 
 # When steps - Perform validation
+# CRITICAL: Order matters! More specific patterns MUST come before general patterns
+# to avoid ambiguity. Behave matches in order of definition.
 
 
-@when('Alice validates a {dataclass_name} with {field1_name} "{field1_value}" and {field2_name} {field2_value}')
-def step_validate_two_fields(
+# Most specific patterns first
+@when('Alice validates a User with name "{name}" and age {age:d}')
+def step_validate_user(
+    context: Context,
+    name: str,
+    age: int,
+) -> None:
+    """Validate a User dataclass instance with name and age fields.
+
+    Specific pattern for User dataclass to avoid ambiguity with nested patterns.
+    """
+    data = {
+        'name': name,
+        'age': age,
+    }
+
+    try:
+        result = validate_dataclass('User', data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when(
+    'Alice validates a {dataclass_name} with name "{name}" and address with street "{street}", city "{city}", zip_code "{zip_code}"'
+)
+def step_validate_nested_valid(
     context: Context,
     dataclass_name: str,
-    field1_name: str,
-    field1_value: str,
-    field2_name: str,
-    field2_value: str,
+    name: str,
+    street: str,
+    city: str,
+    zip_code: str,
 ) -> None:
-    """Validate a dataclass instance with two field values."""
+    """Validate a dataclass instance with valid nested dataclass (concrete values).
+
+    Must come BEFORE general patterns to avoid ambiguity.
+    """
     data = {
-        field1_name: field1_value,
-        field2_name: int(field2_value) if field2_value.isdigit() else field2_value,
+        'name': name,
+        'address': {'street': street, 'city': city, 'zip_code': zip_code},
     }
 
     try:
@@ -288,6 +320,29 @@ def step_validate_two_fields(
         context.validation_result = Failure(str(e))
 
 
+@when('Alice validates a {dataclass_name} with {field_name} of {char_count} characters')
+def step_validate_with_length(
+    context: Context,
+    dataclass_name: str,
+    field_name: str,
+    char_count: str,
+) -> None:
+    """Validate a dataclass instance with a field of specific character count.
+
+    Must come BEFORE general single-field pattern.
+    """
+    count = int(char_count)
+    field_value = 'a' * count  # Generate string of specified length
+    data = {field_name: field_value}
+
+    try:
+        result = validate_dataclass(dataclass_name, data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+# Medium specificity patterns
 @when('Alice validates a {dataclass_name} from strings {field_specs}')
 def step_validate_from_strings(context: Context, dataclass_name: str, field_specs: str) -> None:
     """Validate a dataclass instance from string representations."""
@@ -334,6 +389,7 @@ def step_validate_with_none(context: Context, dataclass_name: str, field_name: s
         context.validation_result = Failure(str(e))
 
 
+# General patterns last (most broad, catch-all)
 @when('Alice validates a {dataclass_name} with {field_name} "{field_value}"')
 def step_validate_with_value(
     context: Context,
@@ -341,47 +397,11 @@ def step_validate_with_value(
     field_name: str,
     field_value: str,
 ) -> None:
-    """Validate a dataclass instance with a specific field value."""
+    """Validate a dataclass instance with a specific field value.
+
+    GENERAL PATTERN - Must come AFTER all more specific patterns.
+    """
     data = {field_name: field_value}
-
-    try:
-        result = validate_dataclass(dataclass_name, data)
-        context.validation_result = result
-    except NotImplementedError as e:
-        context.validation_result = Failure(str(e))
-
-
-@when('Alice validates a {dataclass_name} with {field_name} of {char_count} characters')
-def step_validate_with_length(
-    context: Context,
-    dataclass_name: str,
-    field_name: str,
-    char_count: str,
-) -> None:
-    """Validate a dataclass instance with a field of specific character count."""
-    count = int(char_count)
-    field_value = 'a' * count  # Generate string of specified length
-    data = {field_name: field_value}
-
-    try:
-        result = validate_dataclass(dataclass_name, data)
-        context.validation_result = result
-    except NotImplementedError as e:
-        context.validation_result = Failure(str(e))
-
-
-@when('Alice validates a {dataclass_name} with valid {field1_name} and {field2_name}')
-def step_validate_nested_valid(
-    context: Context,
-    dataclass_name: str,
-    field1_name: str,
-    field2_name: str,
-) -> None:
-    """Validate a dataclass instance with valid nested dataclass."""
-    data = {
-        field1_name: 'Alice Smith',
-        field2_name: {'street': '123 Main St', 'city': 'Portland', 'zip_code': '97201'},
-    }
 
     try:
         result = validate_dataclass(dataclass_name, data)
@@ -411,14 +431,43 @@ def step_validate_nested_invalid(
         context.validation_result = Failure(str(e))
 
 
-@when('Alice validates a {dataclass_name} with {field_name} {value_spec}')
+@when('Alice validates ComplexForm with username "{username}", email "{email}", age {age}')
+def step_validate_complex_form(
+    context: Context,
+    username: str,
+    email: str,
+    age: str,
+) -> None:
+    """Validate a ComplexForm with specific field values."""
+    data = {
+        'username': username,
+        'email': email,
+        'age': int(age) if age.lstrip('-').isdigit() else age,
+    }
+
+    try:
+        result = validate_dataclass('ComplexForm', data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+# Use regex matcher for collection pattern to avoid ambiguity
+use_step_matcher('re')
+
+
+@when(r'Alice validates a (?P<dataclass_name>\w+) with (?P<field_name>\w+) (?P<value_spec>[\[\{].*[\]\}])')
 def step_validate_with_collection(
     context: Context,
     dataclass_name: str,
     field_name: str,
     value_spec: str,
 ) -> None:
-    """Validate a dataclass instance with collection values."""
+    """Validate a dataclass instance with collection values (lists/dicts).
+
+    Uses regex to only match patterns where value_spec is a collection literal.
+    Must come BEFORE other broad patterns.
+    """
     import ast
 
     # Parse Python literal (list, dict, etc.)
@@ -434,6 +483,10 @@ def step_validate_with_collection(
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
+
+
+# Switch back to parse matcher for remaining steps
+use_step_matcher('parse')
 
 
 @when('Alice validates a {dataclass_name} having {invalid_count:d} invalid fields')
@@ -453,6 +506,21 @@ def step_validate_multiple_invalid(
 
     try:
         result = validate_dataclass(dataclass_name, data)
+        context.validation_result = result
+    except NotImplementedError as e:
+        context.validation_result = Failure(str(e))
+
+
+@when('ValidatedUser is instantiated with name "{name}" and age {age}')
+def step_instantiate_validated_user(context: Context, name: str, age: str) -> None:
+    """Instantiate a ValidatedUser with specific field values."""
+    data = {
+        'name': name,
+        'age': int(age) if age.lstrip('-').isdigit() else age,
+    }
+
+    try:
+        result = validate_dataclass('ValidatedUser', data)
         context.validation_result = result
     except NotImplementedError as e:
         context.validation_result = Failure(str(e))
@@ -529,6 +597,47 @@ def step_validated_instance_dict_entries(context: Context, field_name: str, coun
     assert len(dictionary) == count, f'Expected {count} entries, got {len(dictionary)}'
 
 
+@then('the Person address field has {field_name} "{expected_value}"')
+def step_person_address_field_value(context: Context, field_name: str, expected_value: str) -> None:
+    """Verify a nested address field has the expected value.
+
+    Specific pattern for Person.address.field assertions.
+    Defined BEFORE general pattern to avoid ambiguity.
+    """
+    instance = context.validated_instance
+    address = instance.address
+    actual = getattr(address, field_name)
+    assert actual == expected_value, f'Expected address.{field_name}={expected_value}, got {actual}'
+
+
+@then('the validated instance has port {port:d} as integer')
+def step_validated_instance_integer_port(context: Context, port: int) -> None:
+    """Verify the validated instance has a port field as integer type.
+
+    Specific pattern for type validation.
+    Defined BEFORE general pattern to avoid ambiguity.
+    """
+    instance = context.validated_instance
+    actual = instance.port
+    assert actual == port, f'Expected port={port}, got {actual}'
+    assert isinstance(actual, int), f'Expected port to be int, got {type(actual)}'
+
+
+@then('the validated instance has items {items}')
+def step_validated_instance_items_list(context: Context, items: str) -> None:
+    """Verify the validated instance has an items field with expected list value.
+
+    Specific pattern for list validation.
+    Defined BEFORE general pattern to avoid ambiguity.
+    """
+    import ast
+
+    instance = context.validated_instance
+    actual = instance.items
+    expected = ast.literal_eval(items)
+    assert actual == expected, f'Expected items={expected}, got {actual}'
+
+
 @then('the validated instance has {field_name} {expected_value}')
 def step_validated_instance_field_value(
     context: Context,
@@ -585,26 +694,6 @@ def step_error_contains_field(context: Context, field_name: str) -> None:
 # Use specific field assertions instead.
 
 
-@then('the error report contains exactly {count} field errors')
-def step_error_report_error_count(context: Context, count: str) -> None:
-    """Verify error report contains exact number of field errors."""
-    expected_count = int(count)
-    # This will be implemented when we have structured error reporting
-    context.expected_error_count = expected_count
-
-
-@then('each error specifies the field name')
-def step_each_error_has_field_name(context: Context) -> None:
-    """Verify each error specifies the field name."""
-    # This will be implemented when we have structured error reporting
-
-
-@then('each error contains a descriptive message')
-def step_each_error_has_message(context: Context) -> None:
-    """Verify each error contains a descriptive message."""
-    # This will be implemented when we have structured error reporting
-
-
 @then('the instance is created successfully')
 def step_instance_created_successfully(context: Context) -> None:
     """Verify instance was created successfully."""
@@ -630,7 +719,7 @@ def step_validation_error_raised(context: Context) -> None:
     assert error is not None, 'Expected ValidationError to be raised'
 
 
-@then('the validated instance has a parsed datetime attribute')
+@then('the validated instance includes parsed datetime')
 def step_validated_instance_has_datetime(context: Context) -> None:
     """Verify the validated instance has a parsed datetime attribute."""
     # This will be verified when post-validation hooks are implemented

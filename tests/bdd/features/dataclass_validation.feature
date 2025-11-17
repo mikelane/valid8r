@@ -85,9 +85,11 @@ Feature: Dataclass Field Validation
     Given an Address dataclass with street, city, and zip_code fields
     And a Person dataclass with name and address fields
     And address is type Address
-    When Alice validates a Person with valid name and address
+    When Alice validates a Person with name "Alice" and address with street "123 Main St", city "Portland", zip_code "97201"
     Then the validation succeeds
-    And the validated instance has a valid address
+    And the Person address field has street "123 Main St"
+    And the Person address field has city "Portland"
+    And the Person address field has zip_code "97201"
 
   Scenario: Invalid nested dataclass fails validation
     Given an Address dataclass with zip_code field requiring 5 digits
@@ -165,32 +167,36 @@ Feature: Dataclass Field Validation
     And a post-validation hook that parses to datetime
     When Alice validates a Timestamp with value "2024-01-15"
     Then the validation succeeds
-    And the validated instance has a parsed datetime attribute
+    And the validated instance includes parsed datetime
 
   # Rule 8: Error Aggregation - Collect all field errors in single validation pass
 
   Scenario: All field errors are reported together
-    Given a ComplexForm dataclass with 5 fields
-    And each field has validation rules
-    When Alice validates a ComplexForm with 3 invalid fields
+    Given a ComplexForm dataclass with username, email, and age fields
+    And username has a minimum length validator of 3 characters
+    And email uses custom validator for email format
+    And age has a range validator between 0 and 120
+    When Alice validates ComplexForm with username "", email "invalid", age 150
     Then the validation fails
-    And the error report contains exactly 3 field errors
-    And each error specifies the field name
-    And each error contains a descriptive message
+    And the error report contains field "username"
+    And the error report contains field "email"
+    And the error report contains field "age"
 
   # Rule 9: Validator Decorator - Apply validators declaratively to dataclass fields
 
   Scenario: Decorator syntax applies validators to fields
-    Given a dataclass definition uses @validate decorator
+    Given a ValidatedUser dataclass uses @validate decorator
+    And ValidatedUser has name and age fields
     And fields use metadata to specify validators
-    When the dataclass is instantiated with valid data
+    When ValidatedUser is instantiated with name "Alice" and age 30
     Then validation runs automatically
     And the instance is created successfully
 
   Scenario: Decorator syntax rejects invalid data
-    Given a dataclass definition uses @validate decorator
+    Given a ValidatedUser dataclass uses @validate decorator
+    And ValidatedUser has name and age fields
     And fields use metadata to specify validators
-    When the dataclass is instantiated with invalid data
+    When ValidatedUser is instantiated with name "" and age -1
     Then validation fails before instance creation
     And a ValidationError is raised with field details
 
