@@ -436,17 +436,19 @@ def step_validate_with_collection(
         context.validation_result = Failure(str(e))
 
 
-@when('Alice validates a {dataclass_name} with {invalid_count} invalid fields')
+@when('Alice validates a {dataclass_name} having {invalid_count:d} invalid fields')
 def step_validate_multiple_invalid(
     context: Context,
     dataclass_name: str,
-    invalid_count: str,
+    invalid_count: int,
 ) -> None:
-    """Validate a dataclass instance with multiple invalid fields."""
+    """Validate a dataclass instance with multiple invalid fields.
+
+    Uses 'having' instead of 'with' to avoid ambiguity with other step patterns.
+    """
     # Generate data with specified number of invalid fields
-    count = int(invalid_count)
     data = {}
-    for i in range(count):
+    for i in range(invalid_count):
         data[f'field{i + 1}'] = ''  # Empty strings will fail validation
 
     try:
@@ -499,14 +501,51 @@ def step_validation_fails(context: Context) -> None:
             raise AssertionError(msg)
 
 
-@then('the validated instance has {field_name} "{expected_value}"')
+# IMPORTANT: More specific step patterns MUST come before general patterns
+# to avoid ambiguity. Behave matches in order of definition.
+
+
+@then('the validated instance has {count:d} {field_name}')
+def step_validated_instance_collection_count(context: Context, count: int, field_name: str) -> None:
+    """Verify the validated instance collection has expected count.
+
+    Uses :d to match only integers (e.g., '3 members').
+    Defined BEFORE general pattern to avoid ambiguity.
+    """
+    instance = context.validated_instance
+    collection = getattr(instance, field_name)
+    assert len(collection) == count, f'Expected {count} {field_name}, got {len(collection)}'
+
+
+@then('the validated instance has {field_name} with {count:d} entries')
+def step_validated_instance_dict_entries(context: Context, field_name: str, count: int) -> None:
+    """Verify the validated instance dict has expected number of entries.
+
+    Uses 'with' keyword to distinguish from collection count pattern.
+    Defined BEFORE general pattern to avoid ambiguity.
+    """
+    instance = context.validated_instance
+    dictionary = getattr(instance, field_name)
+    assert len(dictionary) == count, f'Expected {count} entries, got {len(dictionary)}'
+
+
 @then('the validated instance has {field_name} {expected_value}')
 def step_validated_instance_field_value(
     context: Context,
     field_name: str,
     expected_value: str,
 ) -> None:
-    """Verify the validated instance has expected field value."""
+    """Verify the validated instance has expected field value.
+
+    Handles both quoted and unquoted values:
+    - 'name "Alice"' → string "Alice"
+    - 'age 30' → int 30
+    - 'price 99.99' → float 99.99
+    - 'active True' → bool True
+    - 'bio None' → None
+
+    MUST be defined AFTER more specific patterns to avoid ambiguity.
+    """
     instance = context.validated_instance
 
     # Get field value using pattern matching
@@ -538,37 +577,12 @@ def step_error_contains_field(context: Context, field_name: str) -> None:
     assert field_name in str(error).lower(), f'Expected error to contain field "{field_name}", got: {error}'
 
 
-@then('the error message contains "{text}"')
-def step_error_contains_text(context: Context, text: str) -> None:
-    """Verify error message contains specific text."""
-    error = context.validation_error
-    assert text.lower() in str(error).lower(), f'Expected error to contain "{text}", got: {error}'
+# Note: 'the error message contains "{text}"' step is defined in url_email_parsing_steps.py
 
 
-@then('the validated instance has a valid {field_name}')
-def step_validated_instance_has_valid_field(context: Context, field_name: str) -> None:
-    """Verify the validated instance has a valid nested field."""
-    instance = context.validated_instance
-    assert hasattr(instance, field_name), f'Instance does not have field: {field_name}'
-    assert getattr(instance, field_name) is not None, f'Field {field_name} is None'
-
-
-@then('the validated instance has {count} {field_name}')
-def step_validated_instance_collection_count(context: Context, count: str, field_name: str) -> None:
-    """Verify the validated instance collection has expected count."""
-    instance = context.validated_instance
-    collection = getattr(instance, field_name)
-    expected_count = int(count)
-    assert len(collection) == expected_count, f'Expected {expected_count} {field_name}, got {len(collection)}'
-
-
-@then('the validated instance has {field_name} with {count} entries')
-def step_validated_instance_dict_entries(context: Context, field_name: str, count: str) -> None:
-    """Verify the validated instance dict has expected number of entries."""
-    instance = context.validated_instance
-    dictionary = getattr(instance, field_name)
-    expected_count = int(count)
-    assert len(dictionary) == expected_count, f'Expected {expected_count} entries, got {len(dictionary)}'
+# Note: Removed 'the validated instance has a valid {field_name}' step due to ambiguity
+# with the more general pattern 'the validated instance has {field_name} {expected_value}'.
+# Use specific field assertions instead.
 
 
 @then('the error report contains exactly {count} field errors')
