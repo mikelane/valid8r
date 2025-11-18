@@ -853,3 +853,66 @@ class DescribeListFromStringParsing:
                 assert 'element' in error.lower() or 'values' in error.lower()
             case Success(_):
                 pytest.fail('Expected Failure for invalid element in list string')
+
+
+# =============================================================================
+# Test Suite: Security - DoS Protection for ast.literal_eval
+# =============================================================================
+
+
+class DescribeDataclassValidationSecurityDoS:
+    """Test dataclass validation DoS protection for ast.literal_eval.
+
+    Following OWASP best practices - protect against malicious input.
+    Critical: Reject oversized inputs BEFORE expensive ast.literal_eval operations.
+    """
+
+    def it_rejects_excessively_long_list_string_quickly(self) -> None:
+        """Reject extremely long list string to prevent ast.literal_eval DoS.
+
+        Security pattern: Validate input length BEFORE expensive operations.
+        Performance requirement: Rejection must complete in < 10ms.
+        """
+        import time
+
+        from valid8r.integrations.dataclasses import validate_dataclass
+
+        @dataclass
+        class Config:
+            values: list[int]
+
+        # Malicious input: huge list string for ast.literal_eval
+        malicious_input = '[' + ', '.join([str(i) for i in range(10000)]) + ']'
+
+        start = time.perf_counter()
+        result = validate_dataclass(Config, {'values': malicious_input})
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        match result:
+            case Failure(error):
+                assert 'too long' in error.lower(), f'Expected "too long" error, got: {error}'
+            case Success(_):
+                pytest.fail('Expected Failure for excessively long input')
+
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms (DoS vulnerability)'
+
+    def it_accepts_reasonable_length_list_string(self) -> None:
+        """Accept list string within reasonable length limits."""
+        from valid8r.integrations.dataclasses import validate_dataclass
+
+        @dataclass
+        class Config:
+            values: list[int]
+
+        # Reasonable input: 500 chars - well within 1000 char limit
+        reasonable_input = '[' + ', '.join([str(i) for i in range(50)]) + ']'
+
+        result = validate_dataclass(Config, {'values': reasonable_input})
+
+        # Should succeed
+        match result:
+            case Success(config):
+                assert len(config.values) == 50
+            case Failure(err):
+                pytest.fail(f'Expected success for reasonable input, got: {err}')

@@ -634,3 +634,83 @@ class DescribeFromTypeCollectionEdgeCases:
         parser = from_type(set[int])
         result = parser('[1, 2, 3, 2, 1]')  # Duplicates should be removed
         expect_success_with_value(result, {1, 2, 3})
+
+
+# =============================================================================
+# Test Suite: Security - DoS Protection
+# =============================================================================
+
+
+class DescribeFromTypeSecurityDoSProtection:
+    """Test from_type() DoS protection via input length validation.
+
+    Following OWASP best practices and the security pattern from parse_phone (v0.9.1).
+    Critical: Reject oversized inputs BEFORE expensive operations (parse_json).
+    """
+
+    def it_rejects_excessively_long_json_array_input_quickly(self) -> None:
+        """Reject extremely long JSON array input to prevent DoS attacks.
+
+        Security pattern: Validate input length BEFORE expensive operations.
+        Performance requirement: Rejection must complete in < 10ms.
+        """
+        import time
+
+        # Malicious input: 1MB JSON array
+        malicious_input = '[' + ', '.join(['1'] * 100000) + ']'
+        parser = from_type(list[int])
+
+        start = time.perf_counter()
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        expect_failure_containing(result, 'too long')
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms (DoS vulnerability)'
+
+    def it_rejects_excessively_long_json_dict_input_quickly(self) -> None:
+        """Reject extremely long JSON dict input to prevent DoS attacks."""
+        import time
+
+        # Malicious input: Large JSON object
+        malicious_input = '{' + ', '.join([f'"key{i}": {i}' for i in range(10000)]) + '}'
+        parser = from_type(dict[str, int])
+
+        start = time.perf_counter()
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        expect_failure_containing(result, 'too long')
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms (DoS vulnerability)'
+
+    def it_rejects_excessively_long_json_set_input_quickly(self) -> None:
+        """Reject extremely long JSON set input to prevent DoS attacks."""
+        import time
+
+        # Malicious input: 1MB JSON array (parsed as set)
+        malicious_input = '[' + ', '.join([str(i) for i in range(100000)]) + ']'
+        parser = from_type(set[int])
+
+        start = time.perf_counter()
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        expect_failure_containing(result, 'too long')
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms (DoS vulnerability)'
+
+    def it_accepts_reasonable_length_json_input(self) -> None:
+        """Accept JSON input within reasonable length limits."""
+        # 5KB JSON array - well within 10KB limit
+        reasonable_input = '[' + ', '.join([str(i) for i in range(500)]) + ']'
+        parser = from_type(list[int])
+
+        result = parser(reasonable_input)
+
+        # Should succeed
+        match result:
+            case Success(value):
+                assert len(value) == 500
+            case Failure(err):
+                pytest.fail(f'Expected success for reasonable input, got: {err}')

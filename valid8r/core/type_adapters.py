@@ -160,12 +160,12 @@ def from_type(annotation: type[T] | Any) -> Callable[[str], Maybe[T]]:  # noqa: 
             # Simple types without generic parameters
             return _handle_simple_type(annotation)
 
-        case types.UnionType:
-            # X | Y (PEP 604 syntax) - Python 3.10+
+        case types.UnionType():
+            # Union[X, Y] or X | Y  # noqa: ERA001
             return _handle_union_type(args)
 
         case typing.Union:
-            # Union[X, Y] (typing.Union syntax)
+            # Union[X, Y]  # noqa: ERA001
             return _handle_union_type(args)
 
         case builtins.list:
@@ -197,7 +197,29 @@ def from_type(annotation: type[T] | Any) -> Callable[[str], Maybe[T]]:  # noqa: 
 def _handle_simple_type(annotation: type[T]) -> Callable[[str], Maybe[T]]:
     """Handle simple, non-generic types.
 
-    Uses match/case to dispatch to appropriate parser.
+    Uses match/case to dispatch to appropriate parser for basic Python types
+    and Enum classes. This function is called when the type annotation has
+    no generic parameters (e.g., int, str, float, bool, or custom Enum).
+
+    Args:
+        annotation: A simple Python type without generic parameters
+
+    Returns:
+        Parser function appropriate for the given type
+
+    Raises:
+        TypeError: If annotation is a callable, forward reference, or unsupported type
+
+    Security:
+        All returned parsers inherit DoS protection from underlying parsers.parse_*
+        functions which validate input length before expensive operations.
+
+    Examples:
+        int type returns parse_int parser
+        str type returns identity parser (all strings are valid)
+        bool type returns parse_bool parser
+        Enum subclass returns case-insensitive enum parser
+
     """
     match annotation:
         case builtins.int:
@@ -209,13 +231,20 @@ def _handle_simple_type(annotation: type[T]) -> Callable[[str], Maybe[T]]:
             return parsers.parse_float  # type: ignore[return-value]
         case builtins.bool:
             return parsers.parse_bool  # type: ignore[return-value]
-        case _ if isinstance(annotation, type) and issubclass(annotation, Enum):
-            # Handle Enum types - parse_enum signature is (value, enum_class)
-            return lambda text: parsers.parse_enum(text, annotation)  # type: ignore[type-var,return-value]
+        case _ if isinstance(annotation, type) and issubclass(annotation, Enum) and annotation is not bool:
+            # Handle Enum types - parse_enum signature is (value, enum_class, error_message)
+            # Note: Must explicitly check `annotation is not bool` to avoid matching bool type
+            enum_name = annotation.__name__  # type: ignore[union-attr]
+            error_msg = f'Input must be a valid {enum_name}'
+            return lambda text: parsers.parse_enum(text, annotation, error_msg)  # type: ignore[return-value,type-var]
         case typing.Callable | types.FunctionType:
             msg = f'Unsupported type: {annotation}'
             raise TypeError(msg)  # Use TypeError for type errors
         case _:
+            # Check if it's a string (forward reference)
+            if isinstance(annotation, str):
+                msg = f'Cannot resolve forward reference: {annotation}'
+                raise TypeError(msg)  # Use TypeError for type errors
             # Check if it's a valid type but we don't support it
             if isinstance(annotation, type):
                 msg = f'Unsupported type: {annotation}'
@@ -227,7 +256,25 @@ def _handle_simple_type(annotation: type[T]) -> Callable[[str], Maybe[T]]:
 def _handle_union_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
     """Handle Union types by trying each alternative in order.
 
-    For Optional[T] (which is Union[T, None]), treat empty string as None.
+    This function handles both Optional[T] (Union[T, None]) and general Union types.
+    For Optional types, empty strings and "none" (case-insensitive) are converted
+    to None. For general unions, each type is tried in order until one succeeds.
+
+    Args:
+        args: Tuple of type arguments from Union[...] or Optional[...]
+
+    Returns:
+        Parser function that tries alternatives until one succeeds
+
+    Behavior:
+        - Optional[T]: Empty string or "none" returns None, otherwise parses as T
+        - Union[X, Y, Z]: Tries X, then Y, then Z; returns first success
+        - If all alternatives fail, returns the last failure message
+
+    Examples:
+        Optional[int]: "" -> Success(None), "42" -> Success(42)
+        Union[int, str]: "42" -> Success(42), "hello" -> Success("hello")
+
     """
     optional_union_size = 2  # Optional[T] is Union[T, None] with 2 types
     # Check if this is Optional[T] (Union[T, None])
@@ -258,9 +305,30 @@ def _handle_union_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
 
 
 def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]]:  # noqa: C901
-    """Handle list[T] types.
+    """Handle list[T] types with element validation.
 
-    Parses JSON array format and validates each element.
+    Parses JSON array format and validates each element against the specified type.
+    For bare list (no type parameter), returns unvalidated JSON array.
+
+    Args:
+        args: Tuple containing element type, or empty for bare list
+
+    Returns:
+        Parser function that parses JSON arrays and validates elements
+
+    Security:
+        Inherits DoS protection from parse_json (10,000 character limit).
+        Prevents malicious payloads from causing excessive parsing time.
+
+    Error Messages:
+        - "Expected a JSON array" if input is not a JSON array
+        - "Failed to parse element N: ..." for element validation failures
+
+    Examples:
+        list[int]: '[1, 2, 3]' -> Success([1, 2, 3])
+        list[int]: '[1, "x", 3]' -> Failure("Failed to parse element 2: ...")
+        bare list: '[1, "x", 3]' -> Success([1, "x", 3]) (no validation)
+
     """
     if not args:
         # Bare list without element type - parse JSON and return as-is
@@ -311,9 +379,31 @@ def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]
 
 
 def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, Any]]]:  # noqa: C901
-    """Handle dict[K, V] types.
+    """Handle dict[K, V] types with key and value validation.
 
-    Parses JSON object format and validates keys and values.
+    Parses JSON object format and validates both keys and values against their
+    specified types. For bare dict (no type parameters), returns unvalidated JSON object.
+
+    Args:
+        args: Tuple containing (key_type, value_type), or empty for bare dict
+
+    Returns:
+        Parser function that parses JSON objects and validates keys/values
+
+    Security:
+        Inherits DoS protection from parse_json (10,000 character limit).
+        Validates each key and value to prevent injection attacks.
+
+    Error Messages:
+        - "Expected a JSON object" if input is not a JSON object
+        - 'Failed to parse key "K": ...' for key parsing failures
+        - 'Failed to parse value for key "K": ...' for value parsing failures
+
+    Examples:
+        dict[str, int]: '{"age": 30}' -> Success({"age": 30})
+        dict[str, int]: '{"age": "x"}' -> Failure('Failed to parse value for key "age": ...')
+        bare dict: '{"any": "value"}' -> Success({"any": "value"}) (no validation)
+
     """
     if len(args) != 2:  # noqa: PLR2004
         # Bare dict without type params - parse JSON and return as-is
@@ -377,9 +467,30 @@ def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, 
 
 
 def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:  # noqa: C901
-    """Handle set[T] types.
+    """Handle set[T] types with element validation.
 
-    Parses JSON array format and converts to set after validating elements.
+    Parses JSON array format, validates each element, and returns a set (duplicates removed).
+    For bare set (no type parameter), returns unvalidated set from JSON array.
+
+    Args:
+        args: Tuple containing element type, or empty for bare set
+
+    Returns:
+        Parser function that parses JSON arrays and returns validated sets
+
+    Security:
+        Inherits DoS protection from parse_json (10,000 character limit).
+        Automatically deduplicates elements to prevent memory exhaustion.
+
+    Error Messages:
+        - "Expected a JSON array for set" if input is not a JSON array
+        - "Failed to parse element N: ..." for element validation failures
+
+    Examples:
+        set[int]: '[1, 2, 2, 3]' -> Success({1, 2, 3})
+        set[str]: '["a", "b"]' -> Success({"a", "b"})
+        bare set: '[1, "x", 1]' -> Success({1, "x"}) (no validation)
+
     """
     if not args:
         # Bare set without element type - parse JSON array and convert to set
@@ -429,7 +540,29 @@ def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:
 
 
 def _handle_literal_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
-    """Handle Literal[value1, value2, ...] types."""
+    """Handle Literal[value1, value2, ...] types with strict value matching.
+
+    Validates input against a fixed set of literal values. Supports string, int,
+    and bool literals with appropriate parsing for each type.
+
+    Args:
+        args: Tuple of allowed literal values
+
+    Returns:
+        Parser function that accepts only specified literal values
+
+    Behavior:
+        - String literals: Case-sensitive exact match
+        - Integer literals: Parses input as int and compares
+        - Boolean literals: Uses parse_bool and compares
+        - Fails with clear message listing all valid values
+
+    Examples:
+        Literal['red', 'green', 'blue']: 'red' -> Success('red')
+        Literal['red', 'green', 'blue']: 'yellow' -> Failure("Value must be one of: ...")
+        Literal[0, 1]: '1' -> Success(1)
+
+    """
 
     def literal_parser(text: str) -> Maybe[Any]:
         # Try to match against each literal value
@@ -462,9 +595,31 @@ def _handle_literal_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
 
 
 def _handle_annotated_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
-    """Handle Annotated[T, metadata...] types.
+    """Handle Annotated[T, metadata...] types with validator chaining.
 
-    Extracts the base type and applies validators from metadata.
+    Extracts the base type and chains any callable validators from metadata.
+    This enables inline validation constraints using Annotated type hints.
+
+    Args:
+        args: Tuple where first element is base type, remaining are metadata
+
+    Returns:
+        Parser function that applies base parser then chains all validators
+
+    Raises:
+        ValueError: If args is empty (no base type provided)
+
+    Behavior:
+        - Filters metadata to find callable validators
+        - If no validators, returns base parser unchanged
+        - If validators exist, chains them using bind()
+        - Validators applied in order they appear in metadata
+
+    Examples:
+        Annotated[int, validators.minimum(0)]: '5' -> Success(5), '-1' -> Failure
+        Annotated[int, validators.minimum(0), validators.maximum(100)]: Chains both
+        Annotated[str, "doc string"]: Ignores non-callable metadata
+
     """
     if not args:
         msg = 'Annotated type requires at least a base type'

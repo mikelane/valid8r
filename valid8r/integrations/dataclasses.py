@@ -52,6 +52,122 @@ from valid8r.core.parsers import (
 T = TypeVar('T')
 
 
+def _resolve_type_hints(cls: type[Any]) -> dict[str, Any]:
+    """Resolve string annotations to actual types using public API.
+
+    Args:
+        cls: The dataclass type
+
+    Returns:
+        Dictionary mapping field names to resolved types
+
+    """
+    import sys  # noqa: PLC0415
+
+    try:
+        # Try to get type hints with module's namespace
+        # get_type_hints() properly handles ForwardRef resolution
+        module_ns = sys.modules[cls.__module__].__dict__ if hasattr(cls, '__module__') else {}
+        return get_type_hints(cls, globalns=module_ns, localns=module_ns)
+    except Exception:  # noqa: BLE001
+        # If type hints resolution fails, fall back to using annotations directly
+        # This handles cases where types are defined locally (e.g., in test functions)
+        try:
+            return get_type_hints(cls, include_extras=True)
+        except Exception:  # noqa: BLE001
+            # Final fallback: use raw annotations (may contain string annotations)
+            return dict(cls.__annotations__) if hasattr(cls, '__annotations__') else {}
+
+
+def _is_field_optional(field_type: Any) -> bool:  # noqa: ANN401
+    """Check if a field type is Optional (Union with None).
+
+    Args:
+        field_type: The field type to check
+
+    Returns:
+        True if field is Optional, False otherwise
+
+    """
+    if isinstance(field_type, str):
+        return field_type.startswith('Optional[') or 'None' in field_type
+    args = get_args(field_type)
+    return bool(args and type(None) in args)
+
+
+def _handle_nested_errors(field_name: str, error: str, field_type: Any) -> dict[str, str]:  # noqa: ANN401
+    """Handle error messages from nested dataclass validation.
+
+    Args:
+        field_name: Name of the field being validated
+        error: Error message from validation
+        field_type: Type of the field
+
+    Returns:
+        Dictionary of flattened error messages with field paths
+
+    """
+    errors: dict[str, str] = {}
+
+    # For nested dataclass errors, prefix with parent field name
+    if ': ' in error and is_dataclass(field_type):
+        # Error format is "nested_field: error"
+        # Convert to "parent.nested_field: error"
+        parts = error.split(': ', 1)
+        if '; ' in parts[0]:
+            # Multiple nested errors "field1: err1; field2: err2"
+            for nested_error in error.split('; '):
+                if ': ' in nested_error:
+                    nested_field, nested_msg = nested_error.split(': ', 1)
+                    errors[f'{field_name}.{nested_field}'] = nested_msg
+                else:
+                    errors[field_name] = nested_error
+        else:
+            # Single nested field error
+            nested_field, nested_msg = parts
+            errors[f'{field_name}.{nested_field}'] = nested_msg
+    else:
+        errors[field_name] = error
+
+    return errors
+
+
+def _validate_single_field(
+    field_info: Any,  # noqa: ANN401
+    field_type: Any,  # noqa: ANN401
+    raw_value: Any,  # noqa: ANN401
+) -> Maybe[Any]:
+    """Validate a single dataclass field value.
+
+    Args:
+        field_info: Field metadata from dataclass
+        field_type: Resolved type for the field
+        raw_value: Raw value to validate
+
+    Returns:
+        Success with validated value or Failure with error
+
+    """
+    # Type coercion: parse strings to target types
+    parsed_result = _parse_value(raw_value, field_type)
+
+    match parsed_result:
+        case Success(parsed_value):
+            # Apply field validator if present
+            validator = field_info.metadata.get('validator') if field_info.metadata else None
+
+            if validator is not None:
+                return validator(parsed_value)  # type: ignore[no-any-return]
+            # No validator, use parsed value
+            return Maybe.success(parsed_value)
+
+        case Failure(error):
+            return Maybe.failure(error)
+
+    # Unreachable, but keeps mypy happy
+    return Maybe.failure('Unknown error')
+
+
 def validate(cls: type[T]) -> type[T]:
     """Decorate a dataclass to add validation through from_dict class method.
 
@@ -145,7 +261,7 @@ def validate(cls: type[T]) -> type[T]:
     return cls
 
 
-def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa: C901, PLR0912, PLR0915
+def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa: C901
     """Validate and construct a dataclass instance from a dictionary.
 
     This function validates field values and constructs a dataclass instance. It performs:
@@ -220,26 +336,7 @@ def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa:
         return Maybe.failure(msg)
 
     # Resolve string annotations to actual types
-    try:
-        type_hints = get_type_hints(cls)
-    except Exception:  # noqa: BLE001
-        # If type hints resolution fails, try to resolve manually from __annotations__
-        # This handles cases where types are defined locally (e.g., in test functions)
-        type_hints = {}
-        if hasattr(cls, '__annotations__'):
-            import sys  # noqa: PLC0415
-
-            module_ns = sys.modules[cls.__module__].__dict__ if hasattr(cls, '__module__') else {}
-            for name, annotation in cls.__annotations__.items():
-                if isinstance(annotation, str):
-                    # Try to evaluate the string annotation
-                    try:
-                        type_hints[name] = eval(annotation, module_ns)  # noqa: S307
-                    except Exception:  # noqa: BLE001, S112
-                        # Keep as string if evaluation fails
-                        continue
-                else:
-                    type_hints[name] = annotation
+    type_hints = _resolve_type_hints(cls)
 
     # Collect errors and validated values
     errors: dict[str, str] = {}
@@ -248,15 +345,13 @@ def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa:
     # Process each field
     for field_info in fields(cls):
         field_name = field_info.name
-        # Use resolved type hint if available, otherwise use field type
         field_type = type_hints.get(field_name, field_info.type)
         has_default = field_info.default is not MISSING or field_info.default_factory is not MISSING
 
-        # Get the raw value from data
+        # Check if field is present in data
         if field_name not in data:
             if has_default:
-                # Use default value (will be handled by dataclass constructor)
-                continue
+                continue  # Use default value
             errors[field_name] = 'field is required'
             continue
 
@@ -264,66 +359,22 @@ def validate_dataclass(cls: type[T], data: dict[str, Any]) -> Maybe[T]:  # noqa:
 
         # Handle None for Optional fields
         if raw_value is None:
-            # Check if field is Optional (Union with None)
-            # Handle string annotations from __future__ import annotations
-            if isinstance(field_type, str):
-                is_optional = field_type.startswith('Optional[') or 'None' in field_type
-            else:
-                args = get_args(field_type)
-                is_optional = bool(args and type(None) in args)
-
-            if is_optional:
+            if _is_field_optional(field_type):
                 validated_values[field_name] = None
                 continue
             errors[field_name] = 'cannot be None'
             continue
 
-        # Type coercion: parse strings to target types
-        parsed_result = _parse_value(raw_value, field_type)
+        # Validate the field value
+        validation_result = _validate_single_field(field_info, field_type, raw_value)
 
-        match parsed_result:
-            case Success(parsed_value):
-                # Apply field validator if present
-                validator = field_info.metadata.get('validator') if field_info.metadata else None
-
-                if validator is not None:
-                    validation_result = validator(parsed_value)
-
-                    match validation_result:
-                        case Success(validated_value):
-                            validated_values[field_name] = validated_value
-                        case Failure(error):
-                            errors[field_name] = error
-                else:
-                    # No validator, use parsed value
-                    validated_values[field_name] = parsed_value
-
+        match validation_result:
+            case Success(validated_value):
+                validated_values[field_name] = validated_value
             case Failure(error):
-                # For nested dataclass errors, prefix with parent field name
-                if ': ' in error and is_dataclass(field_type):
-                    # Error format is "nested_field: error"
-                    # Convert to "parent.nested_field: error"
-                    parts = error.split(': ', 1)
-                    if '; ' in parts[0]:
-                        # Multiple nested errors "field1: err1; field2: err2"
-                        nested_errors = []
-                        for nested_error in error.split('; '):
-                            if ': ' in nested_error:
-                                nested_field, nested_msg = nested_error.split(': ', 1)
-                                nested_errors.append(f'{field_name}.{nested_field}: {nested_msg}')
-                            else:
-                                nested_errors.append(f'{field_name}: {nested_error}')
-                        # Add all nested errors to the errors dict directly
-                        # This flattens nested errors into top-level error reporting
-                        for nested_error in nested_errors:
-                            nested_field_path = nested_error.split(': ')[0]
-                            errors[nested_field_path] = nested_error.split(': ', 1)[1]
-                    else:
-                        # Single nested field error
-                        nested_field, nested_msg = parts
-                        errors[f'{field_name}.{nested_field}'] = nested_msg
-                else:
-                    errors[field_name] = error
+                # Handle nested dataclass errors
+                nested_errors = _handle_nested_errors(field_name, error, field_type)
+                errors.update(nested_errors)
 
     # If any errors, return aggregated failure
     if errors:
@@ -441,6 +492,13 @@ def _parse_value(value: Any, target_type: type[Any]) -> Maybe[Any]:  # noqa: C90
     # Handle list[T] from string representation (e.g., "[1, 2, 3]")
     if origin is list and args and len(args) == 1:
         import ast  # noqa: PLC0415
+
+        # CRITICAL: Early length guard (DoS mitigation)
+        # Reject oversized inputs BEFORE expensive ast.literal_eval operations
+        # Use 1000 char limit for literal parsing (reasonable for typical use cases)
+        max_literal_length = 1000
+        if len(value) > max_literal_length:
+            return Maybe.failure(f'Invalid format: input is too long (max {max_literal_length} characters)')
 
         element_type = args[0]
         try:
