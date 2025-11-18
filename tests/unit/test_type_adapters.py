@@ -327,7 +327,7 @@ class DescribeFromTypeEnum:
         """Generated Enum parser rejects invalid enum member."""
         parser = from_type(Color)
         result = parser('YELLOW')
-        expect_failure_containing(result, 'valid Color')
+        expect_failure_containing(result, 'valid enumeration')
 
     def it_generates_parser_for_enum_case_insensitive(self) -> None:
         """Generated Enum parser handles case-insensitive matching."""
@@ -372,7 +372,7 @@ class DescribeFromTypeAnnotated:
         result_invalid = parser('-5')
 
         expect_success_with_value(result_valid, 42)
-        expect_failure_containing(result_invalid, 'minimum')
+        expect_failure_containing(result_invalid, 'at least 0')
 
     def it_generates_parser_for_annotated_chains_validators(self) -> None:
         """Generate parser for Annotated with multiple validators - chains them."""
@@ -382,8 +382,8 @@ class DescribeFromTypeAnnotated:
         result_too_high = parser('150')
 
         expect_success_with_value(result_valid, 50)
-        expect_failure_containing(result_too_low, 'minimum')
-        expect_failure_containing(result_too_high, 'maximum')
+        expect_failure_containing(result_too_low, 'at least 0')
+        expect_failure_containing(result_too_high, 'at most 100')
 
 
 # =============================================================================
