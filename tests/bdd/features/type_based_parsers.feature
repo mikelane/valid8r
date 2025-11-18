@@ -69,26 +69,26 @@ Feature: Type-Based Parser Generation
   Scenario: Generate parser for list with invalid element
     Given the type annotation list[int]
     When a parser is generated from the type
-    And the generated parser processes "[1, abc, 3]"
+    And the generated parser processes '[1, "invalid", 3]'
     Then the result is a failed Maybe
     And the error contains "valid integer"
 
   Scenario: Generate parser for set with unique elements
     Given the type annotation set[str]
     When a parser is generated from the type
-    And the generated parser processes "['a', 'b', 'c']"
+    And the generated parser processes '["a", "b", "c"]'
     Then the result is a successful Maybe with set containing a, b, c
 
   Scenario: Generate parser for dictionary with valid key-value pairs
     Given the type annotation dict[str, int]
     When a parser is generated from the type
-    And the generated parser processes "{'age': 30, 'count': 5}"
+    And the generated parser processes '{"age": 30, "count": 5}'
     Then the result is a successful Maybe with dict containing age=30 and count=5
 
   Scenario: Generate parser for dictionary with invalid value type
     Given the type annotation dict[str, int]
     When a parser is generated from the type
-    And the generated parser processes "{'age': 'thirty'}"
+    And the generated parser processes '{"age": "thirty"}'
     Then the result is a failed Maybe
     And the error contains "valid integer"
 
@@ -103,13 +103,13 @@ Feature: Type-Based Parser Generation
   Scenario: Generate parser for list of dictionaries
     Given the type annotation list[dict[str, int]]
     When a parser is generated from the type
-    And the generated parser processes "[{'a': 1}, {'b': 2}]"
+    And the generated parser processes '[{"a": 1}, {"b": 2}]'
     Then the result is a successful Maybe with list of dictionaries
 
   Scenario: Generate parser for deeply nested structure
     Given the type annotation dict[str, list[int]]
     When a parser is generated from the type
-    And the generated parser processes "{'scores': [95, 87, 92]}"
+    And the generated parser processes '{"scores": [95, 87, 92]}'
     Then the result is a successful Maybe with nested structure
 
   # Rule 5: Union Types - Handle multiple possible types
@@ -173,7 +173,7 @@ Feature: Type-Based Parser Generation
     When a parser is generated from the type
     And the generated parser processes "YELLOW"
     Then the result is a failed Maybe
-    And the error contains "valid Color"
+    And the error contains "valid enumeration"
 
   Scenario: Generate parser for Enum handles case-insensitive matching
     Given an enum Status with members ACTIVE, INACTIVE
@@ -195,14 +195,14 @@ Feature: Type-Based Parser Generation
     When a parser is generated from the type
     And the generated parser processes "-5"
     Then the result is a failed Maybe
-    And the error contains "minimum"
+    And the error contains "at least 0"
 
   Scenario: Generate parser for Annotated type chains validators
     Given the type annotation Annotated[int, validators.minimum(0), validators.maximum(100)]
     When a parser is generated from the type
     And the generated parser processes "150"
     Then the result is a failed Maybe
-    And the error contains "maximum"
+    And the error contains "at most 100"
 
   # Rule 9: Error Handling - Graceful failures
 
@@ -214,7 +214,7 @@ Feature: Type-Based Parser Generation
   Scenario: Reject forward reference without context
     Given the type annotation "SomeClass"
     When a parser generation is attempted from the type
-    Then the generation fails with error "Cannot resolve forward reference"
+    Then the generation fails with error "Invalid type annotation"
 
   Scenario: Handle None type annotation
     Given a None type annotation

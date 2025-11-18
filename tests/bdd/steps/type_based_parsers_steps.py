@@ -156,8 +156,18 @@ def step_generate_parser(context: Context) -> None:
     else:
         type_ann = context.type_annotation
 
+    # Handle Literal types with mixed values (need to eval)
+    if isinstance(type_ann, str) and type_ann.startswith('Literal[') and not type_ann.startswith("Literal['"):
+        # Mixed types like Literal[1, 'one', True] - need to eval safely
+        # Extract values and construct Literal
+        import ast
+
+        values_str = type_ann[8:-1]  # Remove "Literal[" and "]"
+        # Parse the values safely
+        values = ast.literal_eval(f'({values_str},)')
+        context.generated_parser = from_type(Literal[values])  # type: ignore[misc, valid-type]
     # Handle Annotated types specially
-    if isinstance(type_ann, str) and type_ann.startswith('Annotated['):
+    elif isinstance(type_ann, str) and type_ann.startswith('Annotated['):
         # For testing purposes, we'll need to construct the actual Annotated type
         # This is a simplification - real implementation will handle this properly
         if 'validators.minimum' in type_ann:
@@ -193,8 +203,12 @@ def step_attempt_generate_parser(context: Context) -> None:
 
 
 @when('the generated parser processes "{input_text}"')
+@when("the generated parser processes '{input_text}'")
 def step_parse_input(context: Context, input_text: str) -> None:
     """Apply the generated parser to an input string."""
+    # If context has text (docstring), use that instead of inline input
+    if hasattr(context, 'text') and context.text:
+        input_text = context.text
     context.parse_result = context.generated_parser(input_text)
 
 
