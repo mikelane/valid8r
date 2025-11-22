@@ -260,7 +260,7 @@ def example_annotated_types() -> None:
                 print(f'Invalid age "{test_input}": {err}')
 
     # String with length validation
-    username_parser = from_type(Annotated[str, validators.min_length(3), validators.max_length(20)])
+    username_parser = from_type(Annotated[str, validators.length(3, 20)])
 
     for test_input in ['alice', 'ab', 'this_username_is_way_too_long']:
         result = username_parser(test_input)

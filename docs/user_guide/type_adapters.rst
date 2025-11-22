@@ -199,7 +199,7 @@ Combine type parsing with validation::
     # Failure('Value must be at least 0')
 
     # String with length validation
-    parser = from_type(Annotated[str, validators.min_length(3), validators.max_length(10)])
+    parser = from_type(Annotated[str, validators.length(3, 10)])
 
     result = parser('hello')
     # Success('hello')

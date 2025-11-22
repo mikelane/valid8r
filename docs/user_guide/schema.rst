@@ -32,7 +32,7 @@ Define a schema using ``Field`` definitions:
             'age': schema.Field(parser=parsers.parse_int, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'name': schema.Field(
-                parser=lambda s: parsers.parse_str(s),
+                parser=lambda s: Maybe.success(s),
                 validator=validators.non_empty_string(),
                 required=True,
             ),
@@ -108,14 +108,14 @@ Errors include the precise path to the failing field:
 
     address_schema = schema.Schema(
         fields={
-            'street': schema.Field(parser=parsers.parse_str, required=True),
-            'city': schema.Field(parser=parsers.parse_str, required=True),
+            'street': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'city': schema.Field(parser=lambda s: Maybe.success(s), required=True),
         }
     )
 
     user_schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=parsers.parse_str, required=True),
+            'name': schema.Field(parser=lambda s: Maybe.success(s), required=True),
             'address': schema.Field(parser=address_schema.validate, required=True),
         }
     )
@@ -138,16 +138,16 @@ Compose schemas by using one schema's ``validate`` method as another field's par
     # Inner schema
     address_schema = schema.Schema(
         fields={
-            'street': schema.Field(parser=parsers.parse_str, required=True),
-            'city': schema.Field(parser=parsers.parse_str, required=True),
-            'zipcode': schema.Field(parser=parsers.parse_str, required=True),
+            'street': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'city': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'zipcode': schema.Field(parser=lambda s: Maybe.success(s), required=True),
         }
     )
 
     # Outer schema references inner schema
     user_schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=parsers.parse_str, required=True),
+            'name': schema.Field(parser=lambda s: Maybe.success(s), required=True),
             'address': schema.Field(
                 parser=address_schema.validate,  # Use schema as parser
                 required=True,
@@ -175,7 +175,7 @@ Control whether fields must be present using the ``required`` parameter:
 
     user_schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=parsers.parse_str, required=True),
+            'name': schema.Field(parser=lambda s: Maybe.success(s), required=True),
             'age': schema.Field(parser=parsers.parse_int, required=False),
             'email': schema.Field(parser=parsers.parse_email, required=False),
         }
@@ -197,7 +197,7 @@ By default, schemas allow extra fields not defined in the schema. Enable strict 
 .. code-block:: python
 
     strict_schema = schema.Schema(
-        fields={'name': schema.Field(parser=parsers.parse_str, required=True)},
+        fields={'name': schema.Field(parser=lambda s: Maybe.success(s), required=True)},
         strict=True,
     )
 
@@ -219,7 +219,7 @@ Fields can have both a parser and a validator:
                 required=True,
             ),
             'username': schema.Field(
-                parser=parsers.parse_str,
+                parser=lambda s: Maybe.success(s),
                 validator=validators.length(3, 20),
                 required=True,
             ),
@@ -286,7 +286,7 @@ API Request Validation
     create_user_schema = schema.Schema(
         fields={
             'username': schema.Field(
-                parser=parsers.parse_str,
+                parser=lambda s: Maybe.success(s),
                 validator=validators.length(3, 30),
                 required=True,
             ),
@@ -350,12 +350,12 @@ Form Data Validation
     registration_schema = schema.Schema(
         fields={
             'username': schema.Field(
-                parser=parsers.parse_str,
+                parser=lambda s: Maybe.success(s),
                 validator=validators.length(3, 20),
                 required=True,
             ),
             'password': schema.Field(
-                parser=parsers.parse_str,
+                parser=lambda s: Maybe.success(s),
                 validator=validators.length(8, 128),
                 required=True,
             ),

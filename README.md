@@ -346,7 +346,7 @@ schema = EnvSchema(fields={
         default=8080
     ),
     'debug': EnvField(parser=parsers.parse_bool, default=False),
-    'database_url': EnvField(parser=parsers.parse_str, required=True),
+    'database_url': EnvField(parser=lambda s: Maybe.success(s), required=True),
     'admin_email': EnvField(parser=parsers.parse_email, required=True),
 })
 
