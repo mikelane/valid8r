@@ -540,20 +540,76 @@ def step_validate_input(context: Context) -> None:
 
 @then('the validation succeeds')
 def step_validation_succeeds(context: Context) -> None:
-    """Assert that validation succeeded."""
-    sc = get_schema_context(context)
-    if not sc.result.is_success():
-        errors = get_errors(sc.result)
+    """Assert that validation succeeded.
+
+    Works with both schema validation (schema_context.result) and
+    dataclass validation (context.validation_result).
+    """
+    from valid8r.core.maybe import (
+        Failure,
+        Success,
+    )
+
+    # Check for dataclass validation result first
+    if hasattr(context, 'validation_result') and context.validation_result is not None:
+        result = context.validation_result
+        is_dataclass = True
+    else:
+        # Fall back to schema validation result
+        sc = get_schema_context(context)
+        result = sc.result
+        is_dataclass = False
+
+    if not result.is_success():
+        errors = get_errors(result)
         error_msg = ', '.join(f'{e.path}: {e.message}' for e in errors[:3])
         msg = f'Expected success but got errors: {error_msg}'
         raise AssertionError(msg)
 
+    # For dataclass validation, set the validated_instance attribute
+    if is_dataclass:
+        match result:
+            case Success(value):
+                context.validated_instance = value
+            case Failure(err):
+                # This shouldn't happen since we already checked is_success()
+                msg = f'Expected validation to succeed, but got Failure: {err}'
+                raise AssertionError(msg)
+
 
 @then('the validation fails')
 def step_validation_fails(context: Context) -> None:
-    """Assert that validation failed."""
-    sc = get_schema_context(context)
-    assert sc.result.is_failure(), f'Expected failure but validation succeeded with: {sc.result.value_or(None)}'
+    """Assert that validation failed.
+
+    Works with both schema validation (schema_context.result) and
+    dataclass validation (context.validation_result).
+    """
+    from valid8r.core.maybe import (
+        Failure,
+        Success,
+    )
+
+    # Check for dataclass validation result first
+    if hasattr(context, 'validation_result') and context.validation_result is not None:
+        result = context.validation_result
+        is_dataclass = True
+    else:
+        # Fall back to schema validation result
+        sc = get_schema_context(context)
+        result = sc.result
+        is_dataclass = False
+
+    assert result.is_failure(), f'Expected failure but validation succeeded with: {result.value_or(None)}'
+
+    # For dataclass validation, set the validation_error attribute
+    if is_dataclass:
+        match result:
+            case Failure(err):
+                context.validation_error = err
+            case Success(value):
+                # This shouldn't happen since we already checked is_failure()
+                msg = f'Expected validation to fail, but got Success: {value}'
+                raise AssertionError(msg)
 
 
 @then('the result contains age {expected_age:d}')

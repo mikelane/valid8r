@@ -881,34 +881,8 @@ def step_instantiate_dataclass(context: Context, validity: str) -> None:
 
 
 # Then steps - Verify results using pattern matching
-
-
-@then('the validation succeeds')
-def step_validation_succeeds(context: Context) -> None:
-    """Verify that validation succeeded."""
-    result = context.validation_result
-
-    # Use pattern matching per requirements
-    match result:
-        case Success(value):
-            context.validated_instance = value
-        case Failure(err):
-            msg = f'Expected validation to succeed, but got Failure: {err}'
-            raise AssertionError(msg)
-
-
-@then('the validation fails')
-def step_validation_fails(context: Context) -> None:
-    """Verify that validation failed."""
-    result = context.validation_result
-
-    # Use pattern matching per requirements
-    match result:
-        case Failure(err):
-            context.validation_error = err
-        case Success(value):
-            msg = f'Expected validation to fail, but got Success: {value}'
-            raise AssertionError(msg)
+# NOTE: General validation steps (succeeds/fails) are in schema_validation_steps.py
+# and work for both schema and dataclass validation contexts.
 
 
 # IMPORTANT: More specific step patterns MUST come before general patterns

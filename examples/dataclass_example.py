@@ -6,11 +6,11 @@ to Python dataclasses with automatic type coercion and error aggregation.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import (
     dataclass,
     field,
 )
+from typing import TYPE_CHECKING
 
 from valid8r.core.maybe import (
     Failure,
@@ -24,6 +24,9 @@ from valid8r.core.validators import (
     minimum,
 )
 from valid8r.integrations.dataclasses import validate
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 # Example 1: Basic validation with type coercion
