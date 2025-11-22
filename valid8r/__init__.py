@@ -31,6 +31,7 @@ from .core.schema import (
     Field,
     Schema,
 )
+from .core.type_adapters import from_type
 
 # Types
 
@@ -45,6 +46,7 @@ __all__ = [
     'ValidationError',
     '__version__',
     'combinators',
+    'from_type',
     'parsers',
     'prompt',
     'validators',

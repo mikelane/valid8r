@@ -158,9 +158,13 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "D100", # Don't require module docstrings
     "D101", # Don't require class docstrings
     "D102", # Don't require method docstrings
+    "D401", # Don't require imperative mood in test docstrings
     "FBT001", # Allow tests to use boolean arguments
+    "FBT003", # Allow tests to use boolean literals
     "PLR2004", # Don't prevent magic values in tests
     "S101", # Don't prevent asserts
+    "UP007", # Allow Union syntax in tests (testing backward compat)
+    "UP045", # Allow Optional syntax in tests (testing backward compat)
 ]
 "tests/*" = [
     "D100", # Don't require module docstrings in tests
@@ -168,15 +172,22 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "D102", # Don't require method docstrings in tests
     "D103", # Don't require function docstrings in tests
     "D104", # Don't require init docstrings in tests
+    "D401", # Don't require imperative mood in test docstrings
     "E501", # Allow long lines in tests
     "ERA001", # Allow commented-out code (test labels)
+    "FBT001", # Allow tests to use boolean arguments
+    "FBT003", # Allow tests to use boolean literals
     "PGH003", # Allow tests to casually ignore mypy complaints about incorrect types
     "PLC0415", # Allow imports inside test functions
+    "PLR0912", # Allow many branches in test helpers
     "PLR0913", # Allow tests to have as many arguments as we want
     "PLR2004", # Allow magic values in tests
     "S101", # Allow asserts in tests
+    "UP007", # Allow Union syntax in tests (testing backward compat)
+    "UP045", # Allow Optional syntax in tests (testing backward compat)
 ]
 "tests/bdd/steps/*" = [
+    "C901", # Allow complex functions in test helpers
     "N806", # Allow uppercase variable names (extracting from context)
     "S101", # Allow asserts in behave tests
     "TRY004", # Allow AssertionError for type checks in tests

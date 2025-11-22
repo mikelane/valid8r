@@ -87,8 +87,8 @@ class DescribeParseJson:
         """Parse JSON primitives."""
         assert assert_maybe_success(parsers.parse_json('"hello"'), 'hello')
         assert assert_maybe_success(parsers.parse_json('42'), 42)
-        assert assert_maybe_success(parsers.parse_json('true'), True)  # noqa: FBT003
-        assert assert_maybe_success(parsers.parse_json('false'), False)  # noqa: FBT003
+        assert assert_maybe_success(parsers.parse_json('true'), True)
+        assert assert_maybe_success(parsers.parse_json('false'), False)
         assert assert_maybe_success(parsers.parse_json('null'), None)
 
     def it_rejects_invalid_json(self) -> None:
