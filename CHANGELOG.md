@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.17.0] (2025-11-22)
+
+### Features
+
+- **Type-Based Parser Generation and Dataclass Validation** ([#17](https://github.com/mikelane/valid8r/pull/17), [#16](https://github.com/mikelane/valid8r/pull/16), [#201](https://github.com/mikelane/valid8r/pull/201), [`f5c3230`](https://github.com/mikelane/valid8r/commit/f5c3230))
+  - Added `from_type()` function for automatic parser generation from type annotations
+  - Support for all standard types: int, str, float, bool, datetime, etc.
+  - Collection types: `list[T]`, `dict[K,V]`, `set[T]`
+  - Optional types with None handling
+  - Union types with fallback behavior
+  - Literal types for constrained values
+  - Enum types with case-insensitive matching
+  - Annotated types with validator chaining
+  - Added `@validate` decorator for dataclass field validation
+  - Automatic type coercion from strings
+  - Nested dataclass validation with error paths
+  - Multiple validator chaining per field
+  - Comprehensive error aggregation
+  - DoS protection: Input length validation before expensive operations
+  - Safe parsing: `ast.literal_eval` with bounds checking (1000 char limit)
+  - Public API usage: Replaced `ForwardRef._evaluate()` with `get_type_hints()`
+  - 100+ new unit tests with 90%+ test coverage
+  - Full BDD test coverage (63 scenarios: 41 type adapter + 22 dataclass)
+
+## [v1.16.0] (2025-11-17)
+
+### Features
+
+- **Schema API with Error Accumulation and Field Path Tracking** ([#15](https://github.com/mikelane/valid8r/pull/15), [#198](https://github.com/mikelane/valid8r/pull/198), [`ffe418b`](https://github.com/mikelane/valid8r/commit/ffe418b))
+  - Added `Schema` class for structured validation of complex, nested objects
+  - Error accumulation: Collects ALL validation errors instead of stopping at first failure
+  - Field path tracking: Precise error location (e.g., `.user.email`, `.addresses[0].street`)
+  - Nested schema composition: Schemas can use other schemas as field parsers
+  - Required/optional field control
+  - Strict mode: Optionally reject unexpected fields
+  - RFC-001 integration: Uses structured `ValidationError` with code, message, path, context
+  - Python 3.10+ match/case pattern support for clean error handling
+  - 18 comprehensive unit tests
+  - Full BDD test coverage with Gherkin scenarios
+  - Complete user guide documentation and runnable examples
+
 ## [v1.15.0] (2025-11-15)
 
 ### Features
@@ -311,6 +352,8 @@ This release marks the first stable version of valid8r, signifying commitment to
 
 ---
 
+[v1.17.0]: https://github.com/mikelane/valid8r/releases/tag/v1.17.0
+[v1.16.0]: https://github.com/mikelane/valid8r/releases/tag/v1.16.0
 [v1.15.0]: https://github.com/mikelane/valid8r/releases/tag/v1.15.0
 [v1.14.0]: https://github.com/mikelane/valid8r/releases/tag/v1.14.0
 [v1.13.0]: https://github.com/mikelane/valid8r/releases/tag/v1.13.0
