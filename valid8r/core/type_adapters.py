@@ -27,6 +27,10 @@ from valid8r.core.maybe import Maybe
 
 T = TypeVar('T')
 
+# DoS protection: Maximum input length for JSON parsing (100KB)
+# Prevents processing of arbitrarily large inputs that could cause resource exhaustion
+MAX_JSON_LENGTH = 100_000  # 100,000 characters (~100KB)
+
 
 def from_type(annotation: type[T] | Any) -> Callable[[str], Maybe[T]]:  # noqa: ANN401
     """Generate a parser from a Python type annotation.
@@ -194,34 +198,43 @@ def from_type(annotation: type[T] | Any) -> Callable[[str], Maybe[T]]:  # noqa: 
             raise ValueError(msg)
 
 
+def _is_enum_type(annotation: type) -> bool:
+    """Check if annotation is an Enum type."""
+    return isinstance(annotation, type) and issubclass(annotation, Enum)
+
+
 def _handle_simple_type(annotation: type[T]) -> Callable[[str], Maybe[T]]:
     """Handle simple, non-generic types.
 
     Uses match/case to dispatch to appropriate parser.
     """
-    match annotation:
-        case builtins.int:
-            return parsers.parse_int  # type: ignore[return-value]
-        case builtins.str:
-            # Strings are always valid - just return Success
-            return lambda text: Maybe.success(text)  # type: ignore[arg-type]
-        case builtins.float:
-            return parsers.parse_float  # type: ignore[return-value]
-        case builtins.bool:
-            return parsers.parse_bool  # type: ignore[return-value]
-        case _ if isinstance(annotation, type) and issubclass(annotation, Enum):
-            # Handle Enum types - parse_enum signature is (value, enum_class)
-            return lambda text: parsers.parse_enum(text, annotation)  # type: ignore[type-var,return-value]
-        case typing.Callable | types.FunctionType:
-            msg = f'Unsupported type: {annotation}'
-            raise TypeError(msg)  # Use TypeError for type errors
-        case _:
-            # Check if it's a valid type but we don't support it
-            if isinstance(annotation, type):
-                msg = f'Unsupported type: {annotation}'
-                raise TypeError(msg)  # Use TypeError for type errors
-            msg = f'Invalid type annotation: {annotation}'
-            raise TypeError(msg)
+    # Handle builtin types
+    if annotation is builtins.int:
+        return parsers.parse_int  # type: ignore[return-value]
+    if annotation is builtins.str:
+        return lambda text: Maybe.success(text)  # type: ignore[arg-type]
+    if annotation is builtins.float:
+        return parsers.parse_float  # type: ignore[return-value]
+    if annotation is builtins.bool:
+        return parsers.parse_bool  # type: ignore[return-value]
+    if annotation is builtins.list:
+        return _create_bare_list_parser()  # type: ignore[return-value]
+    if annotation is builtins.dict:
+        return _create_bare_dict_parser()  # type: ignore[return-value]
+    if annotation is builtins.set:
+        return _create_bare_set_parser()  # type: ignore[return-value]
+
+    # Handle Enum types
+    if _is_enum_type(annotation):
+        return lambda text: parsers.parse_enum(text, annotation)  # type: ignore[type-var,return-value]
+
+    # Handle unsupported/invalid types
+    if annotation in (typing.Callable, types.FunctionType) or isinstance(annotation, type):
+        msg = f'Unsupported type: {annotation}'
+        raise TypeError(msg)
+
+    msg = f'Invalid type annotation: {annotation}'
+    raise TypeError(msg)
 
 
 def _handle_union_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
@@ -257,28 +270,34 @@ def _handle_union_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:
     return union_parser
 
 
-def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]]:  # noqa: C901
-    """Handle list[T] types.
+def _create_bare_list_parser() -> Callable[[str], Maybe[list[Any]]]:
+    """Create parser for untyped list (bare list without type parameter)."""
 
-    Parses JSON array format and validates each element.
-    """
-    if not args:
-        # Bare list without element type - parse JSON and return as-is
-        def bare_list_parser(text: str) -> Maybe[list[Any]]:
-            result = parsers.parse_json(text)
-            if result.is_failure():
-                return result  # type: ignore[return-value]
-            value = result.value_or(None)
-            if not isinstance(value, list):
-                return Maybe.failure('Expected a JSON array')
-            return Maybe.success(value)
+    def bare_list_parser(text: str) -> Maybe[list[Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
 
-        return bare_list_parser
+        result = parsers.parse_json(text)
+        if result.is_failure():
+            return result  # type: ignore[return-value]
+        value = result.value_or(None)
+        if not isinstance(value, list):
+            return Maybe.failure('Expected a JSON array')
+        return Maybe.success(value)
 
-    element_type = args[0]
-    element_parser = from_type(element_type)
+    return bare_list_parser
+
+
+def _create_typed_list_parser(element_type: type) -> Callable[[str], Maybe[list[Any]]]:
+    """Create parser for typed list (list[T] with element type)."""
+    element_parser: Callable[[str], Maybe[Any]] = from_type(element_type)
 
     def typed_list_parser(text: str) -> Maybe[list[Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
+
         # Parse as JSON first
         json_result = parsers.parse_json(text)
         if json_result.is_failure():
@@ -291,16 +310,7 @@ def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]
         # Validate and parse each element
         parsed_elements: list[Any] = []
         for i, elem in enumerate(value, start=1):
-            # For primitive types, convert to string for parsing
-            # For nested structures (dict, list), use JSON serialization
-            if isinstance(elem, (dict, list)):
-                elem_str = json.dumps(elem)
-            elif isinstance(elem, str):
-                elem_str = elem
-            else:
-                elem_str = str(elem)
-
-            elem_result = element_parser(elem_str)
+            elem_result = element_parser(_to_string(elem))
             if elem_result.is_failure():
                 return Maybe.failure(f'Failed to parse element {i}: {elem_result.error_or("")}')
             parsed_elements.append(elem_result.value_or(None))
@@ -310,29 +320,54 @@ def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]
     return typed_list_parser
 
 
-def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, Any]]]:  # noqa: C901
-    """Handle dict[K, V] types.
+def _handle_list_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[list[Any]]]:
+    """Handle list[T] types.
 
-    Parses JSON object format and validates keys and values.
+    Parses JSON array format and validates each element.
     """
-    if len(args) != 2:  # noqa: PLR2004
-        # Bare dict without type params - parse JSON and return as-is
-        def bare_dict_parser(text: str) -> Maybe[dict[Any, Any]]:
-            result = parsers.parse_json(text)
-            if result.is_failure():
-                return result  # type: ignore[return-value]
-            value = result.value_or(None)
-            if not isinstance(value, dict):
-                return Maybe.failure('Expected a JSON object')
-            return Maybe.success(value)
+    if not args:
+        return _create_bare_list_parser()
+    return _create_typed_list_parser(args[0])
 
-        return bare_dict_parser
 
-    key_type, value_type = args
-    key_parser = from_type(key_type)
-    value_parser = from_type(value_type)
+def _create_bare_dict_parser() -> Callable[[str], Maybe[dict[Any, Any]]]:
+    """Create parser for untyped dict (bare dict without type parameters)."""
+
+    def bare_dict_parser(text: str) -> Maybe[dict[Any, Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
+
+        result = parsers.parse_json(text)
+        if result.is_failure():
+            return result  # type: ignore[return-value]
+        value = result.value_or(None)
+        if not isinstance(value, dict):
+            return Maybe.failure('Expected a JSON object')
+        return Maybe.success(value)
+
+    return bare_dict_parser
+
+
+def _to_string(value: Any) -> str:  # noqa: ANN401
+    """Convert a value to string, handling nested structures."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _create_typed_dict_parser(key_type: type, value_type: type) -> Callable[[str], Maybe[dict[Any, Any]]]:
+    """Create parser for typed dict (dict[K, V] with key and value types)."""
+    key_parser: Callable[[str], Maybe[Any]] = from_type(key_type)
+    value_parser: Callable[[str], Maybe[Any]] = from_type(value_type)
 
     def typed_dict_parser(text: str) -> Maybe[dict[Any, Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
+
         # Parse as JSON first
         json_result = parsers.parse_json(text)
         if json_result.is_failure():
@@ -345,27 +380,13 @@ def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, 
         # Validate and parse each key-value pair
         parsed_dict: dict[Any, Any] = {}
         for key, val in value.items():
-            # Parse key - convert nested structures to JSON
-            if isinstance(key, (dict, list)):
-                key_str = json.dumps(key)
-            elif isinstance(key, str):
-                key_str = key
-            else:
-                key_str = str(key)
-
-            key_result = key_parser(key_str)
+            # Parse key
+            key_result = key_parser(_to_string(key))
             if key_result.is_failure():
                 return Maybe.failure(f'Failed to parse key "{key}": {key_result.error_or("")}')
 
-            # Parse value - convert nested structures to JSON
-            if isinstance(val, (dict, list)):
-                val_str = json.dumps(val)
-            elif isinstance(val, str):
-                val_str = val
-            else:
-                val_str = str(val)
-
-            val_result = value_parser(val_str)
+            # Parse value
+            val_result = value_parser(_to_string(val))
             if val_result.is_failure():
                 return Maybe.failure(f'Failed to parse value for key "{key}": {val_result.error_or("")}')
 
@@ -376,28 +397,45 @@ def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, 
     return typed_dict_parser
 
 
-def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:  # noqa: C901
-    """Handle set[T] types.
+def _handle_dict_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[dict[Any, Any]]]:
+    """Handle dict[K, V] types.
 
-    Parses JSON array format and converts to set after validating elements.
+    Parses JSON object format and validates keys and values.
     """
-    if not args:
-        # Bare set without element type - parse JSON array and convert to set
-        def bare_set_parser(text: str) -> Maybe[set[Any]]:
-            result = parsers.parse_json(text)
-            if result.is_failure():
-                return result  # type: ignore[return-value]
-            value = result.value_or(None)
-            if not isinstance(value, list):
-                return Maybe.failure('Expected a JSON array for set')
-            return Maybe.success(set(value))
+    if len(args) != 2:  # noqa: PLR2004
+        return _create_bare_dict_parser()
+    key_type, value_type = args
+    return _create_typed_dict_parser(key_type, value_type)
 
-        return bare_set_parser
 
-    element_type = args[0]
-    element_parser = from_type(element_type)
+def _create_bare_set_parser() -> Callable[[str], Maybe[set[Any]]]:
+    """Create parser for untyped set (bare set without type parameter)."""
+
+    def bare_set_parser(text: str) -> Maybe[set[Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
+
+        result = parsers.parse_json(text)
+        if result.is_failure():
+            return result  # type: ignore[return-value]
+        value = result.value_or(None)
+        if not isinstance(value, list):
+            return Maybe.failure('Expected a JSON array for set')
+        return Maybe.success(set(value))
+
+    return bare_set_parser
+
+
+def _create_typed_set_parser(element_type: type) -> Callable[[str], Maybe[set[Any]]]:
+    """Create parser for typed set (set[T] with element type)."""
+    element_parser: Callable[[str], Maybe[Any]] = from_type(element_type)
 
     def typed_set_parser(text: str) -> Maybe[set[Any]]:
+        # DoS protection: Early length guard BEFORE JSON parsing
+        if len(text) > MAX_JSON_LENGTH:
+            return Maybe.failure(f'Input too large: maximum {MAX_JSON_LENGTH} characters')
+
         # Parse as JSON array first
         json_result = parsers.parse_json(text)
         if json_result.is_failure():
@@ -410,15 +448,7 @@ def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:
         # Validate and parse each element
         parsed_elements: set[Any] = set()
         for i, elem in enumerate(value, start=1):
-            # Convert nested structures to JSON
-            if isinstance(elem, (dict, list)):
-                elem_str = json.dumps(elem)
-            elif isinstance(elem, str):
-                elem_str = elem
-            else:
-                elem_str = str(elem)
-
-            elem_result = element_parser(elem_str)
+            elem_result = element_parser(_to_string(elem))
             if elem_result.is_failure():
                 return Maybe.failure(f'Failed to parse element {i}: {elem_result.error_or("")}')
             parsed_elements.add(elem_result.value_or(None))
@@ -426,6 +456,16 @@ def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:
         return Maybe.success(parsed_elements)
 
     return typed_set_parser
+
+
+def _handle_set_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[set[Any]]]:
+    """Handle set[T] types.
+
+    Parses JSON array format and converts to set after validating elements.
+    """
+    if not args:
+        return _create_bare_set_parser()
+    return _create_typed_set_parser(args[0])
 
 
 def _handle_literal_type(args: tuple[Any, ...]) -> Callable[[str], Maybe[Any]]:

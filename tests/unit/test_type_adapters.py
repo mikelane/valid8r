@@ -460,3 +460,135 @@ class DescribeFromTypePreservation:
                 assert value is None
             case Failure(err):
                 pytest.fail(f'Expected Success(None) but got Failure({err})')
+
+
+# =============================================================================
+# Test Suite: Security - DoS Protection
+# =============================================================================
+
+
+class DescribeFromTypeSecurityDoS:
+    """Test DoS protection for from_type() generated parsers.
+
+    Following security best practices from CLAUDE.md:
+    - Always validate input length BEFORE expensive operations
+    - Test both correctness (error message) AND performance (< 10ms)
+    - Use reasonable limits (100KB = 100,000 chars for JSON)
+    """
+
+    def it_rejects_excessively_long_json_list(self) -> None:
+        """Reject extremely long JSON list input to prevent DoS attacks."""
+        import time
+
+        # Create malicious input: ~600KB JSON array
+        malicious_input = '[' + '1,' * 100_000 + '1]'
+
+        start = time.perf_counter()
+        parser = from_type(list[int])
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_rejects_excessively_long_json_dict(self) -> None:
+        """Reject extremely long JSON dict input to prevent DoS attacks."""
+        import time
+
+        # Create malicious input: ~600KB JSON object
+        malicious_input = '{' + '"k": 1,' * 100_000 + '"x": 1}'
+
+        start = time.perf_counter()
+        parser = from_type(dict[str, int])
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_rejects_excessively_long_json_set(self) -> None:
+        """Reject extremely long JSON set input to prevent DoS attacks."""
+        import time
+
+        # Create malicious input: ~600KB JSON array for set
+        malicious_input = '[' + '1,' * 100_000 + '1]'
+
+        start = time.perf_counter()
+        parser = from_type(set[int])
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Verify both correctness AND performance
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_rejects_excessively_long_bare_list(self) -> None:
+        """Reject extremely long bare list input (list without type parameter)."""
+        import time
+
+        malicious_input = '[' + '1,' * 100_000 + '1]'
+
+        start = time.perf_counter()
+        parser = from_type(list)  # type: ignore[type-abstract]
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_rejects_excessively_long_bare_dict(self) -> None:
+        """Reject extremely long bare dict input (dict without type parameters)."""
+        import time
+
+        malicious_input = '{' + '"k": 1,' * 100_000 + '"x": 1}'
+
+        start = time.perf_counter()
+        parser = from_type(dict)  # type: ignore[type-abstract]
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_rejects_excessively_long_bare_set(self) -> None:
+        """Reject extremely long bare set input (set without type parameter)."""
+        import time
+
+        malicious_input = '[' + '1,' * 100_000 + '1]'
+
+        start = time.perf_counter()
+        parser = from_type(set)  # type: ignore[type-abstract]
+        result = parser(malicious_input)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        assert result.is_failure()
+        assert 'too large' in result.error_or('').lower()
+        assert elapsed_ms < 10, f'Rejection took {elapsed_ms:.2f}ms, should be < 10ms'
+
+    def it_accepts_normal_sized_inputs(self) -> None:
+        """Accept inputs within reasonable size limits."""
+        # Normal sized inputs (~1KB) should work fine
+        parser_list = from_type(list[int])
+        parser_dict = from_type(dict[str, int])
+        parser_set = from_type(set[str])
+
+        # Create normal inputs
+        list_input = '[' + ','.join(str(i) for i in range(100)) + ']'
+        dict_input = '{' + ','.join(f'"k{i}": {i}' for i in range(100)) + '}'
+        set_input = '[' + ','.join(f'"v{i}"' for i in range(100)) + ']'
+
+        # All should succeed
+        list_result = parser_list(list_input)
+        dict_result = parser_dict(dict_input)
+        set_result = parser_set(set_input)
+
+        assert list_result.is_success()
+        assert dict_result.is_success()
+        assert set_result.is_success()

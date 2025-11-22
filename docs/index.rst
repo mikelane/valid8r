@@ -134,6 +134,7 @@ Contents
    user_guide/getting_started
    user_guide/maybe_monad
    user_guide/parsers
+   user_guide/type_adapters
    user_guide/validators
    user_guide/error_handling
    user_guide/prompting
