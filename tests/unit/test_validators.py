@@ -1150,6 +1150,36 @@ class DescribeHasExtension:
         assert result.is_failure()
         assert 'allowed extensions' in result.error_or('').lower()
 
+    def it_accepts_file_with_list_of_extensions(self, tmp_path: Path) -> None:
+        """Test has_extension accepts a list of extensions (bug fix for #206)."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .pdf extension
+        test_file = tmp_path / 'document.pdf'
+        test_file.write_text('content')
+
+        # This should work: passing a list of extensions
+        validator = has_extension(['.pdf', '.docx'])
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
+    def it_accepts_file_with_tuple_of_extensions(self, tmp_path: Path) -> None:
+        """Test has_extension accepts a tuple of extensions."""
+        from valid8r.core.validators import has_extension
+
+        # Create file with .docx extension
+        test_file = tmp_path / 'document.docx'
+        test_file.write_text('content')
+
+        # This should work: passing a tuple of extensions
+        validator = has_extension(('.pdf', '.doc', '.docx'))
+        result = validator(test_file)
+
+        assert result.is_success()
+        assert result.value_or(None) == test_file
+
     def it_lists_all_allowed_extensions_in_error(self, tmp_path: Path) -> None:
         """Test has_extension error message includes all allowed extensions."""
         from valid8r.core.validators import has_extension

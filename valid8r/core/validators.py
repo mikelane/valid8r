@@ -915,7 +915,7 @@ def min_size(min_bytes: int) -> Validator[Path]:
     return Validator(validator)
 
 
-def has_extension(*extensions: str) -> Validator[Path]:
+def has_extension(*extensions: str | list[str] | tuple[str, ...]) -> Validator[Path]:
     """Create a validator that ensures a file has one of the allowed extensions.
 
     Validates that a file's extension matches one of the specified extensions.
@@ -923,6 +923,7 @@ def has_extension(*extensions: str) -> Validator[Path]:
 
     Args:
         *extensions: Variable number of allowed file extensions (e.g., '.pdf', '.txt')
+                    or a single list/tuple of extensions (e.g., ['.pdf', '.txt'])
 
     Returns:
         Validator[Path]: A validator function that checks file extension
@@ -939,11 +940,18 @@ def has_extension(*extensions: str) -> Validator[Path]:
         ...     has_extension('.pdf')(path).is_success()
         7
         True
-        >>> # Multiple extensions
+        >>> # Multiple extensions (variadic)
         >>> with tempfile.TemporaryDirectory() as tmpdir:
         ...     path = Path(tmpdir) / 'document.docx'
         ...     path.write_text('content')
         ...     has_extension('.pdf', '.doc', '.docx')(path).is_success()
+        7
+        True
+        >>> # Multiple extensions (list)
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     path = Path(tmpdir) / 'document.docx'
+        ...     path.write_text('content')
+        ...     has_extension(['.pdf', '.doc', '.docx'])(path).is_success()
         7
         True
         >>> # Case-insensitive
@@ -963,20 +971,25 @@ def has_extension(*extensions: str) -> Validator[Path]:
         True
 
     """
+    # Normalize extensions: if first arg is a list/tuple, use it; otherwise use all args
+    if len(extensions) == 1 and isinstance(extensions[0], (list, tuple)):
+        ext_list: tuple[str, ...] = tuple(extensions[0])
+    else:
+        ext_list = tuple(str(ext) for ext in extensions)
 
     def validator(value: Path) -> Maybe[Path]:
         # Get the file extension (lowercase for case-insensitive comparison)
         file_ext = value.suffix.lower()
 
         # Normalize allowed extensions to lowercase, filtering out empty strings
-        allowed_exts = {ext.lower() for ext in extensions if ext}
+        allowed_exts = {ext.lower() for ext in ext_list if ext}
 
         # Check if file extension is in allowed set (and not empty)
         if file_ext and file_ext in allowed_exts:
             return Maybe.success(value)
 
         # Format error message with all allowed extensions
-        exts_list = ', '.join(sorted(ext for ext in extensions if ext))
+        exts_list = ', '.join(sorted(ext for ext in ext_list if ext))
         return Maybe.failure(f'File extension {file_ext or "(none)"} not in allowed extensions: {exts_list}')
 
     return Validator(validator)
