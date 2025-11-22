@@ -14,10 +14,12 @@ from valid8r.core.parsers import (
     parse_ipv6,
     parse_url,
 )
+from valid8r.core.type_adapters import from_type
 
 __all__ = [
     'EmailAddress',
     'UrlParts',
+    'from_type',
     'parse_cidr',
     'parse_email',
     'parse_ip',

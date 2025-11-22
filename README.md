@@ -179,6 +179,49 @@ result = parsers.parse_dict(
 )
 ```
 
+### Type-Based Parser Generation
+
+Automatically generate parsers from Python type annotations:
+
+```python
+from typing import Annotated, Literal, Optional
+from valid8r.core.type_adapters import from_type
+from valid8r import validators
+
+# Generate parser from type annotation
+parser = from_type(int)
+result = parser('42')
+assert result.value_or(None) == 42
+
+# Optional types handle None automatically
+parser = from_type(Optional[int])
+assert parser('').value_or('not none') is None  # Empty string becomes None
+assert parser('42').value_or(None) == 42
+
+# Collections with element validation
+parser = from_type(list[int])
+result = parser('[1, 2, 3, 4, 5]')
+assert result.value_or([]) == [1, 2, 3, 4, 5]
+
+# Nested structures
+parser = from_type(dict[str, list[int]])
+result = parser('{"scores": [95, 87, 92]}')
+assert result.value_or({}) == {'scores': [95, 87, 92]}
+
+# Combine types with validators using Annotated
+Age = Annotated[int, validators.minimum(0), validators.maximum(120)]
+parser = from_type(Age)
+assert parser('25').value_or(None) == 25
+assert parser('150').is_failure()  # Exceeds maximum
+
+# Literal types for restricted values
+parser = from_type(Literal['red', 'green', 'blue'])
+assert parser('red').value_or(None) == 'red'
+assert parser('yellow').is_failure()  # Not in literal set
+```
+
+**Security**: All collection parsers include automatic DoS protection—inputs exceeding 100KB are rejected in <10ms before expensive JSON parsing.
+
 ### Filesystem Parsing and Validation
 
 ```python
