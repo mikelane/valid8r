@@ -402,7 +402,7 @@ class DescribeFromTypeAnnotated:
         from valid8r.core.type_adapters import _handle_annotated_type
 
         # Can't create Annotated[] with no args, but we can test error handling
-        with pytest.raises(ValueError, match='.*base type.*'):
+        with pytest.raises(ValueError, match=r'.*base type.*'):
             _handle_annotated_type(())  # Empty args tuple
 
     def it_generates_parser_for_annotated_with_non_callable_metadata(self) -> None:
