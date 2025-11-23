@@ -18,6 +18,7 @@ import pytest
 
 if TYPE_CHECKING:
     from valid8r.core.maybe import Maybe
+    from valid8r.core.parsers import EmailAddress
 
 
 class DescribeMaybeBindAsync:
@@ -85,11 +86,9 @@ class DescribeMaybeBindAsync:
             await asyncio.sleep(0.001)
             return Maybe.success(x + 10)
 
-        result = await (
-            Maybe.success(5)
-            .bind_async(async_double)  # 10
-            .bind_async(async_add_ten)  # 20
-        )
+        # Chain async operations by awaiting each step
+        result = await Maybe.success(5).bind_async(async_double)  # 10
+        result = await result.bind_async(async_add_ten)  # 20
 
         assert result.value_or(None) == 20
 
@@ -132,7 +131,7 @@ class DescribeSchemaValidateAsync:
         )
         from valid8r.core.maybe import Maybe
 
-        async def async_validator(val: str) -> Maybe[str]:
+        async def async_validator(_val: str) -> Maybe[str]:
             await asyncio.sleep(0.001)
             return Maybe.failure('async validation failed')
 
@@ -145,7 +144,11 @@ class DescribeSchemaValidateAsync:
         result = await s.validate_async({'field': 'value'})
 
         assert result.is_failure()
-        assert 'async validation failed' in str(result.error_or(''))
+        # Result contains list of ValidationErrors, check the validation_error list
+        errors = result.validation_error
+        assert isinstance(errors, list)
+        assert len(errors) == 1
+        assert 'async validation failed' in errors[0].message
 
     @pytest.mark.asyncio
     async def it_runs_sync_validators_before_async(self) -> None:
@@ -161,7 +164,7 @@ class DescribeSchemaValidateAsync:
 
         def sync_validator(val: str) -> Maybe[str]:
             execution_order.append('sync')
-            return validators.minimum_length(3)(val)
+            return validators.length(3, 100)(val)
 
         async def async_validator(val: str) -> Maybe[str]:
             execution_order.append('async')
@@ -202,7 +205,7 @@ class DescribeSchemaValidateAsync:
             fields={
                 'field': schema.Field(
                     parser=parsers.parse_str,
-                    validators=[validators.minimum_length(10), async_validator],  # Sync will fail
+                    validators=[validators.length(10, 100), async_validator],  # Sync will fail
                     required=True,
                 ),
             }
@@ -300,9 +303,8 @@ class DescribeSchemaValidateAsync:
             parsers,
             schema,
         )
-        from valid8r.core.maybe import Maybe
 
-        async def failing_validator(val: str) -> Maybe[str]:
+        async def failing_validator(_val: str) -> Maybe[str]:
             await asyncio.sleep(0.001)
             raise ValueError('Unexpected error in validator')
 
@@ -316,7 +318,10 @@ class DescribeSchemaValidateAsync:
 
         # Exception should be caught and converted to Failure
         assert result.is_failure()
-        assert 'Unexpected error' in str(result.error_or(''))
+        errors = result.validation_error
+        assert isinstance(errors, list)
+        assert len(errors) == 1
+        assert 'Unexpected error' in errors[0].message
 
     @pytest.mark.asyncio
     async def it_validates_multiple_fields_with_mixed_validators(self) -> None:
@@ -328,18 +333,19 @@ class DescribeSchemaValidateAsync:
         )
         from valid8r.core.maybe import Maybe
 
-        async def async_unique_email(email: str) -> Maybe[str]:
+        async def async_unique_email(email_addr: EmailAddress) -> Maybe[EmailAddress]:
             await asyncio.sleep(0.001)
             # Mock uniqueness check
-            if email == 'existing@example.com':
+            email_str = f'{email_addr.local}@{email_addr.domain}'
+            if email_str == 'existing@example.com':
                 return Maybe.failure('Email already registered')
-            return Maybe.success(email)
+            return Maybe.success(email_addr)
 
         s = schema.Schema(
             fields={
                 'username': schema.Field(
                     parser=parsers.parse_str,
-                    validators=[validators.minimum_length(3)],
+                    validators=[validators.length(3, 100)],
                     required=True,
                 ),
                 'email': schema.Field(
@@ -355,11 +361,13 @@ class DescribeSchemaValidateAsync:
             }
         )
 
-        result = await s.validate_async({
-            'username': 'alice',
-            'email': 'alice@example.com',
-            'age': '25',
-        })
+        result = await s.validate_async(
+            {
+                'username': 'alice',
+                'email': 'alice@example.com',
+                'age': '25',
+            }
+        )
 
         assert result.is_success()
         data = result.value_or({})

@@ -138,10 +138,9 @@ def step_database_with_email(context: Context, email: str) -> None:
 
 
 @given('a user database without email "{email}"')
-def step_database_without_email(context: Context, email: str) -> None:  # noqa: ARG001
+def step_database_without_email(context: Context, email: str) -> None:
     """Ensure email is not in mock database."""
     # Email is not added, so it won't exist
-    pass
 
 
 @when('I validate user registration with email "{email}"')
@@ -156,11 +155,13 @@ def step_validate_user_registration(context: Context, email: str) -> None:
     ac = get_async_context(context)
 
     # Create async validator for email uniqueness
-    async def unique_email(email_str: str) -> Maybe[str]:
+    async def unique_email(email_addr: Any) -> Maybe:  # noqa: ANN401
+        # EmailAddress object from parser, need to reconstruct email string
+        email_str = f'{email_addr.local}@{email_addr.domain}'
         exists = await ac.database.has_email(email_str)
         if exists:
             return Maybe.failure('Email already registered')
-        return Maybe.success(email_str)
+        return Maybe.success(email_addr)
 
     # Create schema with async validator
     ac.schema = schema.Schema(
@@ -188,10 +189,9 @@ def step_api_recognizes_key(context: Context, key: str) -> None:
 
 
 @given('an external API that rejects key "{key}"')
-def step_api_rejects_key(context: Context, key: str) -> None:  # noqa: ARG001
+def step_api_rejects_key(context: Context, key: str) -> None:
     """Ensure API key is not in valid keys."""
     # Key is not added, so it will be rejected
-    pass
 
 
 @when('I validate configuration with API key "{key}"')
@@ -311,21 +311,27 @@ def step_schema_with_mixed_validators(context: Context) -> None:
     from valid8r.core import (
         parsers,
         schema,
-        validators,
     )
     from valid8r.core.maybe import Maybe
 
     ac = get_async_context(context)
 
-    async def async_validator(val: str) -> Maybe[str]:
+    # Sync validator that works with EmailAddress
+    def sync_validator(email_addr: Any) -> Maybe:  # noqa: ANN401
+        # Simple check that email domain is not empty
+        if not email_addr.domain:
+            return Maybe.failure('Email domain cannot be empty')
+        return Maybe.success(email_addr)
+
+    async def async_validator(email_addr: Any) -> Maybe:  # noqa: ANN401
         await asyncio.sleep(0.01)
-        return Maybe.success(val)
+        return Maybe.success(email_addr)
 
     ac.schema = schema.Schema(
         fields={
             'email': schema.Field(
                 parser=parsers.parse_email,
-                validators=[validators.non_empty_string(), async_validator],
+                validators=[sync_validator, async_validator],
                 required=True,
             ),
         }
@@ -372,7 +378,7 @@ def step_validate_with_timeout(context: Context, timeout: int) -> None:
 
     try:
         ac.result = asyncio.run(ac.schema.validate_async(ac.input_data, timeout=ac.timeout))
-    except asyncio.TimeoutError as e:
+    except TimeoutError as e:
         ac.result = e
 
 
@@ -427,9 +433,16 @@ def step_validation_fails_with(context: Context, error_substring: str) -> None:
     """Assert validation failed with specific error."""
     ac = get_async_context(context)
     assert ac.result.is_failure(), 'Expected failure but got success'
-    error = ac.result.error_or('')
-    assert unquote(error_substring).lower() in str(error).lower(), (
-        f'Expected error containing "{error_substring}" but got: {error}'
+    # Get validation errors (could be list or single error)
+    errors = ac.result.validation_error
+    if isinstance(errors, list):
+        # Convert list of ValidationErrors to string
+        error_str = ' '.join(err.message for err in errors)
+    else:
+        error_str = errors.message if hasattr(errors, 'message') else str(errors)
+
+    assert unquote(error_substring).lower() in error_str.lower(), (
+        f'Expected error containing "{error_substring}" but got: {error_str}'
     )
 
 
@@ -459,17 +472,15 @@ def step_validation_works_as_before(context: Context) -> None:
 
 
 @then('sync validators run first')
-def step_sync_validators_run_first(context: Context) -> None:  # noqa: ARG001
+def step_sync_validators_run_first(context: Context) -> None:
     """Assert sync validators run first."""
     # This is verified by the implementation (sync validators always run first)
-    pass
 
 
 @then('async validators run after')
-def step_async_validators_run_after(context: Context) -> None:  # noqa: ARG001
+def step_async_validators_run_after(context: Context) -> None:
     """Assert async validators run after sync validators."""
     # This is verified by the implementation
-    pass
 
 
 @then('all errors are collected')

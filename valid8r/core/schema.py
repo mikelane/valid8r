@@ -39,6 +39,8 @@ Examples:
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -61,14 +63,15 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Field:
-    """Schema field definition with parser, validator, and required flag.
+    """Schema field definition with parser, validators, and required flag.
 
     A Field represents a single field in a schema, specifying how to parse
     and validate the field value.
 
     Attributes:
         parser: Function that parses/validates the raw value, returns Maybe[T]
-        validator: Optional additional validation function to apply after parsing
+        validators: Optional list of validation functions to apply after parsing
+        validator: Deprecated single validator (for backward compatibility)
         required: Whether the field must be present in the input
 
     Examples:
@@ -85,21 +88,32 @@ class Field:
         >>> field.required
         False
 
-        Field with parser and validator:
+        Field with parser and validators:
 
         >>> from valid8r.core import validators
+        >>> field = Field(
+        ...     parser=parsers.parse_int,
+        ...     validators=[validators.minimum(0), validators.maximum(100)],
+        ...     required=True
+        ... )
+        >>> len(field.validators)
+        2
+
+        Field with single validator (backward compatible):
+
         >>> field = Field(
         ...     parser=parsers.parse_int,
         ...     validator=validators.minimum(0),
         ...     required=True
         ... )
-        >>> field.validator is not None
+        >>> field.validators is not None
         True
 
     """
 
     parser: Callable[[Any], Maybe[Any]]
     required: bool
+    validators: list[Callable[[Any], Maybe[Any]]] | None = None
     validator: Callable[[Any], Maybe[Any]] | None = None
 
 
@@ -237,6 +251,258 @@ class Schema:
             return Failure(errors)  # type: ignore[arg-type]
         return Success(validated_data)
 
+    async def validate_async(
+        self,
+        data: dict[str, Any] | Any,  # noqa: ANN401
+        path: str = '',
+        *,
+        timeout: float | None = None,  # noqa: ASYNC109
+    ) -> Maybe[dict[str, Any]]:
+        """Validate data against the schema asynchronously with async validators.
+
+        This method validates input data supporting both sync and async validators.
+        Sync validators are run first for fail-fast behavior, then async validators
+        are run concurrently for better performance.
+
+        Args:
+            data: Input data to validate (must be dict-like)
+            path: Current field path for nested validation (internal use)
+            timeout: Optional timeout in seconds for async operations
+
+        Returns:
+            Success[dict]: Validated and parsed data if all fields pass
+            Failure[list[ValidationError]]: List of all validation errors
+
+        Raises:
+            asyncio.TimeoutError: If validation exceeds the timeout
+
+        Examples:
+            Basic async validation:
+
+            >>> import asyncio
+            >>> from valid8r.core import parsers, schema
+            >>> from valid8r.core.maybe import Maybe
+            >>> async def async_validator(val: str) -> Maybe[str]:
+            ...     await asyncio.sleep(0.001)
+            ...     return Maybe.success(val)
+            >>> s = schema.Schema(fields={
+            ...     'field': schema.Field(
+            ...         parser=parsers.parse_str,
+            ...         validators=[async_validator],
+            ...         required=True
+            ...     ),
+            ... })
+            >>> result = asyncio.run(s.validate_async({'field': 'value'}))
+            >>> result.is_success()
+            True
+
+            With timeout:
+
+            >>> async def slow_validator(val: str) -> Maybe[str]:
+            ...     await asyncio.sleep(2.0)
+            ...     return Maybe.success(val)
+            >>> s = schema.Schema(fields={
+            ...     'field': schema.Field(
+            ...         parser=parsers.parse_str,
+            ...         validators=[slow_validator],
+            ...         required=True
+            ...     ),
+            ... })
+            >>> try:
+            ...     result = asyncio.run(s.validate_async({'field': 'value'}, timeout=0.1))
+            ... except asyncio.TimeoutError:
+            ...     print("Timed out")
+            Timed out
+
+        """
+        # Validate that input is dict-like
+        if not isinstance(data, dict):
+            error = ValidationError(
+                code=ErrorCode.INVALID_TYPE,
+                message=f'Expected dict, got {type(data).__name__}',
+                path=path,
+                context={'input_type': type(data).__name__},
+            )
+            return Failure([error])  # type: ignore[arg-type]
+
+        errors: list[ValidationError] = []
+        validated_data: dict[str, Any] = {}
+
+        # Check for extra fields in strict mode
+        self._check_extra_fields(data, path, errors)
+
+        # Collect validation tasks for concurrent execution
+        validation_tasks = []
+        for field_name, field_def in self.fields.items():
+            field_path = f'{path}.{field_name}' if path else f'.{field_name}'
+
+            # Check if field is present in input
+            if field_name not in data:
+                self._handle_missing_field(field_name, field_def, field_path, errors)
+                continue
+
+            # Create validation task for each field
+            raw_value = data[field_name]
+            task = self._parse_and_validate_field_async(
+                field_name, field_def, raw_value, field_path, validated_data, errors, timeout
+            )
+            validation_tasks.append(task)
+
+        # Run all field validations concurrently
+        if validation_tasks:
+            if timeout:
+                await asyncio.wait_for(asyncio.gather(*validation_tasks), timeout=timeout)
+            else:
+                await asyncio.gather(*validation_tasks)
+
+        # Return accumulated errors or success
+        if errors:
+            return Failure(errors)  # type: ignore[arg-type]
+        return Success(validated_data)
+
+    async def _parse_and_validate_field_async(  # noqa: PLR0913
+        self,
+        field_name: str,
+        field_def: Field,
+        raw_value: Any,  # noqa: ANN401
+        field_path: str,
+        validated_data: dict[str, Any],
+        errors: list[ValidationError],
+        timeout: float | None = None,  # noqa: ASYNC109
+    ) -> None:
+        """Parse and validate a single field value asynchronously.
+
+        Args:
+            field_name: Name of the field
+            field_def: Field definition with parser and validators
+            raw_value: Raw input value to parse
+            field_path: Full path to the field
+            validated_data: Dictionary to accumulate validated values
+            errors: List to accumulate errors
+            timeout: Optional timeout for async operations
+
+        """
+        parse_result = field_def.parser(raw_value)
+
+        match parse_result:
+            case Success(parsed_value):
+                await self._apply_validators_async(
+                    field_name, field_def, parsed_value, field_path, validated_data, errors, timeout
+                )
+            case Failure() as failure_result:
+                self._handle_parse_failure(failure_result, field_name, raw_value, field_path, errors)
+
+    async def _apply_validators_async(  # noqa: PLR0913, PLR0912, C901
+        self,
+        field_name: str,
+        field_def: Field,
+        parsed_value: Any,  # noqa: ANN401
+        field_path: str,
+        validated_data: dict[str, Any],
+        errors: list[ValidationError],
+        timeout: float | None = None,  # noqa: ASYNC109
+    ) -> None:
+        """Apply sync and async validators to parsed value.
+
+        This method runs sync validators first (fail-fast), then runs async
+        validators concurrently if sync validators pass.
+
+        Args:
+            field_name: Name of the field
+            field_def: Field definition with optional validators
+            parsed_value: Successfully parsed value
+            field_path: Full path to the field
+            validated_data: Dictionary to accumulate validated values
+            errors: List to accumulate errors
+            timeout: Optional timeout for async operations
+
+        """
+        # Combine validators and validator into a single list
+        validators_to_apply = []
+        if field_def.validators:
+            validators_to_apply.extend(field_def.validators)
+        elif field_def.validator:
+            # Backward compatibility: convert single validator to list
+            validators_to_apply.append(field_def.validator)
+
+        if not validators_to_apply:
+            validated_data[field_name] = parsed_value
+            return
+
+        # Separate sync and async validators
+        sync_validators = [v for v in validators_to_apply if not inspect.iscoroutinefunction(v)]
+        async_validators = [v for v in validators_to_apply if inspect.iscoroutinefunction(v)]
+
+        # Run sync validators first (fail-fast)
+        current_value = parsed_value
+        for validator in sync_validators:
+            validation_result = validator(current_value)
+            match validation_result:
+                case Success(validated_value):
+                    current_value = validated_value
+                case Failure() as failure_result:
+                    self._handle_validation_failure(failure_result, field_name, current_value, field_path, errors)
+                    return  # Stop if sync validation fails
+
+        # Run async validators concurrently
+        if async_validators:
+            try:
+                async_task = self._run_async_validators(async_validators, current_value)
+                if timeout:
+                    async_result = await asyncio.wait_for(async_task, timeout=timeout)
+                else:
+                    async_result = await async_task
+
+                match async_result:
+                    case Success(validated_value):
+                        current_value = validated_value
+                    case Failure() as failure_result:
+                        self._handle_validation_failure(failure_result, field_name, current_value, field_path, errors)
+                        return
+            except TimeoutError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                # Convert exception to validation error
+                error = ValidationError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message=f'Unexpected error in validator: {e!s}',
+                    path=field_path,
+                    context={'field': field_name, 'error': str(e)},
+                )
+                errors.append(error)
+                return
+
+        validated_data[field_name] = current_value
+
+    async def _run_async_validators(
+        self,
+        async_validators: list[Callable[[Any], Any]],
+        value: Any,  # noqa: ANN401
+    ) -> Maybe[Any]:
+        """Run async validators sequentially on a value.
+
+        Args:
+            async_validators: List of async validator functions
+            value: Value to validate
+
+        Returns:
+            Maybe with final validated value or first error
+
+        """
+        current_value = value
+        for validator in async_validators:
+            try:
+                result = await validator(current_value)
+                match result:
+                    case Success(validated_value):
+                        current_value = validated_value
+                    case Failure() as failure:
+                        return failure
+            except Exception as e:  # noqa: BLE001
+                return Maybe.failure(f'Unexpected error in validator: {e!s}')
+
+        return Maybe.success(current_value)
+
     def _check_extra_fields(self, data: dict[str, Any], path: str, errors: list[ValidationError]) -> None:
         """Check for extra fields in strict mode and add errors.
 
@@ -328,27 +594,48 @@ class Schema:
         validated_data: dict[str, Any],
         errors: list[ValidationError],
     ) -> None:
-        """Apply validator to parsed value if validator is present.
+        """Apply validators to parsed value if validators are present.
+
+        This method handles both the new validators list and the deprecated
+        single validator for backward compatibility.
 
         Args:
             field_name: Name of the field
-            field_def: Field definition with optional validator
+            field_def: Field definition with optional validators
             parsed_value: Successfully parsed value
             field_path: Full path to the field
             validated_data: Dictionary to accumulate validated values
             errors: List to accumulate errors
 
         """
-        if field_def.validator is None:
+        # Combine validators and validator into a single list
+        validators_to_apply = []
+        if field_def.validators:
+            validators_to_apply.extend(field_def.validators)
+        elif field_def.validator:
+            # Backward compatibility: convert single validator to list
+            validators_to_apply.append(field_def.validator)
+
+        if not validators_to_apply:
             validated_data[field_name] = parsed_value
             return
 
-        validation_result = field_def.validator(parsed_value)
-        match validation_result:
-            case Success(validated_value):
-                validated_data[field_name] = validated_value
-            case Failure() as failure_result:
-                self._handle_validation_failure(failure_result, field_name, parsed_value, field_path, errors)
+        # Apply validators sequentially (sync validators only)
+        current_value = parsed_value
+        for validator in validators_to_apply:
+            # Skip async validators in sync validation
+            if inspect.iscoroutinefunction(validator):
+                continue
+
+            validation_result = validator(current_value)
+            match validation_result:
+                case Success(validated_value):
+                    current_value = validated_value
+                case Failure() as failure_result:
+                    self._handle_validation_failure(failure_result, field_name, current_value, field_path, errors)
+                    return
+
+        validated_data[field_name] = current_value
 
     def _handle_parse_failure(
         self,
