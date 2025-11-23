@@ -70,6 +70,7 @@ def from_type(annotation: type[T] | Any) -> Callable[[str], Maybe[T]]:  # noqa: 
 
         Optional type handling:
 
+        >>> from typing import Optional, Union
         >>> parser = from_type(Optional[int])
         >>> parser('').value_or('not none')  # Empty string becomes None
         >>> parser('42').value_or(None)

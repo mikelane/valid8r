@@ -299,7 +299,7 @@ def matches_regex(pattern: str | re.Pattern[str], error_message: str | None = No
         >>> from valid8r.core.validators import matches_regex
         >>> import re
         >>> # String pattern
-        >>> validator = matches_regex(r'^\\d{3}-\\d{2}-\\d{4}$')
+        >>> validator = matches_regex(r'^\d{3}-\d{2}-\d{4}$')
         >>> validator('123-45-6789')
         Success('123-45-6789')
         >>> validator('invalid').is_failure()
@@ -312,7 +312,7 @@ def matches_regex(pattern: str | re.Pattern[str], error_message: str | None = No
         >>> validator('hello').is_failure()
         True
         >>> # With custom error message
-        >>> validator = matches_regex(r'^\\d{5}$', error_message='Must be a 5-digit ZIP code')
+        >>> validator = matches_regex(r'^\d{5}$', error_message='Must be a 5-digit ZIP code')
         >>> validator('1234').error_or('')
         'Must be a 5-digit ZIP code'
 

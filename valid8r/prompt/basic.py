@@ -115,45 +115,49 @@ def ask(  # noqa: PLR0913
         Maybe[T]: Success with validated input, or Failure with error message
 
     Examples:
-        >>> from valid8r.core import parsers, validators
-        >>> from valid8r.prompt import ask
-        >>>
-        >>> # Basic integer input with validation
-        >>> result = ask(
-        ...     "Enter your age: ",
-        ...     parser=parsers.parse_int,
-        ...     validator=validators.between(0, 120),
-        ...     retry=True
-        ... )
-        >>> # User enters "25" -> Success(25)
-        >>> # User enters "invalid" -> prompts again with error message
-        >>>
-        >>> # Input with default value
-        >>> result = ask(
-        ...     "Enter port: ",
-        ...     parser=parsers.parse_int,
-        ...     default=8080
-        ... )
-        >>> # User presses Enter -> Success(8080)
-        >>> # User enters "3000" -> Success(3000)
-        >>>
-        >>> # Limited retries with custom error
-        >>> result = ask(
-        ...     "Email: ",
-        ...     parser=parsers.parse_email,
-        ...     error_message="Invalid email format",
-        ...     retry=3
-        ... )
-        >>> # User has 3 attempts to enter valid email
-        >>>
-        >>> # Boolean input with retry
-        >>> result = ask(
-        ...     "Continue? (yes/no): ",
-        ...     parser=parsers.parse_bool,
-        ...     retry=True
-        ... )
-        >>> # User enters "yes" -> Success(True)
-        >>> # User enters "maybe" -> error, retry prompt
+        Basic integer input with validation::
+
+            from valid8r.core import parsers, validators
+            from valid8r.prompt import ask
+
+            result = ask(
+                "Enter your age: ",
+                parser=parsers.parse_int,
+                validator=validators.between(0, 120),
+                retry=True
+            )
+            # User enters "25" -> Success(25)
+            # User enters "invalid" -> prompts again with error message
+
+        Input with default value::
+
+            result = ask(
+                "Enter port: ",
+                parser=parsers.parse_int,
+                default=8080
+            )
+            # User presses Enter -> Success(8080)
+            # User enters "3000" -> Success(3000)
+
+        Limited retries with custom error::
+
+            result = ask(
+                "Email: ",
+                parser=parsers.parse_email,
+                error_message="Invalid email format",
+                retry=3
+            )
+            # User has 3 attempts to enter valid email
+
+        Boolean input with retry::
+
+            result = ask(
+                "Continue? (yes/no): ",
+                parser=parsers.parse_bool,
+                retry=True
+            )
+            # User enters "yes" -> Success(True)
+            # User enters "maybe" -> error, retry prompt
 
     Note:
         The returned Maybe must be unwrapped to access the value.

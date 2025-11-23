@@ -279,4 +279,4 @@ Now that you understand the basics, you can explore:
 * :doc:`Advanced usage patterns </user_guide/advanced_usage>`
 * :doc:`Testing utilities </user_guide/testing>`
 
-Or jump right to the :doc:`API reference </api/core>` for comprehensive documentation of all functions and classes.
+Or jump right to the :doc:`API reference </autoapi/index>` for comprehensive documentation of all functions and classes.

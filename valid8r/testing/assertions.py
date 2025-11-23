@@ -28,8 +28,10 @@ def assert_maybe_success(result: Maybe[T], expected_value: Any) -> bool:  # noqa
 
     Examples:
         >>> result = Maybe.success(42)
-        >>> assert_maybe_success(result, 42)  # Returns True
-        >>> assert_maybe_success(result, 43)  # Returns False
+        >>> assert_maybe_success(result, 42)
+        True
+        >>> assert_maybe_success(result, 43)
+        False
 
     """
     match result:
@@ -51,8 +53,10 @@ def assert_maybe_failure(result: Maybe[T], expected_error: str) -> bool:
 
     Examples:
         >>> result = Maybe.failure("Invalid input")
-        >>> assert_maybe_failure(result, "Invalid input")  # Returns True
-        >>> assert_maybe_failure(result, "Other error")  # Returns False
+        >>> assert_maybe_failure(result, "Invalid input")
+        True
+        >>> assert_maybe_failure(result, "Other error")
+        False
 
     """
     match result:
