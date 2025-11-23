@@ -130,12 +130,13 @@ def example_nested_config() -> int:
     )
 
     # Main schema with nested configs
+    # Note: For nested schemas, parser must be None
     app_schema = EnvSchema(
         fields={
             'port': EnvField(parser=parse_int, default=8080),
             'debug': EnvField(parser=parse_bool, default=False),
-            'database': EnvField(nested=database_schema),
-            'cache': EnvField(nested=cache_schema),
+            'database': EnvField(parser=None, nested=database_schema),
+            'cache': EnvField(parser=None, nested=cache_schema),
         }
     )
 
