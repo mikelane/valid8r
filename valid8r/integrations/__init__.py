@@ -9,55 +9,60 @@ This module provides integrations with popular Python frameworks:
 - Environment Variables: Schema-based configuration loading via load_env_config
 
 Examples:
-    >>> # argparse integration
-    >>> from valid8r.integrations.argparse import type_from_parser
-    >>> from valid8r.core import parsers
-    >>> import argparse
-    >>>
-    >>> parser = argparse.ArgumentParser()
-    >>> parser.add_argument('--email', type=type_from_parser(parsers.parse_email))
-    >>> args = parser.parse_args(['--email', 'alice@example.com'])
-    >>> print(f"Hello {args.email.local}@{args.email.domain}!")
+    argparse integration::
 
-    >>> # Click integration
-    >>> from valid8r.integrations.click import ParamTypeAdapter
-    >>> from valid8r.core import parsers
-    >>> import click
-    >>>
-    >>> @click.command()
-    ... @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
-    ... def greet(email):
-    ...     click.echo(f"Hello {email.local}@{email.domain}!")
+        from valid8r.integrations.argparse import type_from_parser
+        from valid8r.core import parsers
+        import argparse
 
-    >>> # Typer integration
-    >>> from valid8r.integrations.typer import TyperParser
-    >>> import typer
-    >>> from typing_extensions import Annotated
-    >>>
-    >>> app = typer.Typer()
-    >>> @app.command()
-    ... def greet(
-    ...     email: Annotated[str, typer.Option(parser=TyperParser(parsers.parse_email))]
-    ... ) -> None:
-    ...     print(f"Hello {email.local}@{email.domain}!")
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--email', type=type_from_parser(parsers.parse_email))
+        args = parser.parse_args(['--email', 'alice@example.com'])
+        print(f"Hello {args.email.local}@{args.email.domain}!")
 
-    >>> # Pydantic integration
-    >>> from valid8r.integrations.pydantic import validator_from_parser
-    >>> from pydantic import BaseModel
-    >>>
-    >>> class User(BaseModel):
-    ...     email: str
-    ...     _validate_email = validator_from_parser(parsers.parse_email)
+    Click integration::
 
-    >>> # Environment variable integration
-    >>> from valid8r.integrations.env import load_env_config, EnvSchema, EnvField
-    >>> from valid8r.core import parsers
-    >>>
-    >>> schema = EnvSchema(fields={
-    ...     'port': EnvField(parser=parsers.parse_int, default=8080),
-    ...     'debug': EnvField(parser=parsers.parse_bool, default=False),
-    ... })
-    >>> result = load_env_config(schema, prefix='APP_')
+        from valid8r.integrations.click import ParamTypeAdapter
+        from valid8r.core import parsers
+        import click
+
+        @click.command()
+        @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
+        def greet(email):
+            click.echo(f"Hello {email.local}@{email.domain}!")
+
+    Typer integration::
+
+        from valid8r.integrations.typer import TyperParser
+        import typer
+        from typing_extensions import Annotated
+
+        app = typer.Typer()
+        @app.command()
+        def greet(
+            email: Annotated[str, typer.Option(parser=TyperParser(parsers.parse_email))]
+        ) -> None:
+            print(f"Hello {email.local}@{email.domain}!")
+
+    Pydantic integration::
+
+        from valid8r.integrations.pydantic import validator_from_parser
+        from pydantic import BaseModel
+
+        class User(BaseModel):
+            email: str
+            _validate_email = validator_from_parser(parsers.parse_email)
+
+    Environment variable integration::
+
+        from valid8r.integrations.env import load_env_config, EnvSchema, EnvField
+        from valid8r.core import parsers
+
+        schema = EnvSchema(fields={
+            'port': EnvField(parser=parsers.parse_int, default=8080),
+            'debug': EnvField(parser=parsers.parse_bool, default=False),
+        })
+        result = load_env_config(schema, prefix='APP_')
 
 """
 

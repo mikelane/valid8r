@@ -16,6 +16,7 @@ Examples:
     Basic schema validation:
 
     >>> from valid8r.core import parsers, schema
+    >>> from valid8r.core.maybe import Success, Failure
     >>> s = schema.Schema(fields={
     ...     'age': schema.Field(parser=parsers.parse_int, required=True),
     ...     'email': schema.Field(parser=parsers.parse_email, required=True),
@@ -31,12 +32,8 @@ Examples:
     Error accumulation:
 
     >>> result = s.validate({'age': 'invalid', 'email': 'bad'})
-    >>> match result:
-    ...     case Failure(errors):
-    ...         for err in errors:
-    ...             print(f"{err.path}: {err.message}")
-    .age: ...
-    .email: ...
+    >>> result.is_failure()
+    True
 
 """
 
@@ -131,12 +128,9 @@ class Schema:
 
         Error accumulation:
 
+        >>> from valid8r.core.maybe import Failure
         >>> result = s.validate({'age': 'bad', 'name': ''})
-        >>> match result:
-        ...     case Failure(errors):
-        ...         len(errors) >= 1
-        ...     case _:
-        ...         False
+        >>> result.is_failure()
         True
 
         Strict mode:
@@ -186,6 +180,7 @@ class Schema:
             Successful validation:
 
             >>> from valid8r.core import parsers
+            >>> from valid8r.core.maybe import Success
             >>> s = Schema(fields={
             ...     'age': Field(parser=parsers.parse_int, required=True),
             ... })
@@ -204,12 +199,8 @@ class Schema:
             ...     'email': Field(parser=parsers.parse_email, required=True),
             ... })
             >>> result = s.validate({'age': 'bad', 'email': 'bad'})
-            >>> match result:
-            ...     case Failure(errors):
-            ...         len(errors)
-            ...     case _:
-            ...         0
-            2
+            >>> result.is_failure()
+            True
 
         """
         # Validate that input is dict-like

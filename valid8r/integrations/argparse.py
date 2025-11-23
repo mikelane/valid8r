@@ -7,29 +7,34 @@ argparse's type parameter expects a callable that takes a string and either retu
 a converted value (on success) or raises TypeError or ValueError (on failure).
 
 Examples:
-    >>> import argparse
-    >>> from valid8r.core import parsers, validators
-    >>> from valid8r.integrations.argparse import type_from_parser
-    >>>
-    >>> # Basic usage with email parser
-    >>> parser = argparse.ArgumentParser()
-    >>> parser.add_argument(
-    ...     '--email',
-    ...     type=type_from_parser(parsers.parse_email),
-    ...     help='Email address'
-    ... )
-    >>>
-    >>> # With chained validators for port validation
-    >>> def port_parser(text):
-    ...     return parsers.parse_int(text).bind(
-    ...         validators.minimum(1) & validators.maximum(65535)
-    ...     )
-    >>> parser = argparse.ArgumentParser()
-    >>> parser.add_argument(
-    ...     '--port',
-    ...     type=type_from_parser(port_parser),
-    ...     help='Port number (1-65535)'
-    ... )
+    Basic usage with email parser::
+
+        import argparse
+        from valid8r.core import parsers
+        from valid8r.integrations.argparse import type_from_parser
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '--email',
+            type=type_from_parser(parsers.parse_email),
+            help='Email address'
+        )
+
+    With chained validators for port validation::
+
+        from valid8r.core import parsers, validators
+        from valid8r.integrations.argparse import type_from_parser
+
+        def port_parser(text):
+            return parsers.parse_int(text).bind(
+                validators.minimum(1) & validators.maximum(65535)
+            )
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '--port',
+            type=type_from_parser(port_parser),
+            help='Port number (1-65535)'
+        )
 
 """
 

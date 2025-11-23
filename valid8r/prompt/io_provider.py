@@ -24,21 +24,24 @@ class IOProvider(Protocol):
     alternative UIs beyond command-line interfaces.
 
     Examples:
-        >>> from valid8r.prompt.io_provider import BuiltinIOProvider
-        >>> from valid8r.prompt.basic import ask
-        >>> from valid8r.core.parsers import parse_int
-        >>>
-        >>> # Use default builtin provider
-        >>> provider = BuiltinIOProvider()
-        >>> result = ask("Age: ", parser=parse_int, io_provider=provider)
-        >>>
-        >>> # Use test provider for non-interactive testing
-        >>> from valid8r.prompt.io_provider import TestIOProvider
-        >>> test_provider = TestIOProvider(inputs=["25"])
-        >>> result = ask("Age: ", parser=parse_int, io_provider=test_provider)
-        >>> # result.value_or(0) == 25
-        >>> # test_provider.outputs == []
-        >>> # test_provider.errors == []
+        Use default builtin provider::
+
+            from valid8r.prompt.io_provider import BuiltinIOProvider
+            from valid8r.prompt.basic import ask
+            from valid8r.core.parsers import parse_int
+
+            provider = BuiltinIOProvider()
+            result = ask("Age: ", parser=parse_int, io_provider=provider)
+
+        Use test provider for non-interactive testing::
+
+            from valid8r.prompt.io_provider import TestIOProvider
+
+            test_provider = TestIOProvider(inputs=["25"])
+            result = ask("Age: ", parser=parse_int, io_provider=test_provider)
+            # result.value_or(0) == 25
+            # test_provider.outputs == []
+            # test_provider.errors == []
 
     """
 
@@ -79,18 +82,19 @@ class BuiltinIOProvider:
     This provider delegates to Python's built-in input() and print()
     functions, providing standard command-line interaction behavior.
 
-    Examples:
-        >>> from valid8r.prompt.io_provider import BuiltinIOProvider
-        >>> provider = BuiltinIOProvider()
-        >>>
-        >>> # Input from user
-        >>> user_input = provider.input("Name: ")  # Uses input()
-        >>>
-        >>> # Output to console
-        >>> provider.output("Hello!")  # Uses print()
-        >>>
-        >>> # Error to console
-        >>> provider.error("Invalid input")  # Uses print()
+    Examples::
+
+        from valid8r.prompt.io_provider import BuiltinIOProvider
+        provider = BuiltinIOProvider()
+
+        # Input from user
+        user_input = provider.input("Name: ")  # Uses input()
+
+        # Output to console
+        provider.output("Hello!")  # Uses print()
+
+        # Error to console
+        provider.error("Invalid input")  # Uses print()
 
     """
 

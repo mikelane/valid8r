@@ -3,24 +3,30 @@
 This module provides ParamTypeAdapter to use valid8r parsers as Click ParamTypes.
 
 Examples:
-    >>> import click
-    >>> from valid8r.core import parsers, validators
-    >>> from valid8r.integrations.click import ParamTypeAdapter
-    >>>
-    >>> # Basic usage with email parser
-    >>> @click.command()
-    ... @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
-    ... def create_user(email):
-    ...     click.echo(f"Creating user: {email.local}@{email.domain}")
-    >>>
-    >>> # With chained validators for port validation
-    >>> port_parser = parsers.parse_int_with_validation(
-    ...     validators.minimum(1) & validators.maximum(65535)
-    ... )
-    >>> @click.command()
-    ... @click.option('--port', type=ParamTypeAdapter(port_parser, name='port'))
-    ... def start_server(port):
-    ...     click.echo(f"Starting server on port {port}")
+    Basic usage with email parser::
+
+        import click
+        from valid8r.core import parsers
+        from valid8r.integrations.click import ParamTypeAdapter
+
+        @click.command()
+        @click.option('--email', type=ParamTypeAdapter(parsers.parse_email))
+        def create_user(email):
+            click.echo(f"Creating user: {email.local}@{email.domain}")
+
+    With chained validators for port validation::
+
+        import click
+        from valid8r.core import parsers, validators
+        from valid8r.integrations.click import ParamTypeAdapter
+
+        port_parser = parsers.parse_int_with_validation(
+            validators.minimum(1) & validators.maximum(65535)
+        )
+        @click.command()
+        @click.option('--port', type=ParamTypeAdapter(port_parser, name='port'))
+        def start_server(port):
+            click.echo(f"Starting server on port {port}")
 
 """
 

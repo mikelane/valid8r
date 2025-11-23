@@ -152,6 +152,7 @@ def generate_test_cases(validator: Validator[T]) -> dict[str, list[Any]]:
         A dictionary with 'valid' and 'invalid' lists of test cases
 
     Examples:
+        >>> from valid8r.core.validators import minimum
         >>> test_cases = generate_test_cases(minimum(10))
         >>> test_cases
         {'valid': [10, 11, 15, 20, 100], 'invalid': [9, 5, 0, -10]}
@@ -208,6 +209,7 @@ def generate_random_inputs(
         A list of random integers
 
     Examples:
+        >>> from valid8r.core.validators import minimum
         >>> inputs = generate_random_inputs(minimum(0), count=10)
         >>> len(inputs)
         10
@@ -261,8 +263,10 @@ def test_validator_composition(validator: Validator[T]) -> bool:
         True if the validator behaves as expected, False otherwise
 
     Examples:
+        >>> from valid8r.core.validators import minimum, maximum
         >>> is_valid_age = minimum(0) & maximum(120)
-        >>> test_validator_composition(is_valid_age)  # Returns True
+        >>> test_validator_composition(is_valid_age)
+        True
 
     """
     # Generate test cases
