@@ -498,6 +498,9 @@ class Schema:
                         current_value = validated_value
                     case Failure() as failure:
                         return failure
+            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+                # Never swallow cancellation or shutdown signals
+                raise
             except Exception as e:  # noqa: BLE001
                 return Maybe.failure(f'Unexpected error in validator: {e!s}')
 
