@@ -39,6 +39,31 @@ print(f"Your age is {age}")
 
 **Interactive Prompts**: Built-in user input prompting with automatic retry and validation.
 
+**High Performance**: Valid8r is [4-300x faster than Pydantic](docs/performance.md) for basic parsing, making it ideal for high-throughput APIs and batch processing.
+
+## Performance
+
+Valid8r is designed for high-performance validation with minimal overhead:
+
+| Scenario | valid8r | Pydantic | Speedup |
+|----------|---------|----------|---------|
+| Integer parsing | 375ns | 102µs | **273x faster** |
+| Nested objects | 37µs | 568µs | **15x faster** |
+| List (100 items) | 30µs | 126µs | **4x faster** |
+
+**When to use valid8r**:
+- High-throughput APIs (>5K requests/sec)
+- Batch processing pipelines
+- CLI tools requiring structured parsing
+- Performance-critical code paths
+
+**When to use Pydantic**:
+- FastAPI applications (tight integration)
+- Complex data models with auto-schema generation
+- Developer experience > raw performance
+
+**Full benchmarks and methodology**: [docs/performance.md](docs/performance.md)
+
 ## Quick Start
 
 ### Installation
