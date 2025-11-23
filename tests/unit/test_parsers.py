@@ -741,6 +741,143 @@ class DescribeParsers:
                 assert 'Invalid input' in error
 
 
+class DescribeParseStr:
+    """Tests for parse_str function."""
+
+    @pytest.mark.parametrize(
+        ('input_value', 'expected_value'),
+        [
+            pytest.param('hello world', 'hello world', id='regular-string'),
+            pytest.param('', '', id='empty-string'),
+            pytest.param('   ', '   ', id='whitespace-only'),
+            pytest.param('hello 世界 🌍', 'hello 世界 🌍', id='unicode-string'),
+            pytest.param('a' * 10000, 'a' * 10000, id='long-string-10k-chars'),
+        ],
+    )
+    def it_parses_valid_string_inputs(self, input_value: str, expected_value: str) -> None:
+        """Parse valid string inputs successfully."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str(input_value):
+            case Success(value):
+                assert value == expected_value
+                assert isinstance(value, str)
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    @pytest.mark.parametrize(
+        ('input_value', 'expected_type'),
+        [
+            pytest.param(None, 'None', id='none-input'),
+            pytest.param(42, 'int', id='integer-input'),
+            pytest.param(3.14, 'float', id='float-input'),
+            pytest.param(True, 'bool', id='boolean-input'),
+            pytest.param({'key': 'value'}, 'dict', id='dict-input'),
+            pytest.param(['a', 'b', 'c'], 'list', id='list-input'),
+            pytest.param({1, 2, 3}, 'set', id='set-input'),
+            pytest.param((1, 2, 3), 'tuple', id='tuple-input'),
+        ],
+    )
+    def it_rejects_non_string_types(self, input_value: Any, expected_type: str) -> None:  # noqa: ANN401
+        """Reject non-string types with appropriate error messages."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str(input_value):
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(error):
+                error_lower = error.lower()
+                if expected_type == 'None':
+                    assert 'cannot be none' in error_lower
+                else:
+                    assert 'expected string' in error_lower
+                    assert expected_type in error_lower
+
+    def it_accepts_custom_error_message(self) -> None:
+        """Accept custom error message for type validation failures."""
+        from valid8r.core.parsers import parse_str
+
+        custom_error = 'Invalid username format'
+        match parse_str(42, error_message=custom_error):
+            case Success(value):
+                pytest.fail(f'Expected failure but got success: {value}')
+            case Failure(error):
+                assert error == custom_error
+
+    def it_preserves_string_exactly_as_provided(self) -> None:
+        """Return string exactly as provided without modifications."""
+        from valid8r.core.parsers import parse_str
+
+        inputs = [
+            'hello',  # No stripping
+            '  spaces  ',  # Preserve leading/trailing whitespace
+            'MixedCase',  # Preserve case
+            '\n\ttabs\n',  # Preserve special characters
+        ]
+
+        for input_str in inputs:
+            match parse_str(input_str):
+                case Success(value):
+                    assert value == input_str
+                    assert value is input_str  # Same object reference
+                case Failure(error):
+                    pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_works_with_validators(self) -> None:
+        """Chain parse_str with validators for content validation."""
+        from valid8r.core.parsers import parse_str
+        from valid8r.core.validators import non_empty_string
+
+        # Empty string passes type validation but fails content validation
+        result = parse_str('').bind(non_empty_string())
+        match result:
+            case Success(value):
+                pytest.fail(f'Expected content validation to fail but got success: {value}')
+            case Failure(error):
+                assert 'empty' in error.lower() or 'required' in error.lower()
+
+        # Non-empty string passes both
+        result = parse_str('hello').bind(non_empty_string())
+        match result:
+            case Success(value):
+                assert value == 'hello'
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_integrates_with_schema_api(self) -> None:
+        """Integrate parse_str with Schema API for type-safe string fields."""
+        from valid8r.core.parsers import parse_str
+        from valid8r.core.schema import (
+            Field,
+            Schema,
+        )
+
+        schema = Schema(fields={'username': Field(parser=parse_str, required=True)})
+
+        # Valid string data
+        result = schema.validate({'username': 'alice'})
+        match result:
+            case Success(data):
+                assert data['username'] == 'alice'
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+        # Invalid type (integer)
+        result = schema.validate({'username': 42})
+        match result:
+            case Success(data):
+                pytest.fail(f'Expected validation to fail but got success: {data}')
+            case Failure(errors):
+                # Schema returns list of ValidationError objects
+                error_list = errors if isinstance(errors, list) else [errors]
+                assert len(error_list) > 0
+                # Find error for username field - ValidationError uses 'path' attribute
+                username_errors = [e for e in error_list if hasattr(e, 'path') and e.path == '.username']
+                assert len(username_errors) > 0
+                error_msg = str(username_errors[0])
+                assert 'expected string' in error_msg.lower()
+
+
 class DescribeParsePath:
     """Tests for parse_path function."""
 
