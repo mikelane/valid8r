@@ -166,8 +166,7 @@ Contents
    :maxdepth: 2
    :caption: API Reference
 
-   api/core
-   api/prompt
+   autoapi/index
 
 .. toctree::
    :maxdepth: 1
