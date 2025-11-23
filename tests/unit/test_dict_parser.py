@@ -8,6 +8,7 @@ from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import (
     parse_dict,
     parse_int,
+    parse_str,
 )
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ class DescribeDictParser:
         [
             pytest.param(
                 'a:1,b:2,c:3',
-                lambda s: Maybe.success(s),
+                parse_str,
                 parse_int,
                 ',',
                 ':',
@@ -29,7 +30,7 @@ class DescribeDictParser:
             ),
             pytest.param(
                 'a=1|b=2|c=3',
-                lambda s: Maybe.success(s),
+                parse_str,
                 parse_int,
                 '|',
                 '=',
@@ -38,14 +39,14 @@ class DescribeDictParser:
             ),
             pytest.param(
                 '  a  :  1  ,  b  :  2  ',
-                lambda s: Maybe.success(s),
+                parse_str,
                 parse_int,
                 ',',
                 ':',
                 {'a': 1, 'b': 2},
                 id='with whitespace',
             ),
-            pytest.param('', lambda s: Maybe.success(s), parse_int, ',', ':', None, id='empty string'),
+            pytest.param('', parse_str, parse_int, ',', ':', None, id='empty string'),
         ],
     )
     def it_parses_dicts_successfully(

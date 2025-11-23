@@ -81,6 +81,60 @@ _PHONE_VALID_CHARS_PATTERN = re.compile(r'^[\d\s()\-+.]+$', re.MULTILINE)
 _PHONE_DIGIT_EXTRACTION_PATTERN = re.compile(r'\D')
 
 
+def parse_str(input_value: object, error_message: str | None = None) -> Maybe[str]:
+    """Parse and validate input is a string type.
+
+    Validates that the input is actually a string type (isinstance check).
+    Does NOT strip whitespace or perform content validation - use validators
+    for that (e.g., non_empty_string, length, pattern).
+
+    This function provides type validation at the parser layer, ensuring the input
+    is a string before any content validation is applied. It complements the validator
+    layer which handles content rules like non-empty, length constraints, or pattern matching.
+
+    Args:
+        input_value: Value to validate (any type accepted, only str passes)
+        error_message: Optional custom error message for type validation failures.
+            If not provided, generates descriptive error based on actual type received.
+
+    Returns:
+        Maybe[str]: Success(str) if input is a string type, Failure(str) with
+            descriptive error message otherwise.
+
+    Examples:
+        >>> parse_str("hello")
+        Success('hello')
+        >>> parse_str("").is_success()
+        True
+        >>> parse_str(None).is_failure()
+        True
+        >>> parse_str(42).is_failure()
+        True
+        >>> parse_str("hello").bind(lambda s: Maybe.success(s.upper()))
+        Success('HELLO')
+
+    Design Notes:
+        - Empty strings are valid (type validation, not content validation)
+        - Strings returned exactly as provided (no stripping or normalization)
+        - Chain with validators for content rules: parse_str(x).bind(non_empty_string())
+        - No DoS protection needed (isinstance is O(1), no expensive operations)
+    """
+    # Handle None input with specific error message
+    if input_value is None:
+        return Failure(error_message or 'Value cannot be None')
+
+    # Type validation - only accept str type
+    if not isinstance(input_value, str):
+        if error_message:
+            return Failure(error_message)
+        # Generate descriptive error with actual type name
+        actual_type = type(input_value).__name__
+        return Failure(f'Expected string, got {actual_type}')
+
+    # Valid string - return as-is (no stripping or modification)
+    return Success(input_value)
+
+
 def parse_int(input_value: str, error_message: str | None = None) -> Maybe[int]:
     """Parse a string to an integer.
 
@@ -2294,6 +2348,7 @@ __all__ = [
     'parse_phone',
     'parse_set',
     'parse_slug',
+    'parse_str',
     'parse_timedelta',
     'parse_url',
     'parse_uuid',

@@ -14,7 +14,6 @@ from behave import (  # type: ignore[import-untyped]
 from tests.bdd.steps import get_custom_context
 from valid8r.core.maybe import (
     Failure,
-    Maybe,
     Success,
 )
 from valid8r.core.parsers import (
@@ -23,6 +22,7 @@ from valid8r.core.parsers import (
     parse_int,
     parse_list,
     parse_list_with_validation,
+    parse_str,
 )
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ def step_parse_to_list_with_separator(context: Context, input_str: str, separato
 @when('I parse "{input_str}" to a dictionary with string keys and integer values')
 def step_parse_to_dict_with_int_values(context: Context, input_str: str) -> None:
     ctx = get_custom_context(context)
-    ctx.result = parse_dict(input_str, key_parser=lambda s: Maybe.success(s), value_parser=parse_int)
+    ctx.result = parse_dict(input_str, key_parser=parse_str, value_parser=parse_int)
 
 
 @when('I parse "{input_str}" to a dictionary with pair separator "{pair_sep}" and key-value separator "{kv_sep}"')
@@ -52,7 +52,7 @@ def step_parse_to_dict_with_separators(context: Context, input_str: str, pair_se
     ctx = get_custom_context(context)
     ctx.result = parse_dict(
         input_str,
-        key_parser=lambda s: Maybe.success(s),
+        key_parser=parse_str,
         value_parser=parse_int,
         pair_separator=pair_sep,
         key_value_separator=kv_sep,
@@ -81,7 +81,7 @@ def step_parse_to_list_with_min_length(context: Context, input_str: str, min_len
 def step_parse_to_dict_with_required_keys(context: Context, input_str: str, required_keys: str) -> None:
     ctx = get_custom_context(context)
     ctx.result = parse_dict_with_validation(
-        input_str, key_parser=lambda s: Maybe.success(s), value_parser=parse_int, required_keys=required_keys.split(',')
+        input_str, key_parser=parse_str, value_parser=parse_int, required_keys=required_keys.split(',')
     )
 
 
