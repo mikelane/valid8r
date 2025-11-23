@@ -13,7 +13,10 @@ import pytest
 from valid8r.core.maybe import (
     Maybe,
 )
-from valid8r.core.parsers import parse_int
+from valid8r.core.parsers import (
+    parse_int,
+    parse_str,
+)
 from valid8r.prompt.basic import (
     PromptConfig,
     _ask_with_config,
@@ -148,7 +151,7 @@ class DescribePrompt:
         """Test _ask_with_config in test mode."""
         # Create config with test mode enabled
         config = PromptConfig(
-            parser=lambda s: Maybe.success(s),
+            parser=parse_str,
             error_message='Test mode error',
             _test_mode=True,
         )

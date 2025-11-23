@@ -4,14 +4,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from valid8r.core.maybe import Maybe
 from valid8r.core.parsers import (
     parse_int,
     parse_list,
+    parse_str,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from valid8r.core.maybe import Maybe
 
 
 class DescribeListParser:
@@ -21,8 +23,8 @@ class DescribeListParser:
             pytest.param('1,2,3', parse_int, ',', [1, 2, 3], id='integers with default separator'),
             pytest.param('1|2|3', parse_int, '|', [1, 2, 3], id='integers with custom separator'),
             pytest.param('  1  ,  2  ,  3  ', parse_int, ',', [1, 2, 3], id='integers with whitespace'),
-            pytest.param('a,b,c', lambda s: Maybe.success(s), ',', ['a', 'b', 'c'], id='strings'),
-            pytest.param('', lambda s: Maybe.success(s), ',', None, id='empty string'),
+            pytest.param('a,b,c', parse_str, ',', ['a', 'b', 'c'], id='strings'),
+            pytest.param('', parse_str, ',', None, id='empty string'),
         ],
     )
     def it_parses_lists_successfully(

@@ -32,6 +32,7 @@ from valid8r.core.parsers import (
     parse_int_with_validation,
     parse_list_with_validation,
     parse_set,
+    parse_str,
     validated_parser,
 )
 from valid8r.core.validators import minimum
@@ -464,7 +465,7 @@ class DescribeParsers:
         """Test that parse_dict_with_validation validates required keys correctly."""
         match parse_dict_with_validation(
             input_str,
-            key_parser=lambda s: Maybe.success(s),
+            key_parser=parse_str,
             value_parser=lambda s: Maybe.success(int(s)),
             required_keys=required_keys,
         ):

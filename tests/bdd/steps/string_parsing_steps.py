@@ -338,9 +338,8 @@ def step_then_schema_validation_fails(context: Context, field_path: str, error_s
     if not ctx.validation_result.is_failure():
         pytest.fail(f'Unexpected result type: {type(ctx.validation_result)}, value: {ctx.validation_result}')
 
-    # Extract errors from Failure - access internal _validation_error directly
-    # because error_or() expects a message attribute
-    errors = ctx.validation_result._validation_error  # noqa: SLF001
+    # Extract errors from Failure using public validation_error property
+    errors = ctx.validation_result.validation_error
     error_list = errors if isinstance(errors, list) else [errors]
 
     # Find error matching field path
