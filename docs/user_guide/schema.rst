@@ -32,7 +32,7 @@ Define a schema using ``Field`` definitions:
             'age': schema.Field(parser=parsers.parse_int, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'name': schema.Field(
-                parser=lambda s: parsers.parse_str(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),

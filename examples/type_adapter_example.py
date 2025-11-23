@@ -8,9 +8,14 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Annotated,
+    Any,
     Literal,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from valid8r import validators
 from valid8r.core.maybe import (
@@ -30,7 +35,7 @@ def example_basic_types() -> None:
     print('=== Basic Type Parsing ===\n')
 
     # Integer parsing
-    int_parser = from_type(int)
+    int_parser: Callable[[str], Maybe[int]] = from_type(int)
     result = int_parser('42')
     match result:
         case Success(value):
@@ -39,8 +44,8 @@ def example_basic_types() -> None:
             print(f'Error: {err}')
 
     # Float parsing
-    float_parser = from_type(float)
-    result = float_parser('3.14')
+    float_parser: Callable[[str], Maybe[float]] = from_type(float)
+    result = float_parser('3.14')  # type: ignore[assignment]
     match result:
         case Success(value):
             print(f'Parsed float: {value} (type: {type(value).__name__})')
@@ -48,9 +53,9 @@ def example_basic_types() -> None:
             print(f'Error: {err}')
 
     # Boolean parsing
-    bool_parser = from_type(bool)
+    bool_parser: Callable[[str], Maybe[bool]] = from_type(bool)
     for test_input in ['true', 'false', '1', '0']:
-        result = bool_parser(test_input)
+        result = bool_parser(test_input)  # type: ignore[assignment]
         match result:
             case Success(value):
                 print(f'Parsed boolean "{test_input}": {value}')
@@ -69,7 +74,7 @@ def example_optional_types() -> None:
     """Demonstrate parsing Optional types with None handling."""
     print('=== Optional Type Parsing ===\n')
 
-    parser = from_type(int | None)
+    parser: Callable[[str], Maybe[int | None]] = from_type(int | None)
 
     # Valid integer
     result = parser('42')
@@ -108,7 +113,7 @@ def example_collections() -> None:
     print('=== Collection Type Parsing ===\n')
 
     # List of integers
-    list_parser = from_type(list[int])
+    list_parser: Callable[[str], Maybe[Any]] = from_type(list[int])
     result = list_parser('[1, 2, 3, 4, 5]')
     match result:
         case Success(value):
@@ -121,21 +126,21 @@ def example_collections() -> None:
             print(f'List with invalid element: {err}')
 
     # Dictionary with typed keys/values
-    dict_parser = from_type(dict[str, int])
+    dict_parser: Callable[[str], Maybe[Any]] = from_type(dict[str, int])
     result = dict_parser('{"age": 30, "count": 5}')
     match result:
         case Success(value):
             print(f'Parsed dict: {value}')
 
     # Set (removes duplicates)
-    set_parser = from_type(set[str])
+    set_parser: Callable[[str], Maybe[Any]] = from_type(set[str])
     result = set_parser('["a", "b", "c", "a"]')
     match result:
         case Success(value):
             print(f'Parsed set: {value} (duplicates removed)')
 
     # Nested structures
-    nested_parser = from_type(dict[str, list[int]])
+    nested_parser: Callable[[str], Maybe[Any]] = from_type(dict[str, list[int]])
     result = nested_parser('{"scores": [95, 87, 92]}')
     match result:
         case Success(value):
@@ -153,7 +158,7 @@ def example_union_types() -> None:
     """Demonstrate parsing Union types that try alternatives."""
     print('=== Union Type Parsing ===\n')
 
-    parser = from_type(int | float | str)
+    parser: Callable[[str], Maybe[Any]] = from_type(int | float | str)
 
     # Try different inputs
     test_inputs = ['42', '3.14', 'hello', 'true']
@@ -177,7 +182,7 @@ def example_literal_types() -> None:
     print('=== Literal Type Parsing ===\n')
 
     # String literals
-    color_parser = from_type(Literal['red', 'green', 'blue'])
+    color_parser: Callable[[str], Maybe[Any]] = from_type(Literal['red', 'green', 'blue'])
 
     for color in ['red', 'yellow', 'green']:
         result = color_parser(color)
@@ -188,7 +193,7 @@ def example_literal_types() -> None:
                 print(f'Invalid color "{color}": {err}')
 
     # Mixed type literals
-    mixed_parser = from_type(Literal[1, 'one', True])
+    mixed_parser: Callable[[str], Maybe[Any]] = from_type(Literal[1, 'one', True])
     for test_input in ['1', 'one', 'true', 'invalid']:
         result = mixed_parser(test_input)
         match result:
@@ -225,7 +230,7 @@ def example_enum_types() -> None:
     """Demonstrate parsing Enum types with case-insensitive matching."""
     print('=== Enum Type Parsing ===\n')
 
-    status_parser = from_type(Status)
+    status_parser: Callable[[str], Maybe[Any]] = from_type(Status)
 
     # Case-insensitive matching
     for test_input in ['ACTIVE', 'active', 'AcTiVe', 'invalid']:
@@ -249,7 +254,7 @@ def example_annotated_types() -> None:
     print('=== Annotated Type Parsing ===\n')
 
     # Integer with range validation
-    age_parser = from_type(Annotated[int, validators.minimum(0), validators.maximum(120)])
+    age_parser: Callable[[str], Maybe[Any]] = from_type(Annotated[int, validators.minimum(0), validators.maximum(120)])  # type: ignore[type-var]
 
     for test_input in ['25', '150', '-5', 'abc']:
         result = age_parser(test_input)
@@ -260,7 +265,7 @@ def example_annotated_types() -> None:
                 print(f'Invalid age "{test_input}": {err}')
 
     # String with length validation
-    username_parser = from_type(Annotated[str, validators.min_length(3), validators.max_length(20)])
+    username_parser: Callable[[str], Maybe[Any]] = from_type(Annotated[str, validators.length(3, 20)])
 
     for test_input in ['alice', 'ab', 'this_username_is_way_too_long']:
         result = username_parser(test_input)
@@ -283,7 +288,7 @@ def example_complex_types() -> None:
     print('=== Complex Nested Type Parsing ===\n')
 
     # List of optional integers with validation
-    parser = from_type(list[Annotated[int, validators.minimum(0)] | None])
+    parser: Callable[[str], Maybe[Any]] = from_type(list[Annotated[int, validators.minimum(0)] | None])
 
     test_input = '[1, null, 5, 10]'
     result = parser(test_input)
@@ -292,7 +297,9 @@ def example_complex_types() -> None:
             print(f'Parsed list with optionals: {value}')
 
     # Dict with validated values
-    validated_dict_parser = from_type(dict[str, Annotated[int, validators.minimum(0), validators.maximum(100)]])
+    validated_dict_parser: Callable[[str], Maybe[Any]] = from_type(
+        dict[str, Annotated[int, validators.minimum(0), validators.maximum(100)]]
+    )
 
     test_input = '{"math": 95, "english": 87, "science": 92}'
     result = validated_dict_parser(test_input)
@@ -301,7 +308,7 @@ def example_complex_types() -> None:
             print(f'Parsed validated dict: {value}')
 
     # Nested lists
-    nested_list_parser = from_type(list[list[int]])
+    nested_list_parser: Callable[[str], Maybe[Any]] = from_type(list[list[int]])
 
     test_input = '[[1, 2, 3], [4, 5, 6], [7, 8, 9]]'
     result = nested_list_parser(test_input)
@@ -336,11 +343,11 @@ def example_config_parser() -> None:
     host_list_type = list[str]
 
     # Create parsers
-    port_parser = from_type(port_type)
-    timeout_parser = from_type(timeout_type)
-    log_level_parser = from_type(LogLevel)
-    hosts_parser = from_type(host_list_type)
-    debug_parser = from_type(bool)
+    port_parser: Callable[[str], Maybe[Any]] = from_type(port_type)
+    timeout_parser: Callable[[str], Maybe[Any]] = from_type(timeout_type)
+    log_level_parser: Callable[[str], Maybe[Any]] = from_type(LogLevel)
+    hosts_parser: Callable[[str], Maybe[Any]] = from_type(host_list_type)
+    debug_parser: Callable[[str], Maybe[Any]] = from_type(bool)
 
     # Example configuration
     config_data = {
@@ -385,7 +392,7 @@ def example_dos_protection() -> None:
     """Demonstrate built-in DoS protection for large inputs."""
     print('=== DoS Protection ===\n')
 
-    parser = from_type(list[int])
+    parser: Callable[[str], Maybe[Any]] = from_type(list[int])
 
     # Normal sized input works fine
     normal_input = '[' + ','.join(str(i) for i in range(100)) + ']'

@@ -11,6 +11,9 @@ from valid8r.core import (
     schema,
     validators,
 )
+from valid8r.core.maybe import (
+    Failure,
+)
 
 
 def basic_validation_example() -> None:
@@ -25,7 +28,7 @@ def basic_validation_example() -> None:
             'age': schema.Field(parser=parsers.parse_int, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'name': schema.Field(
-                parser=lambda s: parsers.parse_str(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
@@ -48,10 +51,10 @@ def basic_validation_example() -> None:
     invalid_input = {'age': 'not-a-number', 'email': 'bad-email', 'name': ''}
     result = user_schema.validate(invalid_input)
 
-    if result.is_failure():
+    if isinstance(result, Failure):
         from valid8r.core.errors import ValidationError
 
-        errors = result._validation_error  # Access error list
+        errors = result.validation_error  # Access error list
         if isinstance(errors, list):
             print(f'\n✗ Validation failed with {len(errors)} errors:')
             for err in errors:
@@ -69,12 +72,12 @@ def nested_schema_example() -> None:
     address_schema = schema.Schema(
         fields={
             'street': schema.Field(
-                parser=lambda s: parsers.parse_str(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
             'city': schema.Field(
-                parser=lambda s: parsers.parse_str(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
@@ -115,10 +118,10 @@ def nested_schema_example() -> None:
     }
     result = user_schema.validate(invalid_input)
 
-    if result.is_failure():
+    if isinstance(result, Failure):
         from valid8r.core.errors import ValidationError
 
-        errors = result._validation_error
+        errors = result.validation_error
         if isinstance(errors, list):
             print(f'\n✗ Validation failed with {len(errors)} errors:')
             for err in errors:
@@ -193,10 +196,10 @@ def strict_mode_example() -> None:
 
     result = strict_schema.validate(input_with_extra)
 
-    if result.is_failure():
+    if isinstance(result, Failure):
         from valid8r.core.errors import ValidationError
 
-        errors = result._validation_error
+        errors = result.validation_error
         if isinstance(errors, list):
             print('\n✗ Strict mode: Extra fields rejected')
             print(f'  Errors: {len(errors)}')
@@ -215,7 +218,7 @@ def validator_example() -> None:
         fields={
             'age': schema.Field(
                 parser=parsers.parse_int,
-                validator=validators.minimum(18) & validators.maximum(120),
+                validator=validators.minimum(18) & validators.maximum(120),  # type: ignore[type-var]
                 required=True,
             ),
             'username': schema.Field(
@@ -241,10 +244,10 @@ def validator_example() -> None:
     invalid_input = {'age': '15', 'username': 'ab'}  # Too young, username too short
     result = user_schema.validate(invalid_input)
 
-    if result.is_failure():
+    if isinstance(result, Failure):
         from valid8r.core.errors import ValidationError
 
-        errors = result._validation_error
+        errors = result.validation_error
         if isinstance(errors, list):
             print('\n✗ Validation failed:')
             for err in errors:
