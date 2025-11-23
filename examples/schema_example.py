@@ -13,7 +13,6 @@ from valid8r.core import (
 )
 from valid8r.core.maybe import (
     Failure,
-    Maybe,
 )
 
 
@@ -29,7 +28,7 @@ def basic_validation_example() -> None:
             'age': schema.Field(parser=parsers.parse_int, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'name': schema.Field(
-                parser=lambda s: Maybe.success(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
@@ -73,23 +72,23 @@ def nested_schema_example() -> None:
     address_schema = schema.Schema(
         fields={
             'street': schema.Field(
-                parser=lambda s: Maybe.success(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
             'city': schema.Field(
-                parser=lambda s: Maybe.success(s),
+                parser=parsers.parse_str,
                 validator=validators.non_empty_string(),
                 required=True,
             ),
-            'zipcode': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'zipcode': schema.Field(parser=parsers.parse_str, required=True),
         }
     )
 
     # Define user schema with nested address
     user_schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'name': schema.Field(parser=parsers.parse_str, required=True),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'address': schema.Field(parser=address_schema.validate, required=True),
         }
@@ -138,7 +137,7 @@ def optional_fields_example() -> None:
 
     user_schema = schema.Schema(
         fields={
-            'name': schema.Field(parser=lambda s: Maybe.success(s), required=True),
+            'name': schema.Field(parser=parsers.parse_str, required=True),
             'age': schema.Field(parser=parsers.parse_int, required=False),  # Optional
             'email': schema.Field(parser=parsers.parse_email, required=False),  # Optional
         }
@@ -176,7 +175,7 @@ def strict_mode_example() -> None:
 
     # Non-strict (default) - extra fields allowed
     lenient_schema = schema.Schema(
-        fields={'name': schema.Field(parser=lambda s: Maybe.success(s), required=True)},
+        fields={'name': schema.Field(parser=parsers.parse_str, required=True)},
         strict=False,
     )
 
@@ -191,7 +190,7 @@ def strict_mode_example() -> None:
     # Strict mode - extra fields rejected
     print('\n' + '-' * 60)
     strict_schema = schema.Schema(
-        fields={'name': schema.Field(parser=lambda s: Maybe.success(s), required=True)},
+        fields={'name': schema.Field(parser=parsers.parse_str, required=True)},
         strict=True,
     )
 
@@ -223,7 +222,7 @@ def validator_example() -> None:
                 required=True,
             ),
             'username': schema.Field(
-                parser=lambda s: Maybe.success(s),
+                parser=parsers.parse_str,
                 validator=validators.length(3, 20),
                 required=True,
             ),
