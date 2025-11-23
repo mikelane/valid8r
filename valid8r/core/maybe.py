@@ -13,7 +13,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
 from valid8r.core.errors import ValidationError
 
@@ -53,6 +53,44 @@ class Maybe(ABC, Generic[T]):
     @abstractmethod
     def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain operations that might fail."""
+
+    @abstractmethod
+    async def bind_async(self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
+        """Async version of bind for composing async validators.
+
+        This method enables chaining async operations that might fail,
+        similar to bind() but for async functions.
+
+        Args:
+            f: Async function that takes a value and returns Maybe[U]
+
+        Returns:
+            Maybe[U]: Result of applying f to the value if Success,
+                     or propagated Failure if already failed
+
+        Examples:
+            Async validation:
+
+            >>> import asyncio
+            >>> async def async_double(x: int) -> Maybe[int]:
+            ...     await asyncio.sleep(0.001)
+            ...     return Maybe.success(x * 2)
+            >>> result = asyncio.run(Maybe.success(21).bind_async(async_double))
+            >>> result.value_or(None)
+            42
+
+            Chaining async validators:
+
+            >>> async def async_validator(x: int) -> Maybe[int]:
+            ...     await asyncio.sleep(0.001)
+            ...     if x < 0:
+            ...         return Maybe.failure('must be non-negative')
+            ...     return Maybe.success(x)
+            >>> result = asyncio.run(Maybe.success(-5).bind_async(async_validator))
+            >>> result.is_failure()
+            True
+
+        """
 
     @abstractmethod
     def map(self, f: Callable[[T], U]) -> Maybe[U]:
@@ -96,6 +134,10 @@ class Success(Maybe[T]):
     def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain operations that might fail."""
         return f(self.value)
+
+    async def bind_async(self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
+        """Async version of bind for composing async validators."""
+        return await f(self.value)
 
     def map(self, f: Callable[[T], U]) -> Maybe[U]:
         """Transform the value."""
@@ -251,6 +293,13 @@ class Failure(Maybe[T]):
 
     def bind(self, _f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain operations that might fail.
+
+        Function is unused in Failure case as we always propagate the error.
+        """
+        return Failure(self._validation_error)
+
+    async def bind_async(self, _f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
+        """Async version of bind for composing async validators.
 
         Function is unused in Failure case as we always propagate the error.
         """
