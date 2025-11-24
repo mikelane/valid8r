@@ -109,7 +109,7 @@ def parse_email(email_str: str) -> Maybe[str]:
         email_str: String representation of email
 
     Returns:
-        Success(email) if valid, Failure(error_message) otherwise
+        Success(email_string) if valid, Failure(error_message) otherwise
 
     Examples:
         >>> result = parse_email('user@example.com')
@@ -131,4 +131,5 @@ def parse_email(email_str: str) -> Maybe[str]:
     if result.is_failure():
         return Maybe.failure('Must be a valid email address')
 
-    return result
+    # Return the original email string, not the EmailAddress object
+    return Maybe.success(email_str.strip())
