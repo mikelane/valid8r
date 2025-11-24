@@ -1,0 +1,11 @@
+# FastAPI async validation example dependencies
+# Install with: uv pip install -r requirements.txt
+
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+valid8r>=1.19.0
+
+# Optional for production deployment
+gunicorn>=21.0.0
+python-multipart>=0.0.6
