@@ -234,11 +234,23 @@ def step_email_domain_is(context: Context, expected_domain: str) -> None:
 @then('the error message contains "{expected_substring}"')
 def step_error_contains(context: Context, expected_substring: str) -> None:
     """Verify the error message contains expected substring."""
-    ctx = get_custom_context(context)
-    match ctx.result:
-        case Success(value):
-            pytest.fail(f'Expected Failure but got Success: {value}')
-        case Failure(err):
-            assert expected_substring.lower() in err.lower(), (
-                f'Expected error to contain "{expected_substring}" but got: {err}'
-            )
+    # Handle both regular and async validator contexts
+    if hasattr(context, 'async_validator_context'):
+        from tests.bdd.steps.async_validators_steps import get_async_validator_context
+
+        ac = get_async_validator_context(context)
+        assert ac.result is not None, 'No validation result'
+        assert ac.result.is_failure(), 'Expected failure but got success'
+        error_msg = ac.result.error_or('')
+        assert expected_substring.lower() in error_msg.lower(), (
+            f'Expected error to contain "{expected_substring}" but got: {error_msg}'
+        )
+    else:
+        ctx = get_custom_context(context)
+        match ctx.result:
+            case Success(value):
+                pytest.fail(f'Expected Failure but got Success: {value}')
+            case Failure(err):
+                assert expected_substring.lower() in err.lower(), (
+                    f'Expected error to contain "{expected_substring}" but got: {err}'
+                )

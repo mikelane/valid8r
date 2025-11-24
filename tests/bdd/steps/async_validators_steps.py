@@ -43,7 +43,7 @@ class MockAsyncConnection:
         self.connection_failed = False
         self.slow_response = False
 
-    async def execute(self, query: str, *args: Any) -> MockQueryResult:
+    async def execute(self, query: str, *args: Any) -> MockQueryResult:  # noqa: ANN401  # noqa: ANN401
         """Execute a query."""
         await asyncio.sleep(0.01 if not self.slow_response else 2.0)
         self.query_count += 1
@@ -69,7 +69,7 @@ class MockAsyncConnection:
 
         return MockQueryResult(None)
 
-    def add_record(self, table: str, field: str, value: Any) -> None:
+    def add_record(self, table: str, field: str, value: Any) -> None:  # noqa: ANN401  # noqa: ANN401
         """Add a record to the mock database."""
         if table not in self.data:
             self.data[table] = {}
@@ -77,7 +77,7 @@ class MockAsyncConnection:
             self.data[table][field] = set()
         self.data[table][field].add(value)
 
-    def has_record(self, table: str, field: str, value: Any) -> bool:
+    def has_record(self, table: str, field: str, value: Any) -> bool:  # noqa: ANN401  # noqa: ANN401
         """Check if a record exists."""
         if table not in self.data or field not in self.data[table]:
             return False
@@ -87,11 +87,11 @@ class MockAsyncConnection:
 class MockQueryResult:
     """Mock query result."""
 
-    def __init__(self, scalar_value: Any) -> None:
+    def __init__(self, scalar_value: Any) -> None:  # noqa: ANN401  # noqa: ANN401
         """Initialize the mock result."""
         self._scalar_value = scalar_value
 
-    async def scalar(self) -> Any:
+    async def scalar(self) -> Any:  # noqa: ANN401  # noqa: ANN401
         """Get scalar value from result."""
         return self._scalar_value
 
@@ -104,14 +104,14 @@ class MockHTTPSession:
         """Initialize the mock session."""
         self._api = api
 
-    async def __aenter__(self) -> MockHTTPSession:
+    async def __aenter__(self) -> MockHTTPSession:  # noqa: PYI034  # noqa: PYI034
         """Enter async context."""
         return self
 
     async def __aexit__(self, *args: object) -> None:
         """Exit async context."""
 
-    def get(self, url: str, **kwargs: Any) -> MockHTTPResponse:
+    def get(self, url: str, **kwargs: Any) -> MockHTTPResponse:  # noqa: ANN401  # noqa: ANN401
         """Mock GET request."""
         return MockHTTPResponse(self._api, url, kwargs)
 
@@ -126,7 +126,7 @@ class MockHTTPResponse:
         self._kwargs = kwargs
         self.status = 500  # Will be set in __aenter__
 
-    async def __aenter__(self) -> MockHTTPResponse:
+    async def __aenter__(self) -> MockHTTPResponse:  # noqa: PYI034  # noqa: PYI034
         """Enter async context."""
         if self._api.unreachable:
             raise ConnectionError('Network error: API unreachable')
@@ -199,10 +199,9 @@ class MockExternalAPI:
             await asyncio.sleep(2.0)
 
         # Handle transient failures
-        if self.max_failures > 0:
-            if self.current_failures < self.max_failures:
-                self.current_failures += 1
-                raise ConnectionError('Transient failure')
+        if self.max_failures > 0 and self.current_failures < self.max_failures:
+            self.current_failures += 1
+            raise ConnectionError('Transient failure')
 
         self.call_count += 1
         return key in self.valid_keys
@@ -235,7 +234,8 @@ class MockDNSResolver:
         await asyncio.sleep(0.01)
 
         if domain in self.nonexistent_domains:
-            raise Exception(f'NXDOMAIN: Domain {domain} does not exist')
+            msg = f'NXDOMAIN: Domain {domain} does not exist'
+            raise ValueError(msg)
 
         if domain in self.domains_with_mx:
             return [f'mail.{domain}']
@@ -256,7 +256,7 @@ class MockAsyncCache:
         self._data: dict[str, tuple[Any, float]] = {}
         self._ttl = ttl
 
-    async def get(self, key: str) -> Any | None:
+    async def get(self, key: str) -> Any | None:  # noqa: ANN401
         """Get value from cache."""
         await asyncio.sleep(0.001)
         if key in self._data:
@@ -267,7 +267,7 @@ class MockAsyncCache:
             del self._data[key]
         return None
 
-    async def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:  # noqa: ANN401
         """Set value in cache."""
         await asyncio.sleep(0.001)
         self._data[key] = (value, time.time())
@@ -1115,7 +1115,8 @@ def step_validation_fails(context: Context) -> None:
     assert not ac.blocking_occurred, 'Validation blocked the event loop'
 
 
-# Note: 'the error message contains "{text}"' step already exists in url_email_parsing_steps.py
+# Note: 'the error message contains "{text}"' step exists in url_email_parsing_steps.py
+# but doesn't work with async validator context - see modification in that file
 
 
 @then('no timeout error occurs')
