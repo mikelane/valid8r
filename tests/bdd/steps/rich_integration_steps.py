@@ -110,6 +110,9 @@ def step_run_example(context: Context) -> None:
 
     context.test_mode = 'visual_demo'
 
+    # Run the visual demo scenario
+    _run_example_scenario(context, 'visual_demo')
+
 
 @when('validation succeeds')
 def step_validation_succeeds(context: Context) -> None:
@@ -331,7 +334,7 @@ def _run_example_scenario(context: Context, scenario: str, stdin: str | None = N
     #   python project_wizard.py --scenario=batch
     #   python project_wizard.py --scenario=interactive
 
-    example_path = Path('examples/rich-integration/project_wizard.py')
+    example_path = Path('examples/rich_integration/project_wizard.py')
     if not example_path.exists():
         msg = f'Example not found at {example_path} - implementation needed'
         raise AssertionError(msg)

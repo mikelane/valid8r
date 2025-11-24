@@ -1,0 +1,5 @@
+# Requirements for Rich Integration Example
+# Install with: pip install -r requirements.txt
+
+valid8r>=1.19.0
+rich>=13.0.0
