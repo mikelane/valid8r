@@ -106,7 +106,7 @@ class TyperParser(ParamTypeAdapter):
         # which expects a __name__ attribute
         self.__name__ = self.name
 
-    def __call__(self, value: str, _param: click.Parameter | None = None, _ctx: click.Context | None = None) -> object:
+    def __call__(self, value: str, param: click.Parameter | None = None, ctx: click.Context | None = None) -> object:
         """Make TyperParser callable for use with Typer's parser parameter.
 
         When used as parser=TyperParser(...), Typer wraps this in a FuncParamType
@@ -115,8 +115,8 @@ class TyperParser(ParamTypeAdapter):
 
         Args:
             value: The input string to parse
-            _param: Optional Click Parameter (unused)
-            _ctx: Optional Click Context (unused)
+            param: Optional Click Parameter (can be named param or _param)
+            ctx: Optional Click Context (can be named ctx or _ctx)
 
         Returns:
             The successfully parsed and validated value
@@ -125,7 +125,7 @@ class TyperParser(ParamTypeAdapter):
             click.exceptions.BadParameter: If validation fails
 
         """
-        return self.convert(value, None, None)
+        return self.convert(value, param, ctx)
 
 
 def validator_callback(
