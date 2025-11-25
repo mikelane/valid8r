@@ -30,9 +30,12 @@ def after_feature(context: Context, feature: Feature) -> None:
     pass
 
 
-def before_scenario(context: Context, scenario: Scenario) -> None:
+def before_scenario(context: Context, scenario: Scenario) -> None:  # noqa: ARG001
     # Setup code that runs before each scenario
-    pass
+    # Reset the Typer integration context for each scenario
+    # to prevent state leakage between scenarios
+    if hasattr(context, 'typer_integration_context'):
+        delattr(context, 'typer_integration_context')
 
 
 def after_scenario(context: Context, scenario: Scenario) -> None:

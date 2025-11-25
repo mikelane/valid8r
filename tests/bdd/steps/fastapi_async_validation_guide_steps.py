@@ -238,7 +238,7 @@ def step_unauthorized_rejected(context: Context) -> None:
 
 
 # Error handling scenario
-@when('validation fails')
+@when('API validation fails')
 def step_validation_fails(context: Context) -> None:
     """Verify guide contains error handling section."""
     fc = get_fastapi_context(context)

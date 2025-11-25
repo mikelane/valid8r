@@ -1,0 +1,6 @@
+# Requirements for the Cloud CLI Typer Integration Example
+
+# Core dependencies
+valid8r>=1.19.0
+typer>=0.12.0
+click>=8.1.0  # Typer's underlying framework

@@ -4,7 +4,14 @@ The `valid8r.integrations.typer` module provides seamless integration between va
 
 ## Overview
 
-The `TyperParser` class wraps valid8r parsers for use with Typer's `Option()` and `Argument()` functions, enabling rich validation of CLI arguments using the same parsers you use throughout your application (FastAPI, Pydantic, environment variables, etc.).
+Valid8r offers multiple integration patterns for Typer applications:
+
+1. **validator_callback()** - Simple, inline validation for options and arguments (recommended)
+2. **ValidatedType** - Reusable custom types for use across multiple commands
+3. **validated_prompt()** - Interactive prompts with validation and retry logic
+4. **TyperParser** - Lower-level Click ParamType adapter (advanced use)
+
+These patterns enable rich validation of CLI arguments using the same parsers you use throughout your application (FastAPI, Pydantic, environment variables, etc.).
 
 ## Installation
 
@@ -16,7 +23,102 @@ uv add typer
 pip install typer
 ```
 
-## Basic Usage
+## Quick Start: Three Integration Patterns
+
+### Pattern 1: validator_callback() (Recommended)
+
+Best for simple, inline validation. Creates a callback function that validates using a valid8r parser:
+
+```python
+import typer
+from typing_extensions import Annotated
+from valid8r.core import parsers, validators
+from valid8r.integrations.typer import validator_callback
+
+app = typer.Typer()
+
+# Create validation callbacks
+email_callback = validator_callback(parsers.parse_email)
+port_callback = validator_callback(
+    lambda t: parsers.parse_int(t).bind(
+        validators.minimum(1) & validators.maximum(65535)
+    )
+)
+
+@app.command()
+def deploy(
+    email: Annotated[str, typer.Option(callback=email_callback)],
+    port: Annotated[int, typer.Option(callback=port_callback)] = 8080,
+) -> None:
+    """Deploy service with validated email and port."""
+    print(f"Deploying to {email.local}@{email.domain} on port {port}")
+
+if __name__ == "__main__":
+    app()
+```
+
+**When to use:** Simple validation, single-use validators, inline validation needs.
+
+### Pattern 2: ValidatedType (Reusable Types)
+
+Best for custom types used across multiple commands:
+
+```python
+import typer
+from typing_extensions import Annotated
+from valid8r.core import parsers
+from valid8r.integrations.typer import ValidatedType
+
+app = typer.Typer()
+
+# Create reusable custom types
+Email = ValidatedType(parsers.parse_email)
+Phone = ValidatedType(parsers.parse_phone)
+
+@app.command()
+def contact(
+    email: Annotated[str, typer.Option(click_type=Email)],
+    phone: Annotated[str, typer.Option(click_type=Phone)] | None = None,
+) -> None:
+    """Store contact information."""
+    print(f"Email: {email.local}@{email.domain}")
+    if phone:
+        print(f"Phone: {phone.area_code}-{phone.exchange}-{phone.subscriber}")
+
+if __name__ == "__main__":
+    app()
+```
+
+**When to use:** Types used in multiple commands, cleaner API surface, type documentation.
+
+### Pattern 3: validated_prompt() (Interactive Mode)
+
+Best for interactive CLIs with retry logic:
+
+```python
+import typer
+from valid8r.core import parsers
+from valid8r.integrations.typer import validated_prompt
+
+app = typer.Typer()
+
+@app.command()
+def configure() -> None:
+    """Interactive configuration wizard."""
+    email = validated_prompt(
+        'Enter your email',
+        parser=parsers.parse_email,
+        max_retries=3
+    )
+    print(f"Email configured: {email.local}@{email.domain}")
+
+if __name__ == "__main__":
+    app()
+```
+
+**When to use:** Interactive workflows, configuration wizards, onboarding flows.
+
+## Basic Usage (TyperParser)
 
 ```python
 import typer
@@ -251,29 +353,227 @@ Path: /path
 Query: key=value
 ```
 
+## Detailed Pattern Guide
+
+### validator_callback() - Simple and Powerful
+
+The `validator_callback()` function creates a Typer-compatible callback from any valid8r parser:
+
+```python
+from valid8r.integrations.typer import validator_callback
+from valid8r.core import parsers, validators
+
+# Simple parser
+email_callback = validator_callback(parsers.parse_email)
+
+# With custom error prefix
+port_callback = validator_callback(
+    lambda t: parsers.parse_int(t).bind(
+        validators.minimum(1) & validators.maximum(65535)
+    ),
+    error_prefix="Port"
+)
+
+# Using in command
+@app.command()
+def my_command(
+    email: str = typer.Option(..., callback=email_callback),
+    port: int = typer.Option(8080, callback=port_callback)
+) -> None:
+    # Parameters are validated and converted
+    pass
+```
+
+**Advantages:**
+- Simple and straightforward
+- Works with Typer's native callback parameter
+- Custom error prefixes for clarity
+- No special imports needed in function signatures
+
+**Error Output:**
+```bash
+$ cli --port 99999
+Error: Invalid parameter value for '--port': Port: Must be at most 65535.
+```
+
+### ValidatedType - Reusable Custom Types
+
+Create custom types once, use them everywhere:
+
+```python
+from valid8r.integrations.typer import ValidatedType
+from valid8r.core import parsers, validators
+
+# Define reusable types
+Email = ValidatedType(parsers.parse_email)
+Port = ValidatedType(
+    lambda t: parsers.parse_int(t).bind(
+        validators.minimum(1) & validators.maximum(65535)
+    ),
+    name="port",
+    help_text="Valid port number (1-65535)"
+)
+
+# Use with click_type parameter
+@app.command()
+def deploy(
+    email: str = typer.Option(..., click_type=Email),
+    port: int = typer.Option(8080, click_type=Port)
+) -> None:
+    pass
+
+@app.command()
+def notify(
+    admin_email: str = typer.Option(..., click_type=Email),
+    backup_email: str = typer.Option(..., click_type=Email)
+) -> None:
+    # Reuse Email type across multiple parameters and commands
+    pass
+```
+
+**Advantages:**
+- Define once, use everywhere
+- Cleaner codebase with named types
+- Better documentation
+- Type reuse across multiple commands
+
+**When to use ValidatedType vs validator_callback:**
+- Use `ValidatedType` for types used in 3+ places
+- Use `validator_callback()` for one-off validations
+- Use `ValidatedType` when you want named types in documentation
+
+### validated_prompt() - Interactive Workflows
+
+Interactive prompts with validation and automatic retry:
+
+```python
+from valid8r.integrations.typer import validated_prompt
+from valid8r.core import parsers, validators
+
+@app.command()
+def configure() -> None:
+    """Interactive configuration wizard."""
+
+    # Basic prompt with validation
+    email = validated_prompt(
+        "Enter your email",
+        parser=parsers.parse_email,
+        max_retries=3
+    )
+
+    # With custom validators
+    port = validated_prompt(
+        "Enter server port",
+        parser=lambda t: parsers.parse_int(t).bind(
+            validators.minimum(1) & validators.maximum(65535)
+        ),
+        max_retries=5
+    )
+
+    # Prompt shows errors and retries automatically
+    print(f"Configured: {email.local}@{email.domain} on port {port}")
+```
+
+**Interactive Session:**
+```bash
+$ cli configure
+Enter your email: not-an-email
+Error: An email address must have an @-sign.
+Enter your email: alice@
+Error: An email address must have a domain.
+Enter your email: alice@example.com
+Enter server port: 99999
+Error: Must be at most 65535.
+Enter server port: 8080
+Configured: alice@example.com on port 8080
+```
+
+**Advantages:**
+- Built-in retry logic
+- User-friendly error messages
+- Reduces boilerplate for interactive CLIs
+- Works with any valid8r parser
+
+**Options:**
+- `max_retries`: Number of retry attempts (default: 10)
+- `typer_style`: Use Typer's styled output (default: False)
+
 ## How It Works
+
+### validator_callback()
+
+Creates a callback function that:
+1. Calls the valid8r parser on the input
+2. Returns the validated value on success
+3. Raises `typer.BadParameter` on failure
+
+The callback integrates seamlessly with Typer's Option() and Argument() callback parameter.
+
+### ValidatedType
+
+Returns a Click ParamType (TyperParser) that:
+1. Implements Click's ParamType interface
+2. Converts input strings using valid8r parsers
+3. Can be used with Typer's `click_type` parameter
+
+### validated_prompt()
+
+Prompts for input in a loop:
+1. Displays the prompt text
+2. Reads user input
+3. Validates using the parser
+4. Retries on failure (up to max_retries)
+5. Returns validated value or raises exception
+
+### TyperParser (Advanced)
 
 TyperParser works as both:
 1. **Click ParamType**: Can be used with `typer.Option(click_type=TyperParser(...))`
 2. **Callable Parser**: Can be used with `typer.Option(parser=TyperParser(...))`
 
-When used with the `parser` parameter (recommended), Typer wraps the TyperParser in a FuncParamType internally. The TyperParser implements both the Click ParamType interface and the callable interface to support both use cases.
+When used with the `parser` parameter, Typer wraps the TyperParser in a FuncParamType internally. The TyperParser implements both the Click ParamType interface and the callable interface to support both use cases.
 
 ### Error Handling
 
-When validation fails, TyperParser raises a `click.exceptions.BadParameter` exception with the error message from the valid8r parser. Typer catches this exception and formats it nicely in the terminal with colored output and error boxes.
+All patterns raise user-friendly exceptions:
+- `validator_callback()`: Raises `typer.BadParameter`
+- `ValidatedType`: Raises `click.exceptions.BadParameter`
+- `validated_prompt()`: Displays error, retries, then raises `typer.Exit`
+
+Typer catches these exceptions and formats them nicely in the terminal with colored output and error boxes.
 
 ### Type Preservation
 
 The parsed values retain their structured types (EmailAddress, PhoneNumber, UrlParts, etc.), allowing you to access component fields directly in your CLI commands.
 
+## Complete Example
+
+See the [Cloud CLI example](../../examples/typer-integration/cloud_cli.py) for a comprehensive demonstration of all integration patterns in a realistic CLI application.
+
+The example includes:
+- `validator_callback()` for port and region validation
+- `ValidatedType` for custom ProjectId and ARN types
+- `validated_prompt()` for interactive configuration wizard
+- Error handling and help text generation
+- Combining validation with Typer features (confirmations, styling, etc.)
+
 ## Best Practices
 
-1. **Use Type Annotations**: Always use `typing_extensions.Annotated` for clear parameter specifications
-2. **Descriptive Error Prefixes**: Add context to error messages with `error_prefix` parameter
-3. **Meaningful Type Names**: Use custom `name` parameter for better help text
-4. **Combine with Validators**: Chain validators for complex validation rules
-5. **Test Your CLIs**: Write BDD tests to validate CLI behavior end-to-end
+### Pattern Selection
+1. **Use validator_callback() by default**: Simple, straightforward, works everywhere
+2. **Use ValidatedType for reuse**: When the same type appears in 3+ places
+3. **Use validated_prompt() for interactive flows**: Configuration wizards, onboarding
+
+### Code Quality
+4. **Use Type Annotations**: Always use `typing_extensions.Annotated` for clear parameter specifications
+5. **Descriptive Error Prefixes**: Add context with `error_prefix` parameter in validator_callback()
+6. **Meaningful Type Names**: Use custom `name` parameter in ValidatedType for better help text
+7. **Combine with Validators**: Chain validators using monadic operations for complex rules
+
+### Testing
+8. **Test Your CLIs**: Write BDD tests using Typer's CliRunner to validate end-to-end behavior
+9. **Test Error Cases**: Verify that invalid inputs produce clear error messages
+10. **Test Interactive Prompts**: Use `MockInputContext` from valid8r.testing for interactive tests
 
 ## Integration with Other valid8r Features
 
@@ -351,7 +651,107 @@ def start(
 
 ## API Reference
 
-### TyperParser
+### validator_callback()
+
+```python
+def validator_callback(
+    parser: Callable[[str | None], Maybe[object]],
+    *validators: Callable[[object], Maybe[object]],
+    error_prefix: str | None = None,
+) -> Callable[[str], object]:
+    ...
+```
+
+Creates a Typer-compatible callback function from a valid8r parser.
+
+**Parameters:**
+- `parser`: A valid8r parser function that returns `Maybe[T]`
+- `*validators`: Optional validator functions to chain after parsing
+- `error_prefix`: Optional prefix for error messages (e.g., "Port number")
+
+**Returns:**
+- A callback function compatible with `typer.Option(callback=...)` or `typer.Argument(callback=...)`
+
+**Raises:**
+- `typer.BadParameter`: When validation fails
+
+**Example:**
+```python
+email_callback = validator_callback(parsers.parse_email, error_prefix="Email")
+port_callback = validator_callback(
+    lambda t: parsers.parse_int(t).bind(validators.minimum(1))
+)
+```
+
+### ValidatedType()
+
+```python
+def ValidatedType(
+    parser: Callable[[str | None], Maybe[object]],
+    name: str | None = None,
+    help_text: str | None = None,
+) -> click.ParamType:
+    ...
+```
+
+Creates a custom Typer type with valid8r validation. Returns a TyperParser instance.
+
+**Parameters:**
+- `parser`: A valid8r parser function that returns `Maybe[T]`
+- `name`: Optional custom name for the type (defaults to parser function name)
+- `help_text`: Optional help text describing validation constraints
+
+**Returns:**
+- A Click ParamType (TyperParser) for use with `typer.Option(click_type=...)`
+
+**Example:**
+```python
+Email = ValidatedType(parsers.parse_email)
+Port = ValidatedType(
+    lambda t: parsers.parse_int(t).bind(validators.minimum(1)),
+    name="port",
+    help_text="Port number (1-65535)"
+)
+```
+
+### validated_prompt()
+
+```python
+def validated_prompt(
+    prompt_text: str,
+    parser: Callable[[str | None], Maybe[object]],
+    *validators: Callable[[object], Maybe[object]],
+    max_retries: int = 10,
+    typer_style: bool = False,
+) -> object:
+    ...
+```
+
+Interactive prompt with valid8r validation and automatic retry logic.
+
+**Parameters:**
+- `prompt_text`: The prompt message to display to the user
+- `parser`: A valid8r parser function that returns `Maybe[T]`
+- `*validators`: Optional validator functions to chain after parsing
+- `max_retries`: Maximum number of retry attempts (default: 10)
+- `typer_style`: Whether to use Typer's styled output (default: False)
+
+**Returns:**
+- The validated and parsed value
+
+**Raises:**
+- `typer.Exit`: When max_retries is exceeded without valid input
+
+**Example:**
+```python
+email = validated_prompt(
+    "Enter your email",
+    parser=parsers.parse_email,
+    max_retries=3
+)
+```
+
+### TyperParser (Advanced)
 
 ```python
 class TyperParser(ParamTypeAdapter):
@@ -364,6 +764,8 @@ class TyperParser(ParamTypeAdapter):
         ...
 ```
 
+Low-level Click ParamType adapter for valid8r parsers. Most users should use `validator_callback()` or `ValidatedType()` instead.
+
 **Parameters:**
 - `parser`: A valid8r parser function that takes a string and returns `Maybe[T]`
 - `name`: Optional custom name for the type (defaults to `parser.__name__`)
@@ -371,7 +773,7 @@ class TyperParser(ParamTypeAdapter):
 
 **Methods:**
 - `convert(value, param, ctx)`: Converts and validates the input value
-- `__call__(value)`: Makes TyperParser callable for use with Typer's `parser` parameter
+- `__call__(value, param, ctx)`: Makes TyperParser callable for use with Typer's `parser` parameter
 
 **Attributes:**
 - `name`: The type name (used in help text)
