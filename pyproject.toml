@@ -218,6 +218,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 ]
 "examples/*" = [
     "D401", # Allow non-imperative docstrings in examples
+    "FAST002", # Allow FastAPI deps without Annotated (examples prioritize clarity)
+    "INP001", # Allow implicit namespace packages in examples
     "PLC0415", # Allow local imports in examples (for clarity)
     "SLF001", # Allow private member access in examples (demonstrating internals)
     "T201", # Allow print function in examples
