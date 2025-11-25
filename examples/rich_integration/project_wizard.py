@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 
@@ -45,6 +46,9 @@ from valid8r.core.parsers import (
 
 # Create Rich console (force color for CI/testing)
 console = Console(force_terminal=True)
+
+# Configurable delay for demos (set DEMO_DELAY=0 for tests)
+DEMO_DELAY = float(os.environ.get('DEMO_DELAY', '0.1'))
 
 
 def run_success_scenario() -> None:
@@ -219,8 +223,9 @@ def run_batch_scenario() -> None:
         invalid_count = 0
 
         for email_text in emails:
-            # Simulate some processing time
-            time.sleep(0.1)
+            # Simulate some processing time (configurable for tests)
+            if DEMO_DELAY > 0:
+                time.sleep(DEMO_DELAY)
 
             # Validate email
             result = parse_email(email_text)
