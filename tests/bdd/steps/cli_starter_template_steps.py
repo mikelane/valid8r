@@ -196,12 +196,15 @@ def step_successfully_complete_workflow(context: Context) -> None:
 @given('I provide a configuration file')
 def step_provide_configuration_file(context: Context) -> None:
     """Create a test configuration file with invalid content."""
+    import uuid
+
     ctx = get_cli_template_context(context)
 
     assert ctx.template_path is not None, 'Template path not set'
 
-    # Create a temporary config file with invalid data
-    config_file = ctx.template_path / 'test_config.yaml'
+    # Create a temporary config file with unique name to avoid race conditions
+    unique_id = uuid.uuid4().hex[:8]
+    config_file = ctx.template_path / f'test_config_{unique_id}.yaml'
     config_content = """
 users:
   - name: Alice

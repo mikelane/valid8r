@@ -18,7 +18,10 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
+from typing import (
+    TYPE_CHECKING,
+    TypeVar,
+)
 
 import yaml
 from validators import (
@@ -26,6 +29,44 @@ from validators import (
     parse_email,
     parse_name,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from valid8r import Maybe
+
+T = TypeVar('T')
+
+
+def prompt_with_retry(prompt_text: str, parser: Callable[[str], Maybe[T]]) -> T:
+    """Prompt user for input with validation and retry logic.
+
+    This function displays a prompt, reads user input, validates it using the
+    provided parser, and retries on validation failure.
+
+    Args:
+        prompt_text: The text to display as the prompt
+        parser: A validation function that returns Maybe[T]
+
+    Returns:
+        The successfully parsed and validated value
+
+    Raises:
+        KeyboardInterrupt: If user cancels with Ctrl+C
+        EOFError: If input stream ends unexpectedly
+
+    """
+    print(f'{prompt_text}: ', end='', flush=True)
+    user_input = input()
+    result = parser(user_input)
+
+    while result.is_failure():
+        print(f'Invalid input: {result.error_or("")}. Please try again.')
+        print(f'{prompt_text}: ', end='', flush=True)
+        user_input = input()
+        result = parser(user_input)
+
+    return result.value_or(None)  # type: ignore[return-value]
 
 
 def add_user_command(args: argparse.Namespace) -> int:
@@ -54,45 +95,9 @@ def add_user_interactive() -> int:
 
     """
     try:
-        # Prompt for name
-        print('Enter name: ', end='', flush=True)
-        name_input = input()
-        name_result = parse_name(name_input)
-
-        while name_result.is_failure():
-            print(f'Invalid input: {name_result.error_or("")}. Please try again.')
-            print('Enter name: ', end='', flush=True)
-            name_input = input()
-            name_result = parse_name(name_input)
-
-        name = name_result.value_or('')
-
-        # Prompt for age with validation
-        print('Enter age: ', end='', flush=True)
-        age_input = input()
-        age_result = parse_age(age_input)
-
-        while age_result.is_failure():
-            print(f'Invalid input: {age_result.error_or("")}. Please try again.')
-            print('Enter age: ', end='', flush=True)
-            age_input = input()
-            age_result = parse_age(age_input)
-
-        age = age_result.value_or(0)
-
-        # Prompt for email
-        print('Enter email: ', end='', flush=True)
-        email_input = input()
-        email_result = parse_email(email_input)
-
-        while email_result.is_failure():
-            print(f'Invalid input: {email_result.error_or("")}. Please try again.')
-            print('Enter email: ', end='', flush=True)
-            email_input = input()
-            email_result = parse_email(email_input)
-
-        email = email_result.value_or('')
-
+        name = prompt_with_retry('Enter name', parse_name)
+        age = prompt_with_retry('Enter age', parse_age)
+        email = prompt_with_retry('Enter email', parse_email)
     except (KeyboardInterrupt, EOFError):
         print('\nCancelled by user')
         return 1
@@ -104,7 +109,73 @@ def add_user_interactive() -> int:
         return 0
 
 
-def add_user_from_args(name: str | None, age: str | None, email: str | None) -> int:  # noqa: C901, PLR0912
+def validate_name_arg(name: str | None) -> tuple[str | None, str | None]:
+    """Validate the name argument.
+
+    Args:
+        name: The name argument value (may be None if not provided)
+
+    Returns:
+        A tuple of (validated_value, error_message).
+        If validation succeeds, error_message is None.
+        If validation fails, validated_value is None.
+
+    """
+    if name is None:
+        return None, 'Error: --name is required'
+
+    name_result = parse_name(name)
+    if name_result.is_failure():
+        return None, f'Error: Invalid name: {name_result.error_or("")}'
+
+    return name_result.value_or(None), None
+
+
+def validate_age_arg(age: str | None) -> tuple[int | None, str | None]:
+    """Validate the age argument.
+
+    Args:
+        age: The age argument value as string (may be None if not provided)
+
+    Returns:
+        A tuple of (validated_value, error_message).
+        If validation succeeds, error_message is None.
+        If validation fails, validated_value is None.
+
+    """
+    if age is None:
+        return None, 'Error: --age is required'
+
+    age_result = parse_age(age)
+    if age_result.is_failure():
+        return None, f'Error: Invalid age: {age_result.error_or("")}. Expected a valid integer.'
+
+    return age_result.value_or(None), None
+
+
+def validate_email_arg(email: str | None) -> tuple[str | None, str | None]:
+    """Validate the email argument.
+
+    Args:
+        email: The email argument value (may be None if not provided)
+
+    Returns:
+        A tuple of (validated_value, error_message).
+        If validation succeeds or email is None/empty, error_message is None.
+        If validation fails, validated_value is None.
+
+    """
+    if not email:
+        return None, None
+
+    email_result = parse_email(email)
+    if email_result.is_failure():
+        return None, f'Error: Invalid email: {email_result.error_or("")}'
+
+    return email_result.value_or(None), None
+
+
+def add_user_from_args(name: str | None, age: str | None, email: str | None) -> int:
     """Add a user from command-line arguments.
 
     Args:
@@ -116,42 +187,20 @@ def add_user_from_args(name: str | None, age: str | None, email: str | None) -> 
         Exit code (0 for success, 1 for error)
 
     """
-    errors = []
+    errors: list[str] = []
 
-    # Validate name
-    if name is None:
-        errors.append('Error: --name is required')
-        name_value = None
-    else:
-        name_result = parse_name(name)
-        if name_result.is_failure():
-            errors.append(f'Error: Invalid name: {name_result.error_or("")}')
-            name_value = None
-        else:
-            name_value = name_result.value_or(None)
+    # Validate all arguments
+    name_value, name_error = validate_name_arg(name)
+    if name_error:
+        errors.append(name_error)
 
-    # Validate age
-    if age is None:
-        errors.append('Error: --age is required')
-        age_value = None
-    else:
-        age_result = parse_age(age)
-        if age_result.is_failure():
-            errors.append(f'Error: Invalid age: {age_result.error_or("")}. Expected a valid integer.')
-            age_value = None
-        else:
-            age_value = age_result.value_or(None)
+    age_value, age_error = validate_age_arg(age)
+    if age_error:
+        errors.append(age_error)
 
-    # Validate email
-    if email:
-        email_result = parse_email(email)
-        if email_result.is_failure():
-            errors.append(f'Error: Invalid email: {email_result.error_or("")}')
-            email_value = None
-        else:
-            email_value = email_result.value_or(None)
-    else:
-        email_value = None
+    email_value, email_error = validate_email_arg(email)
+    if email_error:
+        errors.append(email_error)
 
     # Report all errors
     if errors:
@@ -207,18 +256,21 @@ def load_config_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def validate_config(config: dict[str, Any] | Any, config_path: Path) -> list[str]:  # noqa: ANN401
+def validate_config(config: object, config_path: Path) -> list[str]:
     """Validate a configuration dictionary.
 
+    This function accepts any object from yaml.safe_load() and validates that
+    it conforms to the expected configuration structure.
+
     Args:
-        config: Configuration dictionary
-        config_path: Path to the configuration file
+        config: Configuration object (expected to be a dict, but may be any YAML value)
+        config_path: Path to the configuration file (for error messages)
 
     Returns:
         List of error messages (empty if valid)
 
     """
-    errors = []
+    errors: list[str] = []
 
     if not isinstance(config, dict):
         errors.append('Configuration must be a dictionary')
@@ -241,19 +293,22 @@ def validate_config(config: dict[str, Any] | Any, config_path: Path) -> list[str
     return errors
 
 
-def validate_user(user: dict[str, Any] | Any, index: int, config_path: Path) -> list[str]:  # noqa: ANN401
+def validate_user(user: object, index: int, config_path: Path) -> list[str]:
     """Validate a user dictionary from configuration.
 
+    This function accepts any object and validates that it conforms to the
+    expected user structure with name, age, and email fields.
+
     Args:
-        user: User dictionary
-        index: User index (for error reporting)
-        config_path: Path to the configuration file
+        user: User object (expected to be a dict, but may be any YAML value)
+        index: User index in the list (1-based, for error reporting)
+        config_path: Path to the configuration file (for error messages)
 
     Returns:
         List of error messages (empty if valid)
 
     """
-    errors = []
+    errors: list[str] = []
 
     if not isinstance(user, dict):
         errors.append(f'User at position {index} must be a dictionary')
@@ -270,22 +325,18 @@ def validate_user(user: dict[str, Any] | Any, index: int, config_path: Path) -> 
     # Validate age
     if 'age' in user:
         age_value = user['age']
-        age_str = str(age_value) if isinstance(age_value, int) else str(age_value) if age_value else ''
+        age_str = str(age_value) if age_value is not None else ''
 
         age_result = parse_age(age_str)
         if age_result.is_failure():
-            errors.append(
-                f'Invalid age for user at position {index} (line {index * 4 + 2}) in {config_path.name}: '
-                f'{age_result.error_or("")}'
-            )
+            errors.append(f'Invalid age for user at position {index} in {config_path.name}: {age_result.error_or("")}')
 
     # Validate email
     if 'email' in user:
         email_result = parse_email(str(user['email']))
         if email_result.is_failure():
             errors.append(
-                f'Invalid email for user at position {index} (line {index * 4 + 3}) in {config_path.name}: '
-                f'{email_result.error_or("")}'
+                f'Invalid email for user at position {index} in {config_path.name}: {email_result.error_or("")}'
             )
 
     return errors
