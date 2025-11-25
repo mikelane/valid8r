@@ -53,13 +53,13 @@ Feature: Typer Integration Enhancement
 
   Scenario: Validator callback rejects out-of-range port
     Given a Typer CLI with port validation callback
-    When the user provides port "99999"
+    When the user provides port value "99999"
     Then Typer raises BadParameter
     And the error message explains the valid range
 
   Scenario: Validator callback accepts valid port
     Given a Typer CLI with port validation callback
-    When the user provides port "8080"
+    When the user provides port value "8080"
     Then the command executes successfully
     And the port value is 8080
 
