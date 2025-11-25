@@ -31,7 +31,7 @@ Feature: FastAPI Async Validation Guide
 
   Scenario: I can handle validation errors properly
     Given I follow the integration guide
-    When validation fails
+    When API validation fails
     Then I know how to return appropriate HTTP status codes
     And I can provide structured error responses
     And clients receive actionable feedback

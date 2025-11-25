@@ -10,11 +10,19 @@ A fictional cloud infrastructure management CLI with realistic validation needs.
 
 from __future__ import annotations
 
-import typer
 from typing import Annotated
 
-from valid8r.core import parsers, validators
-from valid8r.integrations.typer import ValidatedType, validated_prompt, validator_callback
+import typer
+
+from valid8r.core import (
+    parsers,
+    validators,
+)
+from valid8r.integrations.typer import (
+    ValidatedType,
+    validated_prompt,
+    validator_callback,
+)
 
 app = typer.Typer(help='Cloud Infrastructure Management CLI')
 
@@ -23,7 +31,7 @@ app = typer.Typer(help='Cloud Infrastructure Management CLI')
 # ============================================================================
 
 
-def port_parser(text: str | None):
+def port_parser(text: str | None) -> parsers.Maybe[int]:
     """Parse and validate port number (1-65535)."""
     return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
 
@@ -31,7 +39,7 @@ def port_parser(text: str | None):
 port_callback = validator_callback(port_parser, error_prefix='Port')
 
 
-def region_parser(text: str | None):
+def region_parser(text: str | None) -> parsers.Maybe[str]:
     """Parse and validate cloud region."""
     valid_regions = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1']
 
@@ -95,7 +103,7 @@ ProjectId = ValidatedType(
 
 
 # AWS ARN validator
-def arn_parser(text: str | None):
+def arn_parser(text: str | None) -> parsers.Maybe[str]:
     """Parse and validate AWS ARN format."""
     import re
 
@@ -121,11 +129,11 @@ def grant_access(
     role_arn: Annotated[str, typer.Option('--role', click_type=Arn, help='IAM role ARN')],
     email: Annotated[str, typer.Option('--user', callback=validator_callback(parsers.parse_email), help='User email')],
 ) -> None:
-    """Grant user access to a project via IAM role.
+    r"""Grant user access to a project via IAM role.
 
     Example:
-        cloud_cli.py grant-access my-project-123 \\
-            --role arn:aws:iam::123456789012:role/MyRole \\
+        cloud_cli.py grant-access my-project-123 \
+            --role arn:aws:iam::123456789012:role/MyRole \
             --user alice@example.com
 
     """
@@ -251,6 +259,7 @@ def scale(
     region: Annotated[
         str, typer.Option('--region', '-r', callback=region_callback, help='Target region')
     ] = 'us-east-1',
+    *,
     force: Annotated[bool, typer.Option('--force', '-f', help='Skip confirmation')] = False,
 ) -> None:
     """Scale a service to the specified number of instances.
@@ -263,7 +272,7 @@ def scale(
         confirm = typer.confirm(f'Scale {service} to {instances} instances in {region}?')
         if not confirm:
             typer.secho('Scaling cancelled.', fg=typer.colors.YELLOW)
-            raise typer.Abort()
+            raise typer.Abort
 
     typer.secho('\n✓ Scaling service:', fg=typer.colors.GREEN, bold=True)
     typer.echo(f'  Service: {service}')

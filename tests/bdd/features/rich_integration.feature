@@ -11,7 +11,7 @@ Feature: Rich Integration Example
 
   Scenario: Example shows Rich error handling
     Given I run the example application
-    When validation fails
+    When Rich validation fails
     Then I see error messages styled with Rich
     And errors are highlighted with appropriate colors
     And errors include helpful suggestions

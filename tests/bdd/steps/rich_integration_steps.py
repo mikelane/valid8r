@@ -128,7 +128,7 @@ def step_validation_succeeds(context: Context) -> None:
     _run_example_scenario(context, 'success')
 
 
-@when('validation fails')
+@when('Rich validation fails')
 def step_validation_fails(context: Context) -> None:
     """Run the application expecting validation failure.
 
