@@ -34,16 +34,26 @@ Examples:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import functools
+import inspect
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
+
+import typer
+
+from valid8r.core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
+from valid8r.integrations.click import ParamTypeAdapter
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     import click
-
-    from valid8r.core.maybe import Maybe
-
-from valid8r.integrations.click import ParamTypeAdapter
 
 
 class TyperParser(ParamTypeAdapter):
@@ -171,10 +181,9 @@ def validator_callback(
         ...     print(f"Serving on port {port}")
 
     """
-    import typer
 
     def callback(value: str) -> object:
-        """Typer callback that validates using valid8r parser."""
+        """Validate using valid8r parser and return result or raise BadParameter."""
         # Parse the input
         result = parser(value)
 
@@ -183,19 +192,17 @@ def validator_callback(
             result = result.bind(validator)
 
         # Convert Maybe result to Typer exception or return value
-        from valid8r.core.maybe import (
-            Failure,
-            Success,
-        )
-
         match result:
             case Success(val):
                 return val
             case Failure(err):
                 # Prepend error prefix if provided
-                if error_prefix:
-                    err = f'{error_prefix}: {err}'
-                raise typer.BadParameter(err)
+                error_msg = f'{error_prefix}: {err}' if error_prefix else err
+                raise typer.BadParameter(error_msg)
+
+        # Unreachable but satisfies type checker
+        msg = 'Unexpected Maybe variant'
+        raise RuntimeError(msg)
 
     return callback
 
@@ -204,8 +211,8 @@ def validate_with(
     param_name: str,
     parser: Callable[[str | None], Maybe[object]],
     *validators: Callable[[object], Maybe[object]],
-) -> Callable:
-    """Decorator to add validation to a Typer command parameter.
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Add validation to a Typer command parameter.
 
     This decorator modifies a Typer command to use a validator callback for
     a specific parameter. The validated/converted value replaces the original
@@ -246,10 +253,8 @@ def validate_with(
         ...     print(f"Registered {email.local}, age {age}")
 
     """
-    import functools
-    import inspect
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         """Modify the function to add parameter validation via callback."""
         # Create a validator callback for this parameter
         callback = validator_callback(parser, *validators)
@@ -287,8 +292,8 @@ def validate_with(
                 param.default.callback = callback
 
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> object:
-            """Wrapper to preserve function signature."""
+        def wrapper(*args: object, **kwargs: object) -> object:
+            """Preserve function signature and forward call."""
             return func(*args, **kwargs)
 
         return wrapper
@@ -306,7 +311,7 @@ class ValidatedType:
     Args:
         parser: A valid8r parser function that returns Maybe[T]
         name: Optional custom name for the type
-        help_text: Optional help text describing validation constraints
+        help_text: Optional help text describing validation constraints (reserved for future use)
 
     Examples:
         >>> from valid8r.core import parsers
@@ -329,16 +334,28 @@ class ValidatedType:
 
     """
 
-    def __new__(
+    def __new__(  # type: ignore[misc]
         cls,
         parser: Callable[[str | None], Maybe[object]],
         name: str | None = None,
-        help_text: str | None = None,
-    ) -> click.ParamType:
-        """Create a new ValidatedType instance as a Click ParamType.
+        help_text: str | None = None,  # noqa: ARG004
+    ) -> TyperParser:
+        """Create a new ValidatedType instance as a TyperParser.
 
         This uses __new__ to return a TyperParser instance directly,
         making ValidatedType a factory for TyperParser with different semantics.
+
+        Args:
+            parser: A valid8r parser function that returns Maybe[T]
+            name: Optional custom name for the type
+            help_text: Reserved for future help text integration
+
+        Returns:
+            A TyperParser instance configured with the given parser
+
+        Note:
+            The type: ignore[misc] is intentional - this class uses __new__ as a
+            factory pattern to return a TyperParser instead of a ValidatedType.
 
         """
         return TyperParser(parser, name=name, error_prefix=None)
@@ -351,7 +368,7 @@ def validated_prompt(
     max_retries: int = 10,
     typer_style: bool = False,
 ) -> object:
-    """Interactive prompt with valid8r validation and retry logic.
+    """Prompt interactively with valid8r validation and retry logic.
 
     This function prompts the user for input, validates it using a valid8r parser
     and optional validators, and re-prompts on validation failure up to max_retries.
@@ -387,28 +404,18 @@ def validated_prompt(
         ...     print(f"Got email: {email.local}@{email.domain}")
 
     """
-    import typer
 
-    from valid8r.core.maybe import (
-        Failure,
-        Success,
-    )
-
-    # Determine which output function to use
-    if typer_style:
-        output_func = typer.echo
-        error_func = lambda msg: typer.echo(f'Error: {msg}', err=True)  # noqa: E731
-    else:
-        output_func = print
-        error_func = lambda msg: print(f'Error: {msg}')  # noqa: E731
+    def _report_error(msg: str) -> None:
+        """Report error using appropriate output method."""
+        if typer_style:
+            typer.echo(f'Error: {msg}', err=True)
+        else:
+            print(f'Error: {msg}')
 
     attempts = 0
     while attempts < max_retries:
-        # Prompt for input
-        if typer_style:
-            user_input = typer.prompt(prompt_text)
-        else:
-            user_input = input(f'{prompt_text}: ')
+        # Prompt for input using appropriate method
+        user_input = typer.prompt(prompt_text) if typer_style else input(f'{prompt_text}: ')
 
         # Parse and validate
         result = parser(user_input)
@@ -420,11 +427,11 @@ def validated_prompt(
             case Success(val):
                 return val
             case Failure(err):
-                error_func(err)
+                _report_error(err)
                 attempts += 1
 
     # Max retries exceeded
-    error_func(f'Max retries ({max_retries}) exceeded')
+    _report_error(f'Max retries ({max_retries}) exceeded')
     raise typer.Exit(code=1)
 
 

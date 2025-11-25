@@ -6,6 +6,8 @@ Tests for validator_callback(), validate_with(), ValidatedType, and validated_pr
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from valid8r.core import (
@@ -13,8 +15,21 @@ from valid8r.core import (
     validators,
 )
 
+if TYPE_CHECKING:
+    from valid8r.core.maybe import Maybe
+
 typer = pytest.importorskip('typer')  # Skip tests if typer not installed
 click = pytest.importorskip('click')  # Typer uses Click internally
+
+
+def _port_parser(text: str | None) -> Maybe[int]:
+    """Parse and validate port number in range 1-65535."""
+    return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
+
+
+def _age_parser(text: str | None) -> Maybe[int]:
+    """Parse and validate age as non-negative integer."""
+    return parsers.parse_int(text).bind(validators.minimum(0))
 
 
 class DescribeValidatorCallback:
@@ -24,11 +39,7 @@ class DescribeValidatorCallback:
         """validator_callback creates a callback that accepts valid ports."""
         from valid8r.integrations.typer import validator_callback
 
-        # Create port validator callback (1-65535)
-        def port_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
-
-        callback = validator_callback(port_parser)
+        callback = validator_callback(_port_parser)
 
         # Valid port should return the integer value
         result = callback('8080')
@@ -39,10 +50,7 @@ class DescribeValidatorCallback:
         """validator_callback creates a callback that raises BadParameter for invalid ports."""
         from valid8r.integrations.typer import validator_callback
 
-        def port_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
-
-        callback = validator_callback(port_parser)
+        callback = validator_callback(_port_parser)
 
         # Invalid port (out of range) should raise BadParameter
         with pytest.raises(typer.BadParameter) as exc_info:
@@ -55,10 +63,7 @@ class DescribeValidatorCallback:
         """validator_callback creates a callback that rejects non-numeric input."""
         from valid8r.integrations.typer import validator_callback
 
-        def port_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
-
-        callback = validator_callback(port_parser)
+        callback = validator_callback(_port_parser)
 
         # Non-numeric input should raise BadParameter
         with pytest.raises(typer.BadParameter) as exc_info:
@@ -163,11 +168,7 @@ class DescribeValidateWithUsingCallback:
         app = typer.Typer()
 
         email_callback = validator_callback(parsers.parse_email)
-
-        def age_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(0))
-
-        age_callback = validator_callback(age_parser)
+        age_callback = validator_callback(_age_parser)
 
         @app.command()
         def register(
@@ -194,11 +195,7 @@ class DescribeValidateWithUsingCallback:
         app = typer.Typer()
 
         email_callback = validator_callback(parsers.parse_email)
-
-        def age_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(0))
-
-        age_callback = validator_callback(age_parser)
+        age_callback = validator_callback(_age_parser)
 
         @app.command()
         def register(
@@ -221,10 +218,7 @@ class DescribeValidateWithUsingCallback:
 
         app = typer.Typer()
 
-        def port_parser(text: str | None):
-            return parsers.parse_int(text).bind(validators.minimum(1) & validators.maximum(65535))
-
-        port_callback = validator_callback(port_parser)
+        port_callback = validator_callback(_port_parser)
 
         @app.command()
         def serve(port: str = typer.Option('8080', callback=port_callback)) -> None:
@@ -253,8 +247,8 @@ class DescribeValidatedType:
         from valid8r.core.parsers import EmailAddress
         from valid8r.integrations.typer import ValidatedType
 
-        # Create custom email type
-        Email = ValidatedType(parsers.parse_email)
+        # Create custom email type (N806 suppressed: intentionally type-like name)
+        Email = ValidatedType(parsers.parse_email)  # noqa: N806
 
         app = typer.Typer()
 
@@ -277,7 +271,7 @@ class DescribeValidatedType:
         """ValidatedType rejects invalid input with clear error."""
         from valid8r.integrations.typer import ValidatedType
 
-        Email = ValidatedType(parsers.parse_email)
+        Email = ValidatedType(parsers.parse_email)  # noqa: N806
 
         app = typer.Typer()
 
@@ -299,7 +293,7 @@ class DescribeValidatedType:
         from valid8r.core.parsers import PhoneNumber
         from valid8r.integrations.typer import ValidatedType
 
-        Phone = ValidatedType(parsers.parse_phone)
+        Phone = ValidatedType(parsers.parse_phone)  # noqa: N806
 
         app = typer.Typer()
 
@@ -322,7 +316,7 @@ class DescribeValidatedType:
         """ValidatedType handles optional parameters that are None."""
         from valid8r.integrations.typer import ValidatedType
 
-        Phone = ValidatedType(parsers.parse_phone)
+        Phone = ValidatedType(parsers.parse_phone)  # noqa: N806
 
         app = typer.Typer()
 
@@ -381,9 +375,8 @@ class DescribeValidatedPrompt:
         from valid8r.testing import MockInputContext
 
         # Mock invalid input exceeding max retries
-        with MockInputContext(['bad1', 'bad2', 'bad3', 'bad4']):
-            with pytest.raises((typer.Exit, typer.Abort)):
-                validated_prompt('Enter email', parser=parsers.parse_email, max_retries=3)
+        with MockInputContext(['bad1', 'bad2', 'bad3', 'bad4']), pytest.raises((typer.Exit, typer.Abort)):
+            validated_prompt('Enter email', parser=parsers.parse_email, max_retries=3)
 
     def it_uses_typer_style_when_enabled(self) -> None:
         """validated_prompt uses input() without typer_style by default."""
@@ -433,9 +426,9 @@ class DescribeHelpTextIntegration:
         """ValidatedType includes validation constraints in help text."""
         from valid8r.integrations.typer import ValidatedType
 
-        # Create validated type with help text
-        Port = ValidatedType(
-            lambda t: parsers.parse_int(t).bind(validators.minimum(1) & validators.maximum(65535)),
+        # Create validated type with help text (N806 suppressed: intentionally type-like name)
+        Port = ValidatedType(  # noqa: N806
+            _port_parser,
             help_text='Server port (1-65535)',
         )
 
