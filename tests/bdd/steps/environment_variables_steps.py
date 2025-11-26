@@ -45,7 +45,7 @@ def parse_str(text: str | None) -> Maybe[str]:
 
 
 @given('the valid8r.integrations.env module exists')
-def step_env_module_exists(context: Context) -> None:  # noqa: ARG001
+def step_env_module_exists(context: Context) -> None:
     """Verify that the env integration module can be imported."""
     try:
         from valid8r.integrations import env  # noqa: F401

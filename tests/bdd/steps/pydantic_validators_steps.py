@@ -323,7 +323,7 @@ def step_wrap_validator_with_validation_info(context: Context) -> None:
         # but not directly exported from pydantic_core.__init__ in some versions
         import pydantic_core._pydantic_core as pc  # noqa: TC002
 
-    def custom_wrap_validator(value: str, handler: Callable, info: pc.ValidationInfo) -> int:  # noqa: ARG001
+    def custom_wrap_validator(value: str, handler: Callable, info: pc.ValidationInfo) -> int:
         """Access ValidationInfo context in wrap validator."""
         context.validation_info = info
         context.field_name_from_validator = info.field_name if info else None

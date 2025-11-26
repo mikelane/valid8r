@@ -55,7 +55,7 @@ def get_testing_context(context: Context) -> TestingContext:
 
 
 @given('the testing utilities module is available')
-def step_testing_module_available(context: Context) -> None:  # noqa: ARG001
+def step_testing_module_available(context: Context) -> None:
     """Check that the testing utilities module is available."""
     # This will fail until we create the module
     assert MockInputContext is not None

@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 @given('the input validation module is available')
-def step_input_validation_available(context: Context) -> None:  # noqa: ARG001
+def step_input_validation_available(context: Context) -> None:
     assert Maybe is not None
 
 

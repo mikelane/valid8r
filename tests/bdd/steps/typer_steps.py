@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @given('the valid8r.integrations.typer module exists')
-def step_typer_module_exists(context: Context) -> None:  # noqa: ARG001
+def step_typer_module_exists(context: Context) -> None:
     """Verify that the typer integration module can be imported."""
     try:
         from valid8r.integrations import typer  # noqa: F401

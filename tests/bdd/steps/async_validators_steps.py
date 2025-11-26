@@ -43,7 +43,7 @@ class MockAsyncConnection:
         self.connection_failed = False
         self.slow_response = False
 
-    async def execute(self, query: str, *args: Any) -> MockQueryResult:  # noqa: ANN401  # noqa: ANN401
+    async def execute(self, query: str, *args: Any) -> MockQueryResult:
         """Execute a query."""
         await asyncio.sleep(0.01 if not self.slow_response else 2.0)
         self.query_count += 1
@@ -69,7 +69,7 @@ class MockAsyncConnection:
 
         return MockQueryResult(None)
 
-    def add_record(self, table: str, field: str, value: Any) -> None:  # noqa: ANN401  # noqa: ANN401
+    def add_record(self, table: str, field: str, value: Any) -> None:
         """Add a record to the mock database."""
         if table not in self.data:
             self.data[table] = {}
@@ -77,7 +77,7 @@ class MockAsyncConnection:
             self.data[table][field] = set()
         self.data[table][field].add(value)
 
-    def has_record(self, table: str, field: str, value: Any) -> bool:  # noqa: ANN401  # noqa: ANN401
+    def has_record(self, table: str, field: str, value: Any) -> bool:
         """Check if a record exists."""
         if table not in self.data or field not in self.data[table]:
             return False
@@ -87,11 +87,11 @@ class MockAsyncConnection:
 class MockQueryResult:
     """Mock query result."""
 
-    def __init__(self, scalar_value: Any) -> None:  # noqa: ANN401  # noqa: ANN401
+    def __init__(self, scalar_value: Any) -> None:
         """Initialize the mock result."""
         self._scalar_value = scalar_value
 
-    async def scalar(self) -> Any:  # noqa: ANN401  # noqa: ANN401
+    async def scalar(self) -> Any:
         """Get scalar value from result."""
         return self._scalar_value
 
@@ -111,7 +111,7 @@ class MockHTTPSession:
     async def __aexit__(self, *args: object) -> None:
         """Exit async context."""
 
-    def get(self, url: str, **kwargs: Any) -> MockHTTPResponse:  # noqa: ANN401  # noqa: ANN401
+    def get(self, url: str, **kwargs: Any) -> MockHTTPResponse:
         """Mock GET request."""
         return MockHTTPResponse(self._api, url, kwargs)
 
@@ -256,7 +256,7 @@ class MockAsyncCache:
         self._data: dict[str, tuple[Any, float]] = {}
         self._ttl = ttl
 
-    async def get(self, key: str) -> Any | None:  # noqa: ANN401
+    async def get(self, key: str) -> Any | None:
         """Get value from cache."""
         await asyncio.sleep(0.001)
         if key in self._data:
@@ -267,7 +267,7 @@ class MockAsyncCache:
             del self._data[key]
         return None
 
-    async def set(self, key: str, value: Any) -> None:  # noqa: ANN401
+    async def set(self, key: str, value: Any) -> None:
         """Set value in cache."""
         await asyncio.sleep(0.001)
         self._data[key] = (value, time.time())

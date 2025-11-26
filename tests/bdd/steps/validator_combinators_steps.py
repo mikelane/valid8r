@@ -39,7 +39,7 @@ def get_combinator_context(context: Context) -> CombinatorContext:
 
 
 @given('the combinator module is available')
-def step_combinator_module_available(context: Context) -> None:  # noqa: ARG001
+def step_combinator_module_available(context: Context) -> None:
     # Check that the combinators module is imported correctly
     assert and_then is not None
     assert or_else is not None

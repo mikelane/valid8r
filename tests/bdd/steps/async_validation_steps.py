@@ -121,7 +121,7 @@ def step_using_async_application(context: Context) -> None:
 
 
 @given('I have valid8r installed with async support')
-def step_valid8r_async_support(context: Context) -> None:  # noqa: ARG001
+def step_valid8r_async_support(context: Context) -> None:
     """Verify valid8r has async validation support."""
     # This will fail until we implement async validation
     from valid8r.core import schema
@@ -155,7 +155,7 @@ def step_validate_user_registration(context: Context, email: str) -> None:
     ac = get_async_context(context)
 
     # Create async validator for email uniqueness
-    async def unique_email(email_addr: Any) -> Maybe:  # noqa: ANN401
+    async def unique_email(email_addr: Any) -> Maybe:
         # EmailAddress object from parser, need to reconstruct email string
         email_str = f'{email_addr.local}@{email_addr.domain}'
         exists = await ac.database.has_email(email_str)
@@ -317,13 +317,13 @@ def step_schema_with_mixed_validators(context: Context) -> None:
     ac = get_async_context(context)
 
     # Sync validator that works with EmailAddress
-    def sync_validator(email_addr: Any) -> Maybe:  # noqa: ANN401
+    def sync_validator(email_addr: Any) -> Maybe:
         # Simple check that email domain is not empty
         if not email_addr.domain:
             return Maybe.failure('Email domain cannot be empty')
         return Maybe.success(email_addr)
 
-    async def async_validator(email_addr: Any) -> Maybe:  # noqa: ANN401
+    async def async_validator(email_addr: Any) -> Maybe:
         await asyncio.sleep(0.01)
         return Maybe.success(email_addr)
 

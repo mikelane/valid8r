@@ -48,7 +48,7 @@ def get_fastapi_context(context: Context) -> FastAPIGuideContext:
 
 
 @given('I have FastAPI installed')
-def step_fastapi_installed(context: Context) -> None:  # noqa: ARG001
+def step_fastapi_installed(context: Context) -> None:
     """Verify FastAPI is available for testing."""
     try:
         import fastapi  # noqa: F401
@@ -59,7 +59,7 @@ def step_fastapi_installed(context: Context) -> None:  # noqa: ARG001
 
 
 @given('I have a test client for my FastAPI application')
-def step_test_client_available(context: Context) -> None:  # noqa: ARG001
+def step_test_client_available(context: Context) -> None:
     """Verify FastAPI TestClient is available."""
     try:
         from fastapi.testclient import TestClient  # noqa: F401

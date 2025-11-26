@@ -4,7 +4,6 @@ This module implements step definitions for comprehensive Typer integration scen
 testing validator callbacks, decorators, custom types, interactive prompts, and async support.
 """
 
-# ruff: noqa: ARG001
 # ARG001: Behave step functions must accept context parameter even if unused
 
 from __future__ import annotations

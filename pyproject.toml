@@ -190,8 +190,14 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "UP045", # Allow Optional syntax in tests (testing backward compat)
 ]
 "tests/bdd/steps/*" = [
+    "ANN401", # Allow Any type in BDD steps (flexible validator signatures)
+    "ARG001", # Allow unused arguments (BDD steps receive context they may not use)
+    "B011", # Allow assert False for marking unimplemented steps
+    "BLE001", # Allow broad exception catching (test robustness)
     "C901", # Allow complex functions in test helpers
+    "F841", # Allow unused variables (assigned for documentation/clarity)
     "N806", # Allow uppercase variable names (extracting from context)
+    "PT015", # Allow assert False for expected failures
     "S101", # Allow asserts in behave tests
     "TRY004", # Allow AssertionError for type checks in tests
 ]

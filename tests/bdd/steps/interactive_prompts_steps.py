@@ -36,7 +36,7 @@ def get_prompt_context(context: Context) -> PromptContext:
 
 
 @given('the prompt module is available')
-def step_prompt_module_available(context: Context) -> None:  # noqa: ARG001
+def step_prompt_module_available(context: Context) -> None:
     # Check that the prompt module is imported correctly
     assert ask is not None
 

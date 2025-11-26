@@ -35,7 +35,7 @@ def get_validator_context(context: Context) -> ValidatorContext:
 
 
 @given('the validation module is available')
-def step_validation_module_available(context: Context) -> None:  # noqa: ARG001
+def step_validation_module_available(context: Context) -> None:
     # Check that the validators module is imported correctly
     assert minimum is not None
     assert maximum is not None

@@ -30,14 +30,14 @@ def unquote(s: str) -> str:
     return s.strip('"\'')
 
 
-def parse_str(val: Any) -> Any:  # noqa: ANN401
+def parse_str(val: Any) -> Any:
     """Parse input as string."""
     from valid8r.core.maybe import Success
 
     return Success(str(val))
 
 
-def get_errors(result: Any) -> list[Any]:  # noqa: ANN401
+def get_errors(result: Any) -> list[Any]:
     """Extract error list from a Failure result.
 
     Schema validation returns Failure with a list of ValidationError objects.
@@ -76,7 +76,7 @@ def get_schema_context(context: Context) -> SchemaContext:
 
 
 @given('the schema validation API is available')
-def step_schema_api_available(context: Context) -> None:  # noqa: ARG001
+def step_schema_api_available(context: Context) -> None:
     """Verify that the schema module is importable."""
     # This will fail until we implement the schema module
     from valid8r.core import schema

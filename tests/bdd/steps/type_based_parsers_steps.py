@@ -27,7 +27,7 @@ try:
     from valid8r.core.type_adapters import from_type
 except ImportError:
     # Stub for RED phase - will fail tests as expected
-    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]  # noqa: ANN401
+    def from_type(annotation: type[Any]) -> Any:  # type: ignore[misc]
         msg = 'from_type not implemented yet'
         raise NotImplementedError(msg)
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 @given('the type adapter module is available')
-def step_type_adapter_available(context: Context) -> None:  # noqa: ARG001
+def step_type_adapter_available(context: Context) -> None:
     """Verify the type adapter module is available."""
     assert Maybe is not None
 

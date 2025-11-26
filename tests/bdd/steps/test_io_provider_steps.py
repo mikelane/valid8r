@@ -84,7 +84,7 @@ def get_io_context(context: Context) -> IOProviderContext:
 
 
 @given('the IO provider module is available')
-def step_io_provider_module_available(context: Context) -> None:  # noqa: ARG001
+def step_io_provider_module_available(context: Context) -> None:
     """Verify the IO provider module can be imported."""
     assert IOProvider is not None
     assert BuiltinIOProvider is not None
@@ -233,14 +233,14 @@ def step_ask_with_default(context: Context) -> None:
 
 
 @when('I ask for user input "{input_value}" using the custom provider')
-def step_ask_with_custom_provider(context: Context, input_value: str) -> None:  # noqa: ARG001
+def step_ask_with_custom_provider(context: Context, input_value: str) -> None:
     """Ask for input using the custom IO provider."""
     ctx = get_io_context(context)
     ctx.result = ask('Enter value: ', io_provider=ctx.custom_provider)
 
 
 @when('I provide invalid input "{input_value}" using the custom provider')
-def step_provide_invalid_input(context: Context, input_value: str) -> None:  # noqa: ARG001
+def step_provide_invalid_input(context: Context, input_value: str) -> None:
     """Provide invalid input using the custom IO provider."""
     ctx = get_io_context(context)
     ctx.result = ask('Enter number: ', parser=parse_int, retry=1, io_provider=ctx.custom_provider)

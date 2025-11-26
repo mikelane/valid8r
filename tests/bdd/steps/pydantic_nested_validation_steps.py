@@ -27,7 +27,7 @@ register_type(DictString=parse_dict_string)
 
 
 @given('the valid8r.integrations.pydantic module exists')
-def step_pydantic_module_exists(context: Context) -> None:  # noqa: ARG001
+def step_pydantic_module_exists(context: Context) -> None:
     """Verify that the pydantic integration module can be imported."""
     try:
         from valid8r.integrations import pydantic  # noqa: F401
