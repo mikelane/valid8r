@@ -87,11 +87,15 @@ jobs:
       - name: Run BDD tests with coverage
         run: uv run behave tests/bdd/features
 
+      - name: Verify coverage file exists
+        run: ls -la .coverage.bdd
+
       - name: Upload BDD coverage artifact
         uses: actions/upload-artifact@v5.0.0
         with:
           name: coverage-bdd
           path: .coverage.bdd
+          if-no-files-found: error
 
   coverage:
     name: Combined Coverage Report
