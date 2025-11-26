@@ -72,6 +72,7 @@ jobs:
           path: |
             .coverage
             coverage.xml
+          include-hidden-files: true
 
   bdd-test:
     name: BDD Tests
@@ -96,6 +97,7 @@ jobs:
           name: coverage-bdd
           path: .coverage.bdd
           if-no-files-found: error
+          include-hidden-files: true
 
   coverage:
     name: Combined Coverage Report
