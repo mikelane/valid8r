@@ -494,5 +494,25 @@ def step_all_errors_collected(context: Context) -> None:
 @then('validation fails with timeout error')
 def step_validation_fails_with_timeout(context: Context) -> None:
     """Assert validation failed with timeout error."""
+    # First check async_validators_steps.py context
+    if hasattr(context, 'async_validator_context'):
+        avc = context.async_validator_context
+        if avc.result is not None:
+            if hasattr(avc.result, 'is_failure') and avc.result.is_failure():
+                error_msg = avc.result.error_or('')
+                assert 'timeout' in error_msg.lower(), f'Expected timeout error but got: {error_msg}'
+                return
+            if isinstance(avc.result, asyncio.TimeoutError):
+                return
+        assert getattr(avc, 'timeout_occurred', False), 'Expected timeout but none occurred'
+        return
+
+    # Check async_validation_steps.py context
     ac = get_async_context(context)
-    assert isinstance(ac.result, asyncio.TimeoutError), f'Expected TimeoutError but got: {type(ac.result)}'
+    if isinstance(ac.result, asyncio.TimeoutError):
+        return
+    if hasattr(ac.result, 'is_failure') and ac.result.is_failure():
+        error_msg = ac.result.error_or('')
+        assert 'timeout' in error_msg.lower(), f'Expected timeout error but got: {error_msg}'
+        return
+    assert False, f'Expected TimeoutError but got: {type(ac.result)}'
