@@ -191,7 +191,7 @@ class MockExternalAPI:
         self.valid_tokens.add(token)
 
     async def verify_key(self, key: str) -> bool:
-        """Verify API key."""
+        """Verify API key or OAuth token."""
         if self.unreachable:
             raise ConnectionError('Network error: API unreachable')
 
@@ -204,7 +204,8 @@ class MockExternalAPI:
             raise ConnectionError('Transient failure')
 
         self.call_count += 1
-        return key in self.valid_keys
+        # Check both API keys and OAuth tokens
+        return key in self.valid_keys or key in self.valid_tokens
 
 
 # Mock DNS resolver for email deliverability
@@ -422,7 +423,7 @@ def step_use_valid_api_key_validator(context: Context, url: str) -> None:
         from valid8r.async_validators import valid_api_key
 
         async def create_validator() -> Any:
-            return await valid_api_key(api_url=unquote(url))
+            return await valid_api_key(api_url=unquote(url), verifier=ac.external_api)
 
         ac.validator = asyncio.run(create_validator())
     except ImportError:
@@ -438,7 +439,11 @@ def step_use_api_key_validator_with_timeout(context: Context, timeout: float) ->
         from valid8r.async_validators import valid_api_key
 
         async def create_validator() -> Any:
-            return await valid_api_key(api_url='https://api.example.com/validate', timeout=timeout)
+            return await valid_api_key(
+                api_url='https://api.example.com/validate',
+                timeout=timeout,
+                verifier=ac.external_api,
+            )
 
         ac.validator = asyncio.run(create_validator())
     except ImportError:
@@ -451,8 +456,21 @@ def step_validate_api_key(context: Context, key: str) -> None:
     ac = get_async_validator_context(context)
     ac.input_value = unquote(key)
 
-    # Validation happens in the "Then" steps
-    # Store the key for later validation
+    # Run validation
+    async def do_validation() -> None:
+        if ac.validator:
+            ac.validation_start_time = time.time()
+            try:
+                result = await ac.validator(ac.input_value)
+                ac.result = result
+            except Exception as e:
+                from valid8r.core.maybe import Maybe
+
+                ac.result = Maybe.failure(str(e))
+            finally:
+                ac.validation_duration = time.time() - ac.validation_start_time
+
+    asyncio.run(do_validation())
 
 
 # OAuth validator steps
@@ -504,7 +522,7 @@ def step_use_oauth_validator(context: Context) -> None:
         token_endpoint = getattr(context, 'oauth_url', 'https://oauth.example.com/token')
 
         async def create_validator() -> Any:
-            return await valid_oauth_token(token_endpoint=token_endpoint)
+            return await valid_oauth_token(token_endpoint=token_endpoint, verifier=ac.external_api)
 
         ac.validator = asyncio.run(create_validator())
     except ImportError:
@@ -524,7 +542,11 @@ def step_use_oauth_validator_with_cache(context: Context) -> None:
         token_endpoint = getattr(context, 'oauth_url', 'https://oauth.example.com/token')
 
         async def create_validator() -> Any:
-            return await valid_oauth_token(token_endpoint=token_endpoint, cache=ac.cache)
+            return await valid_oauth_token(
+                token_endpoint=token_endpoint,
+                cache=ac.cache,
+                verifier=ac.external_api,
+            )
 
         ac.validator = asyncio.run(create_validator())
     except ImportError:
@@ -536,6 +558,22 @@ def step_validate_oauth_token(context: Context, token: str) -> None:
     """Validate an OAuth token."""
     ac = get_async_validator_context(context)
     ac.input_value = unquote(token)
+
+    # Run validation
+    async def do_validation() -> None:
+        if ac.validator:
+            ac.validation_start_time = time.time()
+            try:
+                result = await ac.validator(ac.input_value)
+                ac.result = result
+            except Exception as e:
+                from valid8r.core.maybe import Maybe
+
+                ac.result = Maybe.failure(str(e))
+            finally:
+                ac.validation_duration = time.time() - ac.validation_start_time
+
+    asyncio.run(do_validation())
 
 
 # Email deliverability steps
@@ -575,7 +613,7 @@ def step_use_email_deliverable_validator(context: Context) -> None:
         from valid8r.async_validators import valid_email_deliverable
 
         async def create_validator() -> Any:
-            return await valid_email_deliverable()
+            return await valid_email_deliverable(resolver=ac.dns_resolver)
 
         ac.validator = asyncio.run(create_validator())
     except ImportError:
@@ -594,6 +632,23 @@ def step_validate_email(context: Context, email: str) -> None:
         ac.input_value = result.value_or(None)
     else:
         ac.result = result
+        return
+
+    # Run validation
+    async def do_validation() -> None:
+        if ac.validator:
+            ac.validation_start_time = time.time()
+            try:
+                result = await ac.validator(ac.input_value)
+                ac.result = result
+            except Exception as e:
+                from valid8r.core.maybe import Maybe
+
+                ac.result = Maybe.failure(str(e))
+            finally:
+                ac.validation_duration = time.time() - ac.validation_start_time
+
+    asyncio.run(do_validation())
 
 
 # Rate limiting steps
@@ -960,6 +1015,25 @@ def step_api_validator_with_cache(context: Context) -> None:
     ac = get_async_validator_context(context)
     ac.cache = MockAsyncCache()
 
+    # Also need to add a valid key for the test
+    ac.external_api.add_valid_key('test-value')
+    ac.input_value = 'test-value'
+
+    # Create validator with cache
+    try:
+        from valid8r.async_validators import valid_api_key
+
+        async def create_validator() -> Any:
+            return await valid_api_key(
+                api_url='https://api.example.com/validate',
+                verifier=ac.external_api,
+                cache=ac.cache,
+            )
+
+        ac.validator = asyncio.run(create_validator())
+    except ImportError:
+        pass
+
 
 @given('I validate the same value twice')
 def step_validate_twice(context: Context) -> None:
@@ -972,6 +1046,25 @@ def step_api_validator_cache_ttl(context: Context, seconds: float) -> None:
     """Create API validator with cache TTL."""
     ac = get_async_validator_context(context)
     ac.cache = MockAsyncCache(ttl=seconds)
+
+    # Also need to add a valid key for the test
+    ac.external_api.add_valid_key('test-value')
+    ac.input_value = 'test-value'
+
+    # Create validator with cache
+    try:
+        from valid8r.async_validators import valid_api_key
+
+        async def create_validator() -> Any:
+            return await valid_api_key(
+                api_url='https://api.example.com/validate',
+                verifier=ac.external_api,
+                cache=ac.cache,
+            )
+
+        ac.validator = asyncio.run(create_validator())
+    except ImportError:
+        pass
 
 
 @given('I validate a value')
@@ -999,6 +1092,25 @@ def step_api_validator_no_cache(context: Context) -> None:
     """Create API validator without cache."""
     ac = get_async_validator_context(context)
     ac.cache = None
+
+    # Also need to add a valid key for the test
+    ac.external_api.add_valid_key('test-value')
+    ac.input_value = 'test-value'
+
+    # Create validator without cache
+    try:
+        from valid8r.async_validators import valid_api_key
+
+        async def create_validator() -> Any:
+            return await valid_api_key(
+                api_url='https://api.example.com/validate',
+                verifier=ac.external_api,
+                cache=None,
+            )
+
+        ac.validator = asyncio.run(create_validator())
+    except ImportError:
+        pass
 
 
 @when('I run both validations')
