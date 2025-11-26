@@ -1159,3 +1159,513 @@ class DescribeValidEmailDeliverableGenericExceptionHandling:
 
         assert result.is_failure()
         assert 'failed' in result.error_or('').lower()
+
+
+# =============================================================================
+# Tests for Default Implementations (aiohttp/aiodns)
+# =============================================================================
+
+
+class DescribeValidApiKeyWithAiohttp:
+    """Tests for valid_api_key using default aiohttp implementation."""
+
+    @pytest.mark.asyncio
+    async def it_validates_key_with_successful_http_response(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Valid API key returns Success when HTTP 200 is received."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 200
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+        mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+
+        # Inject mock into sys.modules
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        validator = await valid_api_key(api_url='https://api.example.com/validate', timeout=5.0)
+
+        result = await validator('test-key')
+
+        assert result.is_success()
+        assert result.value_or(None) == 'test-key'
+
+    @pytest.mark.asyncio
+    async def it_rejects_key_with_non_200_response(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Invalid API key returns Failure when non-200 is received."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 401
+        mock_response = AsyncMock()
+        mock_response.status = 401
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+        mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        validator = await valid_api_key(api_url='https://api.example.com/validate')
+
+        result = await validator('invalid-key')
+
+        assert result.is_failure()
+        assert 'invalid api key' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_aiohttp_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns Failure when aiohttp is not installed."""
+        import builtins
+        import sys
+
+        # Remove aiohttp from sys.modules if present, and make import fail
+        monkeypatch.delitem(sys.modules, 'aiohttp', raising=False)
+
+        # Create a mock that raises ImportError when aiohttp is imported
+        original_import = builtins.__import__
+
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            if name == 'aiohttp':
+                raise ImportError('No module named aiohttp')
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, '__import__', mock_import)
+
+        validator = await valid_api_key(api_url='https://api.example.com/validate')
+
+        result = await validator('any-key')
+
+        assert result.is_failure()
+        assert 'aiohttp required' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_caches_successful_http_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Successful HTTP validation is cached."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 200
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+        mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        cache = MockAsyncCache()
+        validator = await valid_api_key(api_url='https://api.example.com/validate', cache=cache)
+
+        result = await validator('cached-key')
+
+        assert result.is_success()
+        assert cache.set_count == 1
+        assert 'api_key_cached-key' in cache._cache  # noqa: SLF001
+
+
+class DescribeValidOAuthTokenWithAiohttp:
+    """Tests for valid_oauth_token using default aiohttp implementation."""
+
+    @pytest.mark.asyncio
+    async def it_validates_token_with_successful_http_response(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Valid OAuth token returns Success when HTTP 200 is received."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 200
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        validator = await valid_oauth_token(token_endpoint='https://oauth.example.com/verify')  # noqa: S106
+
+        result = await validator('test-token')
+
+        assert result.is_success()
+        assert result.value_or(None) == 'test-token'
+
+    @pytest.mark.asyncio
+    async def it_rejects_token_with_non_200_response(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Invalid OAuth token returns Failure when non-200 is received."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 401
+        mock_response = AsyncMock()
+        mock_response.status = 401
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        validator = await valid_oauth_token(token_endpoint='https://oauth.example.com/verify')  # noqa: S106
+
+        result = await validator('invalid-token')
+
+        assert result.is_failure()
+        assert 'invalid oauth token' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_aiohttp_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns Failure when aiohttp is not installed."""
+        import builtins
+        import sys
+
+        # Remove aiohttp from sys.modules if present
+        monkeypatch.delitem(sys.modules, 'aiohttp', raising=False)
+
+        original_import = builtins.__import__
+
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            if name == 'aiohttp':
+                raise ImportError('No module named aiohttp')
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, '__import__', mock_import)
+
+        validator = await valid_oauth_token(token_endpoint='https://oauth.example.com/verify')  # noqa: S106
+
+        result = await validator('any-token')
+
+        assert result.is_failure()
+        assert 'aiohttp required' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_caches_successful_http_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Successful HTTP validation is cached."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock response with status 200
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        # Create a mock session
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Create mock aiohttp module
+        mock_aiohttp = MagicMock()
+        mock_aiohttp.ClientSession = MagicMock(return_value=mock_session)
+
+        monkeypatch.setitem(sys.modules, 'aiohttp', mock_aiohttp)
+
+        cache = MockAsyncCache()
+        validator = await valid_oauth_token(token_endpoint='https://oauth.example.com/verify', cache=cache)  # noqa: S106
+
+        result = await validator('cached-token')
+
+        assert result.is_success()
+        assert cache.set_count == 1
+        assert 'oauth_token_cached-token' in cache._cache  # noqa: SLF001
+
+
+class DescribeValidEmailDeliverableWithAiodns:
+    """Tests for valid_email_deliverable using default aiodns implementation."""
+
+    @pytest.mark.asyncio
+    async def it_validates_email_with_mx_records_from_dns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Email with MX records returns Success."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create mock MX records
+        mock_mx_records = [MagicMock(host='mail.example.com')]
+
+        # Create mock DNS resolver
+        mock_resolver_instance = MagicMock()
+        mock_resolver_instance.query = AsyncMock(return_value=mock_mx_records)
+
+        # Create mock aiodns module
+        mock_aiodns = MagicMock()
+        mock_aiodns.DNSResolver = MagicMock(return_value=mock_resolver_instance)
+
+        monkeypatch.setitem(sys.modules, 'aiodns', mock_aiodns)
+
+        validator = await valid_email_deliverable()
+
+        result = await validator('user@example.com')
+
+        assert result.is_success()
+        assert result.value_or(None) == 'user@example.com'
+
+    @pytest.mark.asyncio
+    async def it_rejects_email_when_no_mx_records_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Email without MX records returns Failure."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create mock with empty MX records
+        mock_resolver_instance = MagicMock()
+        mock_resolver_instance.query = AsyncMock(return_value=[])
+
+        mock_aiodns = MagicMock()
+        mock_aiodns.DNSResolver = MagicMock(return_value=mock_resolver_instance)
+
+        monkeypatch.setitem(sys.modules, 'aiodns', mock_aiodns)
+
+        validator = await valid_email_deliverable()
+
+        result = await validator('user@no-mx.example')
+
+        assert result.is_failure()
+        assert 'no mail server' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_handles_dns_error_from_aiodns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """DNS errors are handled gracefully."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock error class
+        class MockDNSError(Exception):
+            """Mock DNS error."""
+
+        # Create mock DNS resolver that raises error
+        mock_resolver_instance = MagicMock()
+        mock_resolver_instance.query = AsyncMock(side_effect=MockDNSError('DNS lookup failed'))
+
+        mock_aiodns = MagicMock()
+        mock_aiodns.DNSResolver = MagicMock(return_value=mock_resolver_instance)
+        mock_aiodns.error = MagicMock()
+        mock_aiodns.error.DNSError = MockDNSError
+
+        monkeypatch.setitem(sys.modules, 'aiodns', mock_aiodns)
+
+        validator = await valid_email_deliverable()
+
+        result = await validator('user@error.example')
+
+        assert result.is_failure()
+        assert 'dns error' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_handles_nxdomain_error_from_aiodns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """NXDOMAIN errors indicate domain does not exist."""
+        import sys
+        from unittest.mock import (
+            AsyncMock,
+            MagicMock,
+        )
+
+        # Create a mock error class
+        class MockDNSError(Exception):
+            """Mock DNS error."""
+
+        # Create mock DNS resolver that raises NXDOMAIN error
+        mock_resolver_instance = MagicMock()
+        mock_resolver_instance.query = AsyncMock(side_effect=MockDNSError('NXDOMAIN'))
+
+        mock_aiodns = MagicMock()
+        mock_aiodns.DNSResolver = MagicMock(return_value=mock_resolver_instance)
+        mock_aiodns.error = MagicMock()
+        mock_aiodns.error.DNSError = MockDNSError
+
+        monkeypatch.setitem(sys.modules, 'aiodns', mock_aiodns)
+
+        validator = await valid_email_deliverable()
+
+        result = await validator('user@nonexistent.example')
+
+        assert result.is_failure()
+        assert 'does not exist' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_aiodns_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns Failure when aiodns is not installed."""
+        import builtins
+        import sys
+
+        # Remove aiodns from sys.modules if present
+        monkeypatch.delitem(sys.modules, 'aiodns', raising=False)
+
+        original_import = builtins.__import__
+
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            if name == 'aiodns':
+                raise ImportError('No module named aiodns')
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, '__import__', mock_import)
+
+        validator = await valid_email_deliverable()
+
+        result = await validator('user@example.com')
+
+        assert result.is_failure()
+        assert 'aiodns required' in result.error_or('').lower()
+
+
+class DescribeValidApiKeyTimeoutWithVerifier:
+    """Tests for timeout handling when verifier is provided."""
+
+    @pytest.mark.asyncio
+    async def it_uses_timeout_with_verifier(self) -> None:
+        """Timeout is applied when using injected verifier."""
+        verifier = MockAPIVerifier(valid_keys={'valid-key'}, delay=0.001)
+        validator = await valid_api_key(
+            api_url='https://api.example.com/validate',
+            verifier=verifier,
+            timeout=1.0,
+        )
+
+        result = await validator('valid-key')
+
+        assert result.is_success()
+
+    @pytest.mark.asyncio
+    async def it_times_out_with_verifier(self) -> None:
+        """Timeout triggers failure with injected verifier."""
+        verifier = MockAPIVerifier(valid_keys={'valid-key'}, delay=5.0)
+        validator = await valid_api_key(
+            api_url='https://api.example.com/validate',
+            verifier=verifier,
+            timeout=0.01,
+        )
+
+        result = await validator('valid-key')
+
+        assert result.is_failure()
+        assert 'timeout' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_handles_no_timeout_with_verifier(self) -> None:
+        """No timeout specified works correctly with verifier."""
+        verifier = MockAPIVerifier(valid_keys={'valid-key'})
+        validator = await valid_api_key(
+            api_url='https://api.example.com/validate',
+            verifier=verifier,
+            timeout=None,  # No timeout
+        )
+
+        result = await validator('valid-key')
+
+        assert result.is_success()
+
+    @pytest.mark.asyncio
+    async def it_displays_timeout_value_in_error_message(self) -> None:
+        """Timeout value is shown in error message."""
+        verifier = MockAPIVerifier(raise_timeout=True)
+        validator = await valid_api_key(
+            api_url='https://api.example.com/validate',
+            verifier=verifier,
+            timeout=5.0,
+        )
+
+        result = await validator('any-key')
+
+        assert result.is_failure()
+        error_msg = result.error_or('')
+        assert 'timeout' in error_msg.lower()
+        assert '5.0' in error_msg or '5' in error_msg
+
+    @pytest.mark.asyncio
+    async def it_displays_unset_when_no_timeout_specified(self) -> None:
+        """Error message says 'unset' when no timeout specified."""
+
+        # We need to trigger the TimeoutError path without timeout being set
+        # The mock verifier with raise_timeout=True will sleep for 10 seconds
+        # and with no timeout, we'd wait forever. Instead, let's create a
+        # custom verifier that just raises TimeoutError directly.
+        class DirectTimeoutVerifier:
+            """Verifier that raises TimeoutError directly."""
+
+            async def verify_key(self, _key: str) -> bool:
+                raise TimeoutError('Simulated timeout')
+
+        validator = await valid_api_key(
+            api_url='https://api.example.com/validate',
+            verifier=DirectTimeoutVerifier(),
+            timeout=None,
+        )
+
+        result = await validator('any-key')
+
+        assert result.is_failure()
+        assert 'unset' in result.error_or('').lower()
