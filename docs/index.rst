@@ -129,6 +129,12 @@ Contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/build-cli-in-10-minutes
+
+.. toctree::
+   :maxdepth: 2
    :caption: User Guide
 
    user_guide/getting_started
