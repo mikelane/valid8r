@@ -755,10 +755,10 @@ def step_service_fails_twice(context: Context) -> None:
 
 @given('a validator with retry logic')
 def step_validator_with_retry(context: Context) -> None:
-    """Create validator with retry logic."""
+    """Create validator with retry logic using RetryingValidator."""
     ac = get_async_validator_context(context)
     try:
-        from valid8r.async_validators import RetryValidator
+        from valid8r.async_validators import RetryingValidator
 
         # Create an API validator with retry wrapping
         async def api_validator(value: Any) -> Any:
@@ -772,18 +772,24 @@ def step_validator_with_retry(context: Context) -> None:
             except ConnectionError:
                 return Maybe.failure('Transient failure - connection error')
 
-        ac.validator = RetryValidator(api_validator, max_retries=3, base_delay=0.01)
+        # Use RetryingValidator with jitter disabled for deterministic tests
+        ac.validator = RetryingValidator(
+            api_validator,
+            max_retries=3,
+            base_delay=0.01,
+            jitter=False,
+        )
     except ImportError:
         pass
 
 
 @given('a validator with retry logic and max retries {max_retries:d}')
 def step_validator_with_max_retries(context: Context, max_retries: int) -> None:
-    """Create validator with max retries."""
+    """Create validator with max retries using RetryingValidator."""
     ac = get_async_validator_context(context)
     ac.max_retries = max_retries
     try:
-        from valid8r.async_validators import RetryValidator
+        from valid8r.async_validators import RetryingValidator
 
         # Create an API validator with retry wrapping
         async def api_validator(value: Any) -> Any:
@@ -797,17 +803,23 @@ def step_validator_with_max_retries(context: Context, max_retries: int) -> None:
             except ConnectionError:
                 return Maybe.failure('Transient failure - connection error')
 
-        ac.validator = RetryValidator(api_validator, max_retries=max_retries, base_delay=0.01)
+        # Use RetryingValidator with jitter disabled for deterministic tests
+        ac.validator = RetryingValidator(
+            api_validator,
+            max_retries=max_retries,
+            base_delay=0.01,
+            jitter=False,
+        )
     except ImportError:
         pass
 
 
 @given('a validator with exponential backoff retry')
 def step_validator_with_backoff(context: Context) -> None:
-    """Create validator with exponential backoff."""
+    """Create validator with exponential backoff using RetryingValidator."""
     ac = get_async_validator_context(context)
     try:
-        from valid8r.async_validators import RetryValidator
+        from valid8r.async_validators import RetryingValidator
 
         # Create an API validator with retry wrapping
         async def api_validator(value: Any) -> Any:
@@ -821,7 +833,14 @@ def step_validator_with_backoff(context: Context) -> None:
             except ConnectionError:
                 return Maybe.failure('Transient failure - connection error')
 
-        ac.validator = RetryValidator(api_validator, max_retries=3, base_delay=0.01, exponential=True)
+        # Use RetryingValidator with exponential backoff (jitter disabled for testing)
+        ac.validator = RetryingValidator(
+            api_validator,
+            max_retries=3,
+            base_delay=0.01,
+            exponential_base=2.0,
+            jitter=False,
+        )
     except ImportError:
         pass
 
@@ -1628,19 +1647,43 @@ def step_subsequent_rate_limited(context: Context) -> None:
 @then('the validator retries once')
 def step_validator_retries_once(context: Context) -> None:
     """Assert validator retried once."""
-    # Will be verified through API call count or retry counter
+    ac = get_async_validator_context(context)
+    # RetryingValidator exposes retry_count attribute
+    if hasattr(ac.validator, 'retry_count'):
+        assert ac.validator.retry_count == 1, f'Expected 1 retry, got {ac.validator.retry_count}'
+    else:
+        # Fallback: check API call count (initial + 1 retry = 2 calls)
+        assert ac.external_api.call_count == 2, f'Expected 2 API calls (1 retry), got {ac.external_api.call_count}'
 
 
 @then('the validator retries {count:d} times')
 def step_validator_retries_n(context: Context, count: int) -> None:
     """Assert validator retried N times."""
-    # Will be verified through retry counter
+    ac = get_async_validator_context(context)
+    # RetryingValidator exposes retry_count attribute
+    if hasattr(ac.validator, 'retry_count'):
+        assert ac.validator.retry_count == count, f'Expected {count} retries, got {ac.validator.retry_count}'
+    else:
+        # Fallback: check API call count (initial + N retries = N+1 calls)
+        expected_calls = count + 1
+        assert ac.external_api.call_count == expected_calls, (
+            f'Expected {expected_calls} API calls ({count} retries), got {ac.external_api.call_count}'
+        )
 
 
 @then('retry delays increase exponentially')
 def step_retry_exponential(context: Context) -> None:
     """Assert retry delays increased exponentially."""
-    # Will be verified through timing measurements
+    ac = get_async_validator_context(context)
+    # RetryingValidator exposes retry_delays attribute
+    if hasattr(ac.validator, 'retry_delays'):
+        delays = ac.validator.retry_delays
+        assert len(delays) >= 2, f'Need at least 2 delays to verify exponential, got {len(delays)}'
+        # Each delay should be approximately double the previous (with tolerance)
+        for i in range(1, len(delays)):
+            ratio = delays[i] / delays[i - 1] if delays[i - 1] > 0 else 0
+            # Allow tolerance of 1.5 to 2.5 for timing variations
+            assert 1.5 <= ratio <= 2.5, f'Delay ratio {ratio:.2f} not within exponential range. Delays: {delays}'
 
 
 # Assertion steps - Batch validation

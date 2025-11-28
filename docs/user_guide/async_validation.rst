@@ -682,6 +682,160 @@ For more complex rate limiting scenarios, you can build your own:
         await rate_limiter.acquire()
         return await expensive_api_call(value)
 
+Retry Logic with Exponential Backoff
+-------------------------------------
+
+Use ``RetryingValidator`` to automatically retry async validators on transient failures.
+This is essential for handling network hiccups, temporary service unavailability, and
+rate-limited APIs.
+
+.. code-block:: python
+
+    from valid8r.async_validators import RetryingValidator
+    from valid8r.core.maybe import Maybe
+
+    # Define an async validator that might fail transiently
+    async def validate_with_api(value: str) -> Maybe[str]:
+        """Validate value against external API."""
+        try:
+            response = await httpx_client.post(
+                'https://api.example.com/validate',
+                json={'value': value}
+            )
+            if response.status_code == 200:
+                return Maybe.success(value)
+            if response.status_code >= 500:
+                # Server error - transient failure
+                return Maybe.failure('Transient: server error')
+            return Maybe.failure('Validation failed')
+        except httpx.ConnectError:
+            return Maybe.failure('Transient: connection error')
+
+    # Wrap with retry logic
+    robust_validator = RetryingValidator(
+        validate_with_api,
+        max_retries=3,        # Retry up to 3 times
+        base_delay=1.0,       # Start with 1 second delay
+        max_delay=60.0,       # Never wait more than 60 seconds
+        exponential_base=2.0, # Double delay each retry
+        jitter=True,          # Add randomness to prevent thundering herd
+    )
+
+    # Use the wrapped validator
+    result = await robust_validator('my-value')
+
+RetryingValidator Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``validator``
+    The async validator function to wrap. Must return ``Maybe[T]``.
+
+``max_retries`` (default: 3)
+    Maximum number of retry attempts after the initial call fails.
+    Total attempts = initial + max_retries = 4 by default.
+
+``base_delay`` (default: 1.0)
+    Base delay in seconds for exponential backoff.
+    Delay formula: ``base_delay * exponential_base^attempt``
+
+``max_delay`` (default: 60.0)
+    Maximum delay cap in seconds. Prevents excessively long waits.
+
+``exponential_base`` (default: 2.0)
+    Base for exponential backoff calculation. With 2.0, delays double
+    each retry: 1s -> 2s -> 4s -> 8s...
+
+``jitter`` (default: True)
+    Add random jitter to delays (0 to calculated_delay).
+    Prevents thundering herd when multiple validators retry simultaneously.
+
+Retry Behavior
+^^^^^^^^^^^^^^^
+
+- **All failures are retried**: Any ``Failure`` result triggers a retry
+- **Exceptions are caught**: Exceptions during validation are caught and retried
+- **Last error preserved**: Final failure includes the last error message
+- **State tracking**: ``retry_count`` and ``retry_delays`` attributes available after call
+
+Example: Tracking Retry Metrics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    validator = RetryingValidator(
+        flaky_api_validator,
+        max_retries=5,
+        base_delay=0.5,
+        jitter=False,  # Disable for deterministic testing
+    )
+
+    result = await validator('test-value')
+
+    # Check retry metrics
+    print(f"Retries performed: {validator.retry_count}")
+    print(f"Delays used: {validator.retry_delays}")
+
+    # Output might be:
+    # Retries performed: 2
+    # Delays used: [0.5, 1.0]  # Two retries with exponential backoff
+
+Best Practices for Retry Logic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. **Set reasonable max_retries**
+
+   - Database operations: 2-3 retries
+   - HTTP APIs: 3-5 retries
+   - Critical operations: Consider circuit breaker pattern instead
+
+2. **Use jitter in production**
+
+   .. code-block:: python
+
+       # Good: jitter prevents thundering herd
+       RetryingValidator(validator, jitter=True)
+
+       # Only for testing: disable jitter for deterministic tests
+       RetryingValidator(validator, jitter=False)
+
+3. **Distinguish transient vs permanent failures**
+
+   .. code-block:: python
+
+       async def smart_validator(value: str) -> Maybe[str]:
+           try:
+               response = await api_call(value)
+               if response.status_code == 200:
+                   return Maybe.success(value)
+               if response.status_code >= 500:
+                   # Transient: will be retried
+                   return Maybe.failure('Transient: server error')
+               # Permanent: 4xx errors, will be retried but likely to fail
+               return Maybe.failure('Validation failed')
+           except ConnectionError:
+               # Transient: network issues
+               return Maybe.failure('Transient: network error')
+
+4. **Combine with timeouts**
+
+   .. code-block:: python
+
+       import asyncio
+
+       async def validate_with_timeout(value):
+           validator = RetryingValidator(
+               api_validator,
+               max_retries=3,
+               base_delay=1.0,
+           )
+           try:
+               return await asyncio.wait_for(
+                   validator(value),
+                   timeout=30.0  # Overall timeout for all retries
+               )
+           except asyncio.TimeoutError:
+               return Maybe.failure('Validation timed out')
+
 Testing Async Validators
 =========================
 

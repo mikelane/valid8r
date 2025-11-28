@@ -41,6 +41,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import random
 import time
 from collections.abc import (
     Awaitable,
@@ -693,6 +694,160 @@ class RetryValidator(Generic[T]):
         return Maybe.failure(f'Validation failed after max retries exceeded: {last_error}')
 
 
+class RetryingValidator(Generic[T]):
+    """Wrap async validator with retry logic and exponential backoff.
+
+    This validator wrapper adds robust retry handling for transient failures
+    with configurable exponential backoff and optional jitter. Use this to
+    make async validators resilient to temporary network issues, rate limits,
+    or service unavailability.
+
+    The retry logic:
+    1. Attempts the validation
+    2. On failure, waits with exponential backoff before retrying
+    3. Optionally adds jitter to prevent thundering herd problems
+    4. Caps delay at max_delay to prevent excessive waits
+    5. After max_retries exhausted, returns failure with last error
+
+    Args:
+        validator: The async validator function to wrap. Must be a callable
+            that takes a value and returns Awaitable[Maybe[T]].
+        max_retries: Maximum number of retry attempts after the initial call.
+            Default: 3 (4 total attempts including initial).
+        base_delay: Base delay in seconds for exponential backoff. The actual
+            delay is base_delay * exponential_base^attempt. Default: 1.0.
+        max_delay: Maximum delay in seconds. Delays are capped at this value
+            to prevent excessive waiting. Default: 60.0.
+        exponential_base: Base for exponential backoff calculation. A value
+            of 2.0 doubles the delay each retry. Default: 2.0.
+        jitter: If True, adds random jitter to delays to prevent thundering
+            herd when multiple validators retry simultaneously. Default: True.
+
+    Attributes:
+        retry_count: Number of retries performed in the last validation call.
+        retry_delays: List of actual delays (in seconds) used between retries.
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import RetryingValidator
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def flaky_api_validator(value: str) -> Maybe[str]:
+        ...     # Simulates a validator that might fail transiently
+        ...     import random
+        ...     if random.random() < 0.5:
+        ...         return Maybe.failure('Transient: service unavailable')
+        ...     return Maybe.success(value)
+        >>>
+        >>> async def main():
+        ...     # Wrap with retry logic
+        ...     robust_validator = RetryingValidator(
+        ...         flaky_api_validator,
+        ...         max_retries=3,
+        ...         base_delay=0.5,
+        ...         max_delay=5.0,
+        ...         jitter=True
+        ...     )
+        ...     result = await robust_validator('test-value')
+        ...     print(f'Success: {result.is_success()}')
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - All failures are retried, not just those containing "transient"
+        - Exceptions during validation are caught and converted to retries
+        - The retry_count and retry_delays attributes are reset on each call
+
+    """
+
+    def __init__(  # noqa: PLR0913
+        self,
+        validator: Callable[[T], Awaitable[Maybe[T]]],
+        max_retries: int = 3,
+        base_delay: float = 1.0,
+        max_delay: float = 60.0,
+        exponential_base: float = 2.0,
+        *,
+        jitter: bool = True,
+    ) -> None:
+        """Initialize the retrying validator.
+
+        Args:
+            validator: The async validator function to wrap
+            max_retries: Maximum number of retry attempts (default: 3)
+            base_delay: Base delay in seconds for backoff (default: 1.0)
+            max_delay: Maximum delay in seconds (default: 60.0)
+            exponential_base: Base for exponential calculation (default: 2.0)
+            jitter: Add random jitter to delays (default: True)
+
+        """
+        self._validator = validator
+        self._max_retries = max_retries
+        self._base_delay = base_delay
+        self._max_delay = max_delay
+        self._exponential_base = exponential_base
+        self._jitter = jitter
+        self.retry_count = 0
+        self.retry_delays: list[float] = []
+
+    def _calculate_delay(self, attempt: int) -> float:
+        """Calculate delay for the given attempt with optional jitter.
+
+        Args:
+            attempt: Zero-based attempt number (0 for first retry)
+
+        Returns:
+            Delay in seconds, capped at max_delay
+
+        """
+        base = self._base_delay * (self._exponential_base**attempt)
+        delay = min(base, self._max_delay)
+
+        if self._jitter:
+            # S311: random is sufficient for jitter (not cryptographic)
+            delay = random.uniform(0, delay)  # noqa: S311
+
+        return delay
+
+    async def __call__(self, value: T) -> Maybe[T]:
+        """Validate a value with retry logic.
+
+        Attempts validation up to max_retries times on failure, using
+        exponential backoff between attempts.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Maybe[T]: Success with validated value, or Failure with error
+                message including "max retries exceeded" if all attempts fail
+
+        """
+        self.retry_count = 0
+        self.retry_delays = []
+        last_error = ''
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                result = await self._validator(value)
+
+                if result.is_success():
+                    return result
+
+                last_error = result.error_or('')
+
+            except Exception as e:  # noqa: BLE001
+                last_error = str(e)
+
+            if attempt < self._max_retries:
+                delay = self._calculate_delay(attempt)
+                self.retry_delays.append(delay)
+                await asyncio.sleep(delay)
+                self.retry_count += 1
+
+        return Maybe.failure(f'Max retries exceeded: {last_error}')
+
+
 async def parallel_validate(
     validator: AsyncValidator,
     values: Sequence[T],
@@ -791,6 +946,7 @@ __all__ = [
     'DNSResolver',
     'RateLimitedValidator',
     'RetryValidator',
+    'RetryingValidator',
     'compose_parallel',
     'exists_in_db',
     'parallel_validate',
