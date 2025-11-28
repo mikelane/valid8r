@@ -569,10 +569,82 @@ Cache expensive validation results to avoid redundant operations:
         # Cache miss: query database
         return await check_email_unique(email)
 
-Rate Limiting
--------------
+Rate Limiting with RateLimitedValidator
+---------------------------------------
 
-Protect external APIs from excessive requests:
+The ``RateLimitedValidator`` wrapper protects external APIs from excessive requests
+using a token bucket algorithm. This is essential when validating against external
+services that have rate limits.
+
+.. code-block:: python
+
+    from valid8r.async_validators import RateLimitedValidator
+
+    # Create an async validator that calls an external API
+    async def verify_api_key(key: str) -> Maybe[str]:
+        """Verify API key with external service."""
+        response = await http_client.get(
+            'https://api.example.com/verify',
+            headers={'Authorization': f'Bearer {key}'}
+        )
+        if response.status_code == 200:
+            return Maybe.success(key)
+        return Maybe.failure('Invalid API key')
+
+    # Wrap with rate limiting: 10 calls/second, burst up to 5
+    rate_limited_validator = RateLimitedValidator(
+        verify_api_key,
+        rate=10,    # 10 calls per second sustained rate
+        burst=5     # Allow up to 5 immediate calls before rate limiting
+    )
+
+    # Use the rate-limited validator
+    result = await rate_limited_validator('my-api-key')
+
+**Token Bucket Algorithm**:
+
+- ``rate``: Maximum calls per second (sustained throughput)
+- ``burst``: Maximum immediate calls before throttling begins (defaults to ``rate``)
+
+The algorithm allows bursts of traffic up to the ``burst`` limit, then throttles
+excess calls to the sustained ``rate``. This handles bursty traffic patterns
+while protecting backend services.
+
+**Example with burst behavior**:
+
+.. code-block:: python
+
+    # Rate: 2 calls/second, Burst: 5
+    rate_limited = RateLimitedValidator(my_validator, rate=2, burst=5)
+
+    # First 5 calls complete immediately (burst capacity)
+    for i in range(5):
+        await rate_limited(f'value_{i}')  # No delay
+
+    # Subsequent calls are rate-limited to 2/second
+    await rate_limited('value_5')  # Delays ~0.5s to maintain 2/sec rate
+
+**Concurrent validation with rate limiting**:
+
+.. code-block:: python
+
+    import asyncio
+    from valid8r.async_validators import RateLimitedValidator, parallel_validate
+
+    # Wrap validator with rate limiting
+    rate_limited = RateLimitedValidator(
+        external_api_validator,
+        rate=10,
+        burst=5
+    )
+
+    # Validate many values - rate limiting prevents API overload
+    values = ['value_1', 'value_2', 'value_3', ...]
+    results = await parallel_validate(rate_limited, values)
+
+**Custom Rate Limiter (Advanced)**:
+
+For more complex rate limiting scenarios, you can build your own:
 
 .. code-block:: python
 
