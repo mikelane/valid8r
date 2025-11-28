@@ -320,4 +320,4 @@ If CI reports "No baseline available":
 
 - [Performance Characteristics](../performance.md) - Detailed performance analysis
 - [Benchmark Scenarios](../../benchmarks/README.md) - Implementation details
-- [CI Workflow](.github/workflows/benchmarks.yml) - GitHub Actions configuration
+- [CI Workflow](../../.github/workflows/benchmarks.yml) - GitHub Actions configuration

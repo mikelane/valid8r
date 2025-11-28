@@ -122,7 +122,10 @@ def compare_benchmarks(
             )
             continue
 
-        delta_percent = (current_result.median_ns - baseline_result.median_ns) / baseline_result.median_ns
+        if baseline_result.median_ns == 0:
+            delta_percent = float('inf') if current_result.median_ns > 0 else 0.0
+        else:
+            delta_percent = (current_result.median_ns - baseline_result.median_ns) / baseline_result.median_ns
 
         comparisons.append(
             ComparisonResult(

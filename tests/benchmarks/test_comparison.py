@@ -141,6 +141,34 @@ class DescribeCompareBenchmarks:
         assert comparisons[0].delta_percent is None
         assert comparisons[0].is_regression is False
 
+    def it_handles_zero_baseline_median(self) -> None:
+        current = {
+            'test': BenchmarkResult(
+                name='test', median_ns=1000, mean_ns=1000, min_ns=900, max_ns=1100, ops_per_sec=1000, rounds=100
+            )
+        }
+        baseline = {
+            'test': BenchmarkResult(name='test', median_ns=0, mean_ns=0, min_ns=0, max_ns=0, ops_per_sec=0, rounds=100)
+        }
+
+        comparisons = compare_benchmarks(current, baseline)
+
+        assert len(comparisons) == 1
+        assert comparisons[0].delta_percent == float('inf')
+
+    def it_handles_zero_baseline_and_zero_current(self) -> None:
+        current = {
+            'test': BenchmarkResult(name='test', median_ns=0, mean_ns=0, min_ns=0, max_ns=0, ops_per_sec=0, rounds=100)
+        }
+        baseline = {
+            'test': BenchmarkResult(name='test', median_ns=0, mean_ns=0, min_ns=0, max_ns=0, ops_per_sec=0, rounds=100)
+        }
+
+        comparisons = compare_benchmarks(current, baseline)
+
+        assert len(comparisons) == 1
+        assert comparisons[0].delta_percent == 0.0
+
     def it_marks_small_changes_as_ok(self) -> None:
         current = {
             'test': BenchmarkResult(
