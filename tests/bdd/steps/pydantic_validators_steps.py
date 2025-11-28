@@ -452,7 +452,50 @@ def step_wrap_validator_calls_next_handler(context: Context) -> None:
 
 @when('I validate a value')
 def step_validate_value(context: Context) -> None:
-    """Validate a value with the WrapValidator."""
+    """Validate a value with the WrapValidator or async validators."""
+    import asyncio
+    import time
+
+    # Check if this is an async validator context (from async_validators_steps.py)
+    if hasattr(context, 'async_validator_context'):
+        ac = context.async_validator_context
+        ac.input_value = 'test-value'
+
+        from valid8r.core.maybe import Maybe
+
+        async def do_validation() -> None:
+            ac.validation_start_time = time.time()
+            try:
+                mode = getattr(context, 'composition_mode', None)
+                if mode == 'parallel' and ac.validator_list:
+                    from valid8r.async_validators import compose_parallel
+
+                    result = await compose_parallel(ac.validator_list, ac.input_value)
+                    ac.result = result
+                elif mode == 'sequential' and ac.validator_list:
+                    from valid8r.async_validators import sequential_validate
+
+                    result = await sequential_validate(ac.validator_list, ac.input_value)
+                    ac.result = result
+                elif mode == 'mixed' and ac.validator_list:
+                    from valid8r.async_validators import compose_parallel
+
+                    result = await compose_parallel(ac.validator_list, ac.input_value)
+                    ac.result = result
+                elif ac.validator:
+                    result = await ac.validator(ac.input_value)
+                    ac.result = result
+                else:
+                    ac.result = Maybe.failure('No validator configured')
+            except Exception as e:
+                ac.result = Maybe.failure(str(e))
+            finally:
+                ac.validation_duration = time.time() - ac.validation_start_time
+
+        asyncio.run(do_validation())
+        return
+
+    # Pydantic WrapValidator context (original behavior)
     try:
         context.instance = context.model_class(value='  21  ')
         context.validated_model = context.instance  # Alias for compatibility

@@ -1,6 +1,8 @@
 [run]
 source = valid8r
 omit = tests/*, .tox/*
+# Enable branch coverage for more detailed analysis
+branch = true
 
 [report]
 exclude_lines =
@@ -10,3 +12,9 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
     if TYPE_CHECKING:
+
+[paths]
+# Map coverage paths for combining data from different test runners
+source =
+    valid8r/
+    */valid8r/

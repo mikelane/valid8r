@@ -9,6 +9,10 @@ external systems without blocking the event loop.
 
 Key Features:
     - Database validation (unique_in_db, exists_in_db)
+    - API validation (valid_api_key, valid_oauth_token)
+    - Email deliverability (valid_email_deliverable)
+    - Rate limiting (RateLimitedValidator)
+    - Batch validation (parallel_validate)
     - Non-blocking async operations
     - Compatible with Maybe monad pattern
     - Works with any async database connection
@@ -36,16 +40,59 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import (
     Awaitable,
     Callable,
+    Sequence,
 )
-from typing import Any
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Protocol,
+    TypeVar,
+)
 
 from valid8r.core.maybe import Maybe
 
+if TYPE_CHECKING:
+    from valid8r.core.parsers import EmailAddress
+
+# Type variables
+T = TypeVar('T')
+
 # Type alias for async validators
 AsyncValidator = Callable[[Any], Awaitable[Maybe[Any]]]
+
+
+class AsyncCache(Protocol):
+    """Protocol for async cache implementations."""
+
+    async def get(self, key: str) -> Any | None:  # noqa: ANN401
+        """Get value from cache."""
+        ...
+
+    async def set(self, key: str, value: Any) -> None:  # noqa: ANN401
+        """Set value in cache."""
+        ...
+
+
+class DNSResolver(Protocol):
+    """Protocol for DNS resolver implementations."""
+
+    async def resolve_mx(self, domain: str) -> list[str]:
+        """Resolve MX records for domain."""
+        ...
+
+
+class APIVerifier(Protocol):
+    """Protocol for API key verification."""
+
+    async def verify_key(self, key: str) -> bool:
+        """Verify an API key."""
+        ...
 
 
 async def unique_in_db(
@@ -212,3 +259,544 @@ async def exists_in_db(
             return Maybe.failure(f'Database error: {e}')
 
     return validator
+
+
+async def valid_api_key(  # noqa: C901
+    *,
+    api_url: str,
+    timeout: float | None = None,  # noqa: ASYNC109
+    verifier: APIVerifier | None = None,
+    cache: AsyncCache | None = None,
+) -> AsyncValidator:
+    """Create a validator that checks if an API key is valid against an external service.
+
+    This validator calls an external API endpoint to validate API keys. Use this
+    when validating API keys before processing requests that require authentication.
+
+    Args:
+        api_url: The URL of the API endpoint to validate keys against
+        timeout: Optional timeout in seconds for the API call
+        verifier: Optional custom API verifier (for testing/mocking)
+        cache: Optional async cache for storing validation results
+
+    Returns:
+        An async validator function that:
+            - Accepts an API key to validate
+            - Returns Maybe[str]: Success(key) if valid, Failure(error_msg) if not
+            - Returns Failure for network errors or timeouts
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import valid_api_key
+        >>>
+        >>> async def validate_key():
+        ...     validator = await valid_api_key(
+        ...         api_url='https://api.example.com/validate',
+        ...         timeout=5.0
+        ...     )
+        ...     result = await validator('my-api-key-123')
+        ...     if result.is_success():
+        ...         print("API key is valid!")
+        ...     else:
+        ...         print(f"Invalid: {result.error_or('')}")
+
+    """
+
+    async def validator(key: str) -> Maybe[str]:  # noqa: C901, PLR0912
+        """Validate an API key against the external service."""
+        cache_key = f'api_key_{key}'
+
+        # Check cache first
+        if cache is not None:
+            cached = await cache.get(cache_key)
+            if cached is not None:
+                return Maybe.success(key)
+
+        try:
+            if verifier is not None:
+                # Use injected verifier (for testing)
+                if timeout:
+                    is_valid = await asyncio.wait_for(
+                        verifier.verify_key(key),
+                        timeout=timeout,
+                    )
+                else:
+                    is_valid = await verifier.verify_key(key)
+
+                if is_valid:
+                    # Cache the result
+                    if cache is not None:
+                        await cache.set(cache_key, True)  # noqa: FBT003
+                    return Maybe.success(key)
+                return Maybe.failure('Invalid API key')
+
+            # Default implementation using aiohttp (if available)
+            try:
+                import aiohttp  # noqa: PLC0415
+
+                http_ok = 200
+                async with aiohttp.ClientSession() as session:
+                    headers = {'Authorization': f'Bearer {key}'}
+                    async with session.get(
+                        api_url,
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=timeout),
+                    ) as response:
+                        if response.status == http_ok:
+                            if cache is not None:
+                                await cache.set(cache_key, True)  # noqa: FBT003
+                            return Maybe.success(key)
+                        return Maybe.failure('Invalid API key')
+            except ImportError:
+                # aiohttp not available, return error
+                return Maybe.failure('aiohttp required for API validation')
+
+        except TimeoutError:
+            timeout_val = timeout if timeout else 'unset'
+            return Maybe.failure(f'Validation timeout after {timeout_val} seconds')
+        except ConnectionError as e:
+            return Maybe.failure(f'Network error: {e}')
+        except Exception as e:  # noqa: BLE001
+            return Maybe.failure(f'API validation error: {e}')
+
+    return validator
+
+
+async def valid_oauth_token(  # noqa: C901
+    *,
+    token_endpoint: str,
+    cache: AsyncCache | None = None,
+    verifier: APIVerifier | None = None,
+) -> AsyncValidator:
+    """Create a validator that checks if an OAuth token is valid.
+
+    This validator calls an OAuth token endpoint to validate tokens. Optionally
+    supports caching to avoid redundant API calls for the same token.
+
+    Args:
+        token_endpoint: The URL of the OAuth token validation endpoint
+        cache: Optional async cache for storing validation results
+        verifier: Optional custom API verifier (for testing/mocking)
+
+    Returns:
+        An async validator function that:
+            - Accepts an OAuth token to validate
+            - Returns Maybe[str]: Success(token) if valid, Failure(error_msg) if not
+            - Uses cache if provided to avoid redundant calls
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import valid_oauth_token
+        >>>
+        >>> async def validate_token():
+        ...     validator = await valid_oauth_token(
+        ...         token_endpoint='https://oauth.example.com/token'
+        ...     )
+        ...     result = await validator('bearer-token-123')
+        ...     if result.is_success():
+        ...         print("Token is valid!")
+
+    """
+
+    async def validator(token: str) -> Maybe[str]:  # noqa: C901
+        """Validate an OAuth token."""
+        cache_key = f'oauth_token_{token}'
+
+        # Check cache first
+        if cache is not None:
+            cached = await cache.get(cache_key)
+            if cached is not None:
+                return Maybe.success(token)
+
+        try:
+            if verifier is not None:
+                # Use injected verifier (for testing)
+                is_valid = await verifier.verify_key(token)
+
+                if is_valid:
+                    # Cache the result
+                    if cache is not None:
+                        await cache.set(cache_key, True)  # noqa: FBT003
+                    return Maybe.success(token)
+                return Maybe.failure('Invalid OAuth token')
+
+            # Default implementation using aiohttp
+            try:
+                import aiohttp  # noqa: PLC0415
+
+                http_ok = 200
+                async with aiohttp.ClientSession() as session:
+                    headers = {'Authorization': f'Bearer {token}'}
+                    async with session.get(token_endpoint, headers=headers) as response:
+                        if response.status == http_ok:
+                            if cache is not None:
+                                await cache.set(cache_key, True)  # noqa: FBT003
+                            return Maybe.success(token)
+                        return Maybe.failure('Invalid OAuth token')
+            except ImportError:
+                return Maybe.failure('aiohttp required for OAuth validation')
+
+        except ConnectionError as e:
+            return Maybe.failure(f'Network error: {e}')
+        except Exception as e:  # noqa: BLE001
+            return Maybe.failure(f'OAuth validation error: {e}')
+
+    return validator
+
+
+async def valid_email_deliverable(  # noqa: C901
+    *,
+    resolver: DNSResolver | None = None,
+) -> AsyncValidator:
+    """Create a validator that checks if an email address is deliverable.
+
+    This validator checks if the email domain has valid MX records, indicating
+    that the domain can receive email. Use this for validating email addresses
+    beyond just format checking.
+
+    Args:
+        resolver: Optional DNS resolver (for testing/mocking)
+
+    Returns:
+        An async validator function that:
+            - Accepts an email address (string or EmailAddress object)
+            - Returns Maybe[EmailAddress]: Success if deliverable, Failure if not
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import valid_email_deliverable
+        >>>
+        >>> async def check_email():
+        ...     validator = await valid_email_deliverable()
+        ...     result = await validator('user@example.com')
+        ...     if result.is_success():
+        ...         print("Email domain can receive mail!")
+
+    """
+
+    async def validator(email: str | EmailAddress) -> Maybe[Any]:  # noqa: C901
+        """Validate email deliverability via MX record lookup."""
+        # Extract domain from email
+        if hasattr(email, 'domain'):
+            # EmailAddress object
+            domain = email.domain
+            email_value = email
+        else:
+            # String email
+            if '@' not in str(email):
+                return Maybe.failure('Invalid email format')
+            domain = str(email).split('@')[1]
+            email_value = email
+
+        try:
+            if resolver is not None:
+                # Use injected resolver (for testing)
+                mx_records = await resolver.resolve_mx(domain)
+                if not mx_records:
+                    return Maybe.failure(f'No mail server found for domain {domain}')
+                return Maybe.success(email_value)
+
+            # Default implementation using aiodns
+            try:
+                import aiodns  # noqa: PLC0415
+
+                dns_resolver = aiodns.DNSResolver()
+                try:
+                    mx_records = await dns_resolver.query(domain, 'MX')
+                    if mx_records:
+                        return Maybe.success(email_value)
+                    return Maybe.failure(f'No mail server found for domain {domain}')
+                except aiodns.error.DNSError as e:
+                    if 'NXDOMAIN' in str(e):
+                        return Maybe.failure(f'Domain {domain} does not exist')
+                    return Maybe.failure(f'DNS error: {e}')
+            except ImportError:
+                return Maybe.failure('aiodns required for email deliverability check')
+
+        except ValueError as e:
+            if 'does not exist' in str(e).lower() or 'nxdomain' in str(e).lower():
+                return Maybe.failure(f'Domain {domain} does not exist')
+            return Maybe.failure(f'DNS lookup error: {e}')
+        except Exception as e:  # noqa: BLE001
+            return Maybe.failure(f'Email deliverability check failed: {e}')
+
+    return validator
+
+
+class RateLimitedValidator(Generic[T]):
+    """A wrapper that adds rate limiting to async validators.
+
+    Uses a token bucket algorithm to limit the rate of validation calls.
+    This is useful for protecting external services from being overwhelmed.
+
+    Args:
+        validator: The async validator function to wrap
+        rate: Maximum number of calls per second
+        burst: Maximum burst size (defaults to rate)
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import RateLimitedValidator
+        >>>
+        >>> async def my_validator(value):
+        ...     return Maybe.success(value)
+        >>>
+        >>> rate_limited = RateLimitedValidator(my_validator, rate=10, burst=5)
+        >>> result = await rate_limited('test')
+
+    """
+
+    def __init__(
+        self,
+        validator: AsyncValidator,
+        *,
+        rate: int,
+        burst: int | None = None,
+    ) -> None:
+        """Initialize the rate-limited validator.
+
+        Args:
+            validator: The async validator function to wrap
+            rate: Maximum number of calls per second
+            burst: Maximum burst size (defaults to rate)
+
+        """
+        self._validator = validator
+        self._rate = rate
+        self._burst = burst if burst is not None else rate
+        self._tokens = float(self._burst)
+        self._last_update = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    async def _acquire_token(self) -> float:
+        """Acquire a token from the bucket, returning wait time if needed."""
+        async with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_update
+            self._last_update = now
+
+            # Add tokens based on elapsed time
+            self._tokens = min(self._burst, self._tokens + elapsed * self._rate)
+
+            if self._tokens >= 1:
+                self._tokens -= 1
+                return 0.0
+
+            # Calculate wait time
+            return (1 - self._tokens) / self._rate
+
+    async def __call__(self, value: T) -> Maybe[T]:
+        """Validate a value with rate limiting.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Maybe[T]: The validation result
+
+        """
+        wait_time = await self._acquire_token()
+        if wait_time > 0:
+            await asyncio.sleep(wait_time)
+            # After waiting, we have our token
+            async with self._lock:
+                self._tokens = max(0, self._tokens - 1)
+
+        return await self._validator(value)
+
+
+class RetryValidator(Generic[T]):
+    """A wrapper that adds retry logic to async validators.
+
+    Retries validation on transient failures with configurable backoff.
+
+    Args:
+        validator: The async validator function to wrap
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Base delay in seconds for exponential backoff (default: 0.1)
+        exponential: Use exponential backoff if True (default: True)
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import RetryValidator
+        >>>
+        >>> retry_validator = RetryValidator(my_validator, max_retries=3)
+        >>> result = await retry_validator('test')
+
+    """
+
+    def __init__(
+        self,
+        validator: AsyncValidator,
+        *,
+        max_retries: int = 3,
+        base_delay: float = 0.1,
+        exponential: bool = True,
+    ) -> None:
+        """Initialize the retry validator.
+
+        Args:
+            validator: The async validator function to wrap
+            max_retries: Maximum number of retry attempts
+            base_delay: Base delay in seconds for backoff
+            exponential: Use exponential backoff if True
+
+        """
+        self._validator = validator
+        self._max_retries = max_retries
+        self._base_delay = base_delay
+        self._exponential = exponential
+        self.retry_count = 0
+        self.retry_delays: list[float] = []
+
+    async def __call__(self, value: T) -> Maybe[T]:
+        """Validate a value with retry logic.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Maybe[T]: The validation result
+
+        """
+        self.retry_count = 0
+        self.retry_delays = []
+        last_error = ''
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                result = await self._validator(value)
+
+                # If validation succeeded, return immediately
+                if result.is_success():
+                    return result
+
+                # If it's a logical failure (not a transient error), don't retry
+                error_msg = result.error_or('')
+                if 'transient' not in error_msg.lower() and attempt == 0:
+                    # First attempt with non-transient error
+                    return result
+
+                last_error = error_msg
+                self.retry_count += 1
+
+            except Exception as e:  # noqa: BLE001
+                last_error = str(e)
+                self.retry_count += 1
+
+            # Calculate delay for next retry
+            if attempt < self._max_retries:
+                delay = self._base_delay * (2**attempt) if self._exponential else self._base_delay
+                self.retry_delays.append(delay)
+                await asyncio.sleep(delay)
+
+        return Maybe.failure(f'Validation failed after max retries exceeded: {last_error}')
+
+
+async def parallel_validate(
+    validator: AsyncValidator,
+    values: Sequence[T],
+) -> list[Maybe[T]]:
+    """Validate multiple values concurrently.
+
+    This helper function validates a sequence of values in parallel,
+    returning all results (both successes and failures).
+
+    Args:
+        validator: The async validator function to use
+        values: Sequence of values to validate
+
+    Returns:
+        List of Maybe[T] results in the same order as input values
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import parallel_validate
+        >>>
+        >>> async def validate_emails():
+        ...     emails = ['a@example.com', 'b@example.com', 'c@example.com']
+        ...     results = await parallel_validate(email_validator, emails)
+        ...     successes = [r for r in results if r.is_success()]
+        ...     failures = [r for r in results if r.is_failure()]
+
+    """
+    tasks = [validator(value) for value in values]
+    return await asyncio.gather(*tasks)
+
+
+async def sequential_validate(
+    validators: Sequence[AsyncValidator],
+    value: T,
+) -> Maybe[T]:
+    """Run validators sequentially, stopping on first failure.
+
+    This helper function runs a sequence of validators one after another,
+    passing the value through each validator. Stops on first failure.
+
+    Args:
+        validators: Sequence of async validators to run
+        value: The value to validate
+
+    Returns:
+        Maybe[T]: Success if all validators pass, first Failure otherwise
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import sequential_validate
+        >>>
+        >>> async def validate_user():
+        ...     validators = [format_validator, uniqueness_validator, auth_validator]
+        ...     result = await sequential_validate(validators, user_data)
+
+    """
+    current_value: Any = value
+    for validator in validators:
+        result = await validator(current_value)
+        if result.is_failure():
+            return result
+        current_value = result.value_or(current_value)
+    return Maybe.success(current_value)
+
+
+async def compose_parallel(
+    validators: Sequence[AsyncValidator],
+    value: T,
+) -> Maybe[T]:
+    """Run validators in parallel and combine results.
+
+    All validators run concurrently. Returns Success if all pass,
+    or the first Failure encountered.
+
+    Args:
+        validators: Sequence of async validators to run in parallel
+        value: The value to validate
+
+    Returns:
+        Maybe[T]: Success if all validators pass, first Failure otherwise
+
+    """
+    results = await asyncio.gather(*[v(value) for v in validators])
+
+    for result in results:
+        if result.is_failure():
+            return result
+
+    return Maybe.success(value)
+
+
+# Export all public symbols
+__all__ = [
+    'AsyncCache',
+    'AsyncValidator',
+    'DNSResolver',
+    'RateLimitedValidator',
+    'RetryValidator',
+    'compose_parallel',
+    'exists_in_db',
+    'parallel_validate',
+    'sequential_validate',
+    'unique_in_db',
+    'valid_api_key',
+    'valid_email_deliverable',
+    'valid_oauth_token',
+]

@@ -278,6 +278,16 @@ module = [
   "sphinx.*",
   "click",
   "click.*",
+  "aiohttp",
+  "aiohttp.*",
+  "aiodns",
+  "aiodns.*",
+  "uuid_utils",
+  "uuid_utils.*",
+  "email_validator",
+  "email_validator.*",
+  "typer",
+  "typer.*",
 ]
 ignore_missing_imports = true
 
