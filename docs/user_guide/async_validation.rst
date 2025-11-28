@@ -583,6 +583,7 @@ services that have rate limits.
     # Create an async validator that calls an external API
     async def verify_api_key(key: str) -> Maybe[str]:
         """Verify API key with external service."""
+        # http_client is an httpx.AsyncClient instance
         response = await http_client.get(
             'https://api.example.com/verify',
             headers={'Authorization': f'Bearer {key}'}
@@ -628,7 +629,6 @@ while protecting backend services.
 
 .. code-block:: python
 
-    import asyncio
     from valid8r.async_validators import RateLimitedValidator, parallel_validate
 
     # Wrap validator with rate limiting
@@ -639,7 +639,7 @@ while protecting backend services.
     )
 
     # Validate many values - rate limiting prevents API overload
-    values = ['value_1', 'value_2', 'value_3', ...]
+    values = ['value_1', 'value_2', 'value_3']  # ... more values
     results = await parallel_validate(rate_limited, values)
 
 **Custom Rate Limiter (Advanced)**:
