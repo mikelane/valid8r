@@ -10,4 +10,4 @@ All benchmarks use pytest-benchmark for consistent, reproducible measurements.
 
 from __future__ import annotations
 
-__all__ = ['scenarios']
+__all__ = ['comparison', 'scenarios']
