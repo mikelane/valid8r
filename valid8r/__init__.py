@@ -7,7 +7,7 @@ from __future__ import annotations
 try:
     from valid8r._version import __version__
 except ImportError:
-    __version__ = '1.23.1'
+    __version__ = '1.24.0'
 
 # Public API re-exports for concise imports
 # Modules
