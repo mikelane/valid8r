@@ -65,7 +65,7 @@ jobs:
         run: uv run pytest tests/unit tests/integration --cov=valid8r --cov-report=xml --cov-report=term
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         if: matrix.python-version == '3.12'
         with:
           name: coverage-pytest
@@ -92,7 +92,7 @@ jobs:
         run: ls -la .coverage.bdd
 
       - name: Upload BDD coverage artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: coverage-bdd
           path: .coverage.bdd
@@ -152,7 +152,7 @@ jobs:
         run: uv run docs-build
 
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: documentation
           path: docs/_build/html/
