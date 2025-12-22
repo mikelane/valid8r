@@ -112,12 +112,12 @@ jobs:
           dependency-groups: 'test'
 
       - name: Download pytest coverage
-        uses: actions/download-artifact@v5.0.0
+        uses: actions/download-artifact@v7.0.0
         with:
           name: coverage-pytest
 
       - name: Download BDD coverage
-        uses: actions/download-artifact@v5.0.0
+        uses: actions/download-artifact@v7.0.0
         with:
           name: coverage-bdd
 
