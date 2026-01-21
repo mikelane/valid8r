@@ -1,0 +1,130 @@
+name: Good First Issue
+description: Create a newcomer-friendly issue (maintainers only)
+title: "[Good First Issue]: "
+labels: ["good first issue", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for maintainers to create well-documented issues suitable for first-time contributors.
+
+        **Requirements for good first issues:**
+        - Clear, specific scope
+        - Detailed implementation hints
+        - Links to relevant code and documentation
+        - Available maintainer for guidance
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of what needs to be done
+      placeholder: Add a new parser for parsing currency values...
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Why is this needed? Context for newcomers
+      placeholder: |
+        Currently, Valid8r doesn't have a way to parse currency strings like "$1,234.56".
+        This would be useful for financial applications...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this issue to be considered complete?
+      placeholder: |
+        - [ ] `parse_currency()` function added to `valid8r/core/parsers.py`
+        - [ ] Returns `Maybe[Decimal]` with currency value
+        - [ ] Handles common formats: $1,234.56, 1234.56, etc.
+        - [ ] Unit tests with 100% coverage
+        - [ ] Docstring with examples
+    validations:
+      required: true
+
+  - type: textarea
+    id: getting-started
+    attributes:
+      label: Getting Started
+      description: Step-by-step hints for how to approach this issue
+      placeholder: |
+        1. **Fork and clone** the repository (see CONTRIBUTING.md)
+        2. **Look at** `valid8r/core/parsers.py` for examples of similar parsers
+        3. **Start with tests** in `tests/unit/test_parsers.py` (TDD required!)
+        4. **Implement** the parser following the Maybe monad pattern
+        5. **Run** `uv run tox` to verify all tests pass
+    validations:
+      required: true
+
+  - type: textarea
+    id: relevant-files
+    attributes:
+      label: Relevant Files
+      description: Links to files that will help understand the codebase
+      placeholder: |
+        - `valid8r/core/parsers.py` - Where to add the new parser
+        - `valid8r/core/maybe.py` - The Maybe monad (Success/Failure types)
+        - `tests/unit/test_parsers.py` - Example tests to follow
+        - `CONTRIBUTING.md` - Development setup guide
+    validations:
+      required: true
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Helpful Resources
+      description: Documentation, examples, or references that might help
+      placeholder: |
+        - [Maybe Monad Pattern](https://valid8r.readthedocs.io/en/latest/concepts.html#maybe-monad)
+        - [Parser Development Guide](https://valid8r.readthedocs.io/en/latest/development.html)
+        - [Similar implementation in parse_decimal](https://github.com/mikelane/valid8r/blob/main/valid8r/core/parsers.py#L...)
+
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty Level
+      description: How challenging is this for a newcomer?
+      options:
+        - "Beginner - No prior Valid8r experience needed"
+        - "Intermediate - Some familiarity with the codebase helpful"
+        - "Advanced - Requires understanding of core architecture"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: time-estimate
+    attributes:
+      label: Estimated Time
+      description: Rough estimate for a first-time contributor
+      options:
+        - "1-2 hours"
+        - "2-4 hours"
+        - "Half day"
+        - "Full day"
+        - "Multiple days"
+    validations:
+      required: true
+
+  - type: input
+    id: mentor
+    attributes:
+      label: Mentor
+      description: Who can help with questions? (GitHub username)
+      placeholder: "@mikelane"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Notes
+      description: Any other helpful information for contributors
+      placeholder: |
+        Feel free to ask questions in the issue comments!
+        We're happy to help first-time contributors.
