@@ -723,6 +723,45 @@ time = timeit.timeit(stmt, setup=setup, number=100000)
 print(f"Average time: {time/100000*1000000:.2f} μs")
 ```
 
+## Contributor Recognition
+
+We value every contribution and recognize contributors at different levels. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
+
+### Contribution Tiers
+
+| Tier | Requirements | Recognition |
+|------|--------------|-------------|
+| **Explorer** | 1st merged PR | Welcome mention in release notes |
+| **Builder** | 3+ merged PRs | Listed in CONTRIBUTORS.md |
+| **Champion** | 10+ merged PRs | Triage permissions, badge in profile |
+| **Maintainer** | 25+ merged PRs + consistent quality | Review permissions, co-maintainer status |
+
+### What We Recognize
+
+- **Code**: Features, bug fixes, performance improvements
+- **Documentation**: Guides, API docs, examples
+- **Tests**: Unit tests, BDD scenarios, integration tests
+- **Infrastructure**: CI/CD, tooling, developer experience
+- **Community**: Answering questions, reviewing PRs, triaging issues
+- **Security**: Vulnerability reports, security improvements
+
+### Milestones We Celebrate
+
+- **First PR merged**: Welcome message in the PR
+- **10th PR merged**: Shoutout in release notes
+- **25th PR merged**: Featured in project announcements
+
+### Good First Issues
+
+New to Valid8r? Look for issues labeled [`good first issue`](https://github.com/mikelane/valid8r/labels/good%20first%20issue). These are:
+
+- Well-documented with clear requirements
+- Scoped to a single, focused change
+- Include hints on where to start
+- Have a maintainer available to help
+
+We also label [`help wanted`](https://github.com/mikelane/valid8r/labels/help%20wanted) issues that are ready for community contribution.
+
 ## License
 
 By contributing to Valid8r, you agree that your contributions will be licensed under the MIT License.
@@ -731,4 +770,4 @@ By contributing to Valid8r, you agree that your contributions will be licensed u
 
 Don't hesitate to ask questions! File an issue or start a discussion on GitHub.
 
-Thank you for contributing to Valid8r! 🎉
+Thank you for contributing to Valid8r!

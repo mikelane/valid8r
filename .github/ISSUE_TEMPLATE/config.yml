@@ -1,0 +1,25 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Help
+    url: https://github.com/mikelane/valid8r/discussions/categories/q-a
+    about: Ask questions and get help from the community. Use this for "How do I...?" questions.
+
+  - name: Feature Ideas & Discussion
+    url: https://github.com/mikelane/valid8r/discussions/categories/ideas
+    about: Share feature ideas and discuss potential enhancements before creating a formal request.
+
+  - name: Show and Tell
+    url: https://github.com/mikelane/valid8r/discussions/categories/show-and-tell
+    about: Share projects you've built with Valid8r!
+
+  - name: Security Vulnerabilities
+    url: https://github.com/mikelane/valid8r/security/advisories/new
+    about: Report security vulnerabilities privately. Do NOT use public issues for security reports.
+
+  - name: Contributing Guide
+    url: https://github.com/mikelane/valid8r/blob/main/CONTRIBUTING.md
+    about: Learn how to contribute to Valid8r.
+
+  - name: Good First Issues
+    url: https://github.com/mikelane/valid8r/labels/good%20first%20issue
+    about: Find newcomer-friendly issues to start contributing.
