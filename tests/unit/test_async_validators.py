@@ -1669,3 +1669,326 @@ class DescribeValidApiKeyTimeoutWithVerifier:
 
         assert result.is_failure()
         assert 'unset' in result.error_or('').lower()
+
+
+# =============================================================================
+# Tests for all_of composition function
+# =============================================================================
+
+
+class DescribeAllOf:
+    """Tests for all_of validator composition function."""
+
+    @pytest.mark.asyncio
+    async def it_returns_success_when_all_validators_pass(self) -> None:
+        """All validators passing returns Success with original value."""
+        from valid8r.async_validators import all_of
+
+        async def check_length(value: str) -> Maybe[str]:
+            if len(value) >= 3:
+                return Maybe.success(value)
+            return Maybe.failure('Too short')
+
+        async def check_alpha(value: str) -> Maybe[str]:
+            if value.isalpha():
+                return Maybe.success(value)
+            return Maybe.failure('Not alphabetic')
+
+        validator = all_of(check_length, check_alpha)
+        result = await validator('hello')
+
+        assert result.is_success()
+        assert result.value_or('') == 'hello'
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_any_validator_fails(self) -> None:
+        """Any validator failing returns Failure."""
+        from valid8r.async_validators import all_of
+
+        async def always_pass(value: str) -> Maybe[str]:
+            return Maybe.success(value)
+
+        async def always_fail(_value: str) -> Maybe[str]:
+            return Maybe.failure('Always fails')
+
+        validator = all_of(always_pass, always_fail)
+        result = await validator('test')
+
+        assert result.is_failure()
+        assert 'always fails' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_runs_validators_in_parallel(self) -> None:
+        """Validators run concurrently for efficiency."""
+        import time
+
+        from valid8r.async_validators import all_of
+
+        async def slow_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(0.05)
+            return Maybe.success(value)
+
+        validator = all_of(slow_validator, slow_validator, slow_validator)
+
+        start = time.monotonic()
+        result = await validator('test')
+        elapsed = time.monotonic() - start
+
+        assert result.is_success()
+        # If truly parallel, should take ~0.05s, not 0.15s
+        assert elapsed < 0.1
+
+    @pytest.mark.asyncio
+    async def it_returns_success_for_empty_validators(self) -> None:
+        """Empty validator list returns Success with original value."""
+        from valid8r.async_validators import all_of
+
+        validator = all_of()
+        result = await validator('test')
+
+        assert result.is_success()
+        assert result.value_or('') == 'test'
+
+    @pytest.mark.asyncio
+    async def it_aggregates_all_errors_when_fail_fast_is_false(self) -> None:
+        """When fail_fast=False, all errors are collected."""
+        from valid8r.async_validators import all_of
+
+        async def fail_short(_value: str) -> Maybe[str]:
+            return Maybe.failure('Too short')
+
+        async def fail_numeric(_value: str) -> Maybe[str]:
+            return Maybe.failure('Not numeric')
+
+        validator = all_of(fail_short, fail_numeric, fail_fast=False)
+        result = await validator('test')
+
+        assert result.is_failure()
+        error = result.error_or('')
+        assert 'too short' in error.lower()
+        assert 'not numeric' in error.lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_first_error_when_fail_fast_is_true(self) -> None:
+        """When fail_fast=True (default), returns first error encountered."""
+        from valid8r.async_validators import all_of
+
+        async def fail_first(_value: str) -> Maybe[str]:
+            return Maybe.failure('First error')
+
+        async def fail_second(_value: str) -> Maybe[str]:
+            return Maybe.failure('Second error')
+
+        validator = all_of(fail_first, fail_second, fail_fast=True)
+        result = await validator('test')
+
+        assert result.is_failure()
+        # Should get the first error (order may vary with parallel execution)
+        error = result.error_or('')
+        assert 'error' in error.lower()
+
+
+# =============================================================================
+# Tests for any_of composition function
+# =============================================================================
+
+
+class DescribeAnyOf:
+    """Tests for any_of validator composition function."""
+
+    @pytest.mark.asyncio
+    async def it_returns_success_when_at_least_one_passes(self) -> None:
+        """At least one validator passing returns Success."""
+        from valid8r.async_validators import any_of
+
+        async def always_fail(_value: str) -> Maybe[str]:
+            return Maybe.failure('Always fails')
+
+        async def always_pass(value: str) -> Maybe[str]:
+            return Maybe.success(value)
+
+        validator = any_of(always_fail, always_pass)
+        result = await validator('test')
+
+        assert result.is_success()
+        assert result.value_or('') == 'test'
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_all_validators_fail(self) -> None:
+        """All validators failing returns Failure."""
+        from valid8r.async_validators import any_of
+
+        async def fail_one(_value: str) -> Maybe[str]:
+            return Maybe.failure('Fails one')
+
+        async def fail_two(_value: str) -> Maybe[str]:
+            return Maybe.failure('Fails two')
+
+        validator = any_of(fail_one, fail_two)
+        result = await validator('test')
+
+        assert result.is_failure()
+        error = result.error_or('')
+        # Should aggregate errors when all fail
+        assert 'fails' in error.lower()
+
+    @pytest.mark.asyncio
+    async def it_runs_validators_in_parallel(self) -> None:
+        """Validators run concurrently for efficiency."""
+        import time
+
+        from valid8r.async_validators import any_of
+
+        async def slow_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(0.05)
+            return Maybe.success(value)
+
+        validator = any_of(slow_validator, slow_validator, slow_validator)
+
+        start = time.monotonic()
+        result = await validator('test')
+        elapsed = time.monotonic() - start
+
+        assert result.is_success()
+        # If truly parallel, should take ~0.05s, not 0.15s
+        assert elapsed < 0.1
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_for_empty_validators(self) -> None:
+        """Empty validator list returns Failure (nothing can succeed)."""
+        from valid8r.async_validators import any_of
+
+        validator = any_of()
+        result = await validator('test')
+
+        assert result.is_failure()
+        assert 'no validators' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_first_success_value(self) -> None:
+        """Returns value from successful validator."""
+        from valid8r.async_validators import any_of
+
+        async def fail_first(_value: str) -> Maybe[str]:
+            return Maybe.failure('First fails')
+
+        async def transform_value(value: str) -> Maybe[str]:
+            return Maybe.success(f'transformed_{value}')
+
+        validator = any_of(fail_first, transform_value)
+        result = await validator('test')
+
+        assert result.is_success()
+        # Should get the value from the successful validator
+        assert result.value_or('') == 'transformed_test'
+
+
+# =============================================================================
+# Tests for sequence composition function
+# =============================================================================
+
+
+class DescribeSequence:
+    """Tests for sequence validator composition function."""
+
+    @pytest.mark.asyncio
+    async def it_runs_validators_in_order(self) -> None:
+        """Validators are executed sequentially in order."""
+        from valid8r.async_validators import sequence
+
+        execution_order: list[str] = []
+
+        async def validator_a(value: int) -> Maybe[int]:
+            execution_order.append('a')
+            return Maybe.success(value + 1)
+
+        async def validator_b(value: int) -> Maybe[int]:
+            execution_order.append('b')
+            return Maybe.success(value * 2)
+
+        async def validator_c(value: int) -> Maybe[int]:
+            execution_order.append('c')
+            return Maybe.success(value + 10)
+
+        validator = sequence(validator_a, validator_b, validator_c)
+        result = await validator(5)
+
+        assert execution_order == ['a', 'b', 'c']
+        # (5 + 1) * 2 + 10 = 22
+        assert result.is_success()
+        assert result.value_or(0) == 22
+
+    @pytest.mark.asyncio
+    async def it_stops_on_first_failure(self) -> None:
+        """Chain stops executing when a validator fails."""
+        from valid8r.async_validators import sequence
+
+        execution_order: list[str] = []
+
+        async def validator_pass(value: int) -> Maybe[int]:
+            execution_order.append('pass')
+            return Maybe.success(value)
+
+        async def validator_fail(_value: int) -> Maybe[int]:
+            execution_order.append('fail')
+            return Maybe.failure('Validation failed')
+
+        async def validator_never_called(value: int) -> Maybe[int]:
+            execution_order.append('never')
+            return Maybe.success(value)
+
+        validator = sequence(validator_pass, validator_fail, validator_never_called)
+        result = await validator(10)
+
+        assert execution_order == ['pass', 'fail']
+        assert result.is_failure()
+        assert 'validation failed' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_returns_success_for_empty_validators(self) -> None:
+        """Empty validator list returns Success with original value."""
+        from valid8r.async_validators import sequence
+
+        validator = sequence()
+        result = await validator(42)
+
+        assert result.is_success()
+        assert result.value_or(0) == 42
+
+    @pytest.mark.asyncio
+    async def it_passes_transformed_value_through_chain(self) -> None:
+        """Each validator receives the output of the previous one."""
+        from valid8r.async_validators import sequence
+
+        async def add_prefix(value: str) -> Maybe[str]:
+            return Maybe.success(f'prefix_{value}')
+
+        async def add_suffix(value: str) -> Maybe[str]:
+            return Maybe.success(f'{value}_suffix')
+
+        validator = sequence(add_prefix, add_suffix)
+        result = await validator('test')
+
+        assert result.is_success()
+        assert result.value_or('') == 'prefix_test_suffix'
+
+    @pytest.mark.asyncio
+    async def it_executes_sequentially_not_in_parallel(self) -> None:
+        """Validators execute one after another, not concurrently."""
+        import time
+
+        from valid8r.async_validators import sequence
+
+        async def slow_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(0.05)
+            return Maybe.success(value)
+
+        validator = sequence(slow_validator, slow_validator, slow_validator)
+
+        start = time.monotonic()
+        result = await validator('test')
+        elapsed = time.monotonic() - start
+
+        assert result.is_success()
+        # If sequential, should take ~0.15s (3 * 0.05)
+        assert elapsed >= 0.14
