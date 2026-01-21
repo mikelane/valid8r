@@ -939,6 +939,204 @@ async def compose_parallel(
     return Maybe.success(value)
 
 
+def all_of(
+    *validators: AsyncValidator,
+    fail_fast: bool = True,
+) -> Callable[[T], Awaitable[Maybe[T]]]:
+    """Create a composed validator that requires all validators to pass.
+
+    Runs all validators in parallel for efficiency. All validators must succeed
+    for the overall validation to succeed. This is useful when you have multiple
+    independent validation rules that must all be satisfied.
+
+    Args:
+        *validators: Variable number of async validators to compose
+        fail_fast: If True (default), returns the first error encountered.
+            If False, collects all errors and returns them joined together.
+
+    Returns:
+        A callable async validator that:
+            - Accepts a value to validate
+            - Returns Maybe[T]: Success(value) if all validators pass,
+              Failure(error) if any validator fails
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import all_of
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def check_length(value: str) -> Maybe[str]:
+        ...     if len(value) >= 3:
+        ...         return Maybe.success(value)
+        ...     return Maybe.failure('Too short')
+        >>>
+        >>> async def check_alpha(value: str) -> Maybe[str]:
+        ...     if value.isalpha():
+        ...         return Maybe.success(value)
+        ...     return Maybe.failure('Not alphabetic')
+        >>>
+        >>> async def main():
+        ...     validator = all_of(check_length, check_alpha)
+        ...     result = await validator('hello')
+        ...     print(f'Success: {result.is_success()}')
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - Validators run in parallel using asyncio.gather
+        - Empty validator list returns Success with the original value
+        - When fail_fast=False, errors are joined with '; '
+
+    """
+
+    async def validator(value: T) -> Maybe[T]:
+        """Run all validators in parallel and require all to succeed."""
+        if not validators:
+            return Maybe.success(value)
+
+        results = await asyncio.gather(*[v(value) for v in validators])
+
+        failures = [r for r in results if r.is_failure()]
+
+        if failures:
+            if fail_fast:
+                return failures[0]
+            errors = [r.error_or('') for r in failures]
+            return Maybe.failure('; '.join(errors))
+
+        return Maybe.success(value)
+
+    return validator
+
+
+def any_of(
+    *validators: AsyncValidator,
+) -> Callable[[T], Awaitable[Maybe[T]]]:
+    """Create a composed validator where at least one validator must pass.
+
+    Runs all validators in parallel for efficiency. At least one validator must
+    succeed for the overall validation to succeed. This is useful for alternative
+    validation paths or fallback validation logic.
+
+    Args:
+        *validators: Variable number of async validators to compose
+
+    Returns:
+        A callable async validator that:
+            - Accepts a value to validate
+            - Returns Maybe[T]: Success(value) if any validator passes,
+              Failure(error) if all validators fail
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import any_of
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def check_email(value: str) -> Maybe[str]:
+        ...     if '@' in value:
+        ...         return Maybe.success(value)
+        ...     return Maybe.failure('Not an email')
+        >>>
+        >>> async def check_username(value: str) -> Maybe[str]:
+        ...     if value.isalnum():
+        ...         return Maybe.success(value)
+        ...     return Maybe.failure('Not a valid username')
+        >>>
+        >>> async def main():
+        ...     validator = any_of(check_email, check_username)
+        ...     # Either email or username format is acceptable
+        ...     result = await validator('user123')
+        ...     print(f'Success: {result.is_success()}')
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - Validators run in parallel using asyncio.gather
+        - Empty validator list returns Failure (nothing can succeed)
+        - Returns the result from the first successful validator
+        - If all fail, errors are joined with '; '
+
+    """
+
+    async def validator(value: T) -> Maybe[T]:
+        """Run all validators in parallel, require at least one to succeed."""
+        if not validators:
+            return Maybe.failure('No validators provided')
+
+        results = await asyncio.gather(*[v(value) for v in validators])
+
+        for result in results:
+            if result.is_success():
+                return result
+
+        errors = [r.error_or('') for r in results if r.is_failure()]
+        return Maybe.failure('; '.join(errors))
+
+    return validator
+
+
+def sequence(
+    *validators: AsyncValidator,
+) -> Callable[[T], Awaitable[Maybe[T]]]:
+    """Create a composed validator that runs validators sequentially.
+
+    Runs validators one after another, passing the result of each validator
+    to the next. Stops on first failure. This is useful when validators have
+    dependencies or when the output of one validator feeds into the next.
+
+    Args:
+        *validators: Variable number of async validators to compose
+
+    Returns:
+        A callable async validator that:
+            - Accepts a value to validate
+            - Returns Maybe[T]: Success(final_value) if all validators pass,
+              Failure(error) on first failure
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import sequence
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def trim_whitespace(value: str) -> Maybe[str]:
+        ...     return Maybe.success(value.strip())
+        >>>
+        >>> async def to_lowercase(value: str) -> Maybe[str]:
+        ...     return Maybe.success(value.lower())
+        >>>
+        >>> async def validate_length(value: str) -> Maybe[str]:
+        ...     if len(value) >= 3:
+        ...         return Maybe.success(value)
+        ...     return Maybe.failure('Too short')
+        >>>
+        >>> async def main():
+        ...     validator = sequence(trim_whitespace, to_lowercase, validate_length)
+        ...     result = await validator('  HELLO  ')
+        ...     print(f'Result: {result.value_or("")}')  # 'hello'
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - Validators run sequentially, NOT in parallel
+        - Each validator receives the SUCCESS value from the previous one
+        - Stops execution on first Failure
+        - Empty validator list returns Success with the original value
+
+    """
+
+    async def validator(value: T) -> Maybe[T]:
+        """Run validators sequentially, passing output to next validator."""
+        current_value: Any = value
+        for v in validators:
+            result = await v(current_value)
+            if result.is_failure():
+                return result
+            current_value = result.value_or(current_value)
+        return Maybe.success(current_value)
+
+    return validator
+
+
 # Export all public symbols
 __all__ = [
     'AsyncCache',
@@ -947,9 +1145,12 @@ __all__ = [
     'RateLimitedValidator',
     'RetryValidator',
     'RetryingValidator',
+    'all_of',
+    'any_of',
     'compose_parallel',
     'exists_in_db',
     'parallel_validate',
+    'sequence',
     'sequential_validate',
     'unique_in_db',
     'valid_api_key',
