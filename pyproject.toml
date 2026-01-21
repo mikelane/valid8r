@@ -166,6 +166,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "FBT003", # Allow tests to use boolean literals
     "PLR2004", # Don't prevent magic values in tests
     "S101", # Don't prevent asserts
+    "S603", # Allow subprocess calls in tests (expected for CLI testing)
     "UP007", # Allow Union syntax in tests (testing backward compat)
     "UP045", # Allow Optional syntax in tests (testing backward compat)
 ]
@@ -186,6 +187,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "PLR0913", # Allow tests to have as many arguments as we want
     "PLR2004", # Allow magic values in tests
     "S101", # Allow asserts in tests
+    "S603", # Allow subprocess calls in tests (expected for CLI testing)
     "UP007", # Allow Union syntax in tests (testing backward compat)
     "UP045", # Allow Optional syntax in tests (testing backward compat)
 ]
@@ -225,8 +227,11 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "examples/*" = [
     "D401", # Allow non-imperative docstrings in examples
     "FAST002", # Allow FastAPI deps without Annotated (examples prioritize clarity)
+    "FBT001", # Allow boolean-typed positional arguments (simpler example code)
+    "FBT002", # Allow boolean default positional arguments (simpler example code)
     "INP001", # Allow implicit namespace packages in examples
     "PLC0415", # Allow local imports in examples (for clarity)
+    "SIM108", # Allow if-else blocks instead of ternary (clearer for learning)
     "SLF001", # Allow private member access in examples (demonstrating internals)
     "T201", # Allow print function in examples
 ]
