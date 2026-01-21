@@ -342,6 +342,21 @@ uv run tox -e bdd
 
 # Run with coverage report
 uv run pytest --cov=valid8r --cov-report=term tests/unit
+
+# Run combined coverage (pytest + BDD tests)
+# This runs both test suites and merges coverage data
+uv run tox -e coverage
+
+# Manual combined coverage workflow:
+# 1. Run BDD tests (creates .coverage.bdd via environment.py hooks)
+uv run behave tests/bdd/features
+# 2. Run pytest with coverage to separate file
+uv run coverage run --data-file=.coverage.pytest -m pytest tests/unit
+# 3. Combine coverage files
+uv run coverage combine .coverage.bdd .coverage.pytest
+# 4. Generate reports
+uv run coverage report -m
+uv run coverage html  # Creates htmlcov/ directory
 ```
 
 ### Linting and Type Checking
