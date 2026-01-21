@@ -230,18 +230,230 @@ except asyncio.TimeoutError:
     print("Validation timed out")
 ```
 
+## Validator Composition
+
+Valid8r provides powerful composition functions to combine multiple async validators into complex validation pipelines.
+
+### `all_of` - Parallel AND Composition
+
+Runs all validators in parallel. All must succeed for validation to pass.
+
+```python
+import asyncio
+from valid8r.async_validators import all_of
+from valid8r.core.maybe import Maybe
+
+async def check_length(value: str) -> Maybe[str]:
+    if len(value) >= 3:
+        return Maybe.success(value)
+    return Maybe.failure('Too short')
+
+async def check_alpha(value: str) -> Maybe[str]:
+    if value.isalpha():
+        return Maybe.success(value)
+    return Maybe.failure('Must be alphabetic')
+
+async def check_not_reserved(value: str) -> Maybe[str]:
+    reserved = ['admin', 'root', 'system']
+    if value.lower() not in reserved:
+        return Maybe.success(value)
+    return Maybe.failure('Reserved word')
+
+async def validate_username(username: str):
+    # All three validators run in parallel
+    validator = all_of(check_length, check_alpha, check_not_reserved)
+    result = await validator(username)
+
+    if result.is_success():
+        print(f"Username '{result.value_or('')}' is valid!")
+    else:
+        print(f"Validation failed: {result.error_or('')}")
+
+asyncio.run(validate_username('JohnDoe'))
+```
+
+**Parameters:**
+- `*validators`: Variable number of async validators
+- `fail_fast` (bool): If `True` (default), returns first error. If `False`, collects all errors.
+
+**With error aggregation:**
+```python
+# Collect all errors when fail_fast=False
+validator = all_of(check_length, check_alpha, fail_fast=False)
+result = await validator('x1')
+# Error: "Too short; Must be alphabetic"
+```
+
+### `any_of` - Parallel OR Composition
+
+Runs all validators in parallel. At least one must succeed.
+
+```python
+import asyncio
+from valid8r.async_validators import any_of
+from valid8r.core.maybe import Maybe
+
+async def check_email_format(value: str) -> Maybe[str]:
+    if '@' in value and '.' in value.split('@')[-1]:
+        return Maybe.success(value)
+    return Maybe.failure('Not a valid email')
+
+async def check_phone_format(value: str) -> Maybe[str]:
+    digits = ''.join(c for c in value if c.isdigit())
+    if len(digits) >= 10:
+        return Maybe.success(value)
+    return Maybe.failure('Not a valid phone number')
+
+async def validate_contact(contact: str):
+    # Either email OR phone format is acceptable
+    validator = any_of(check_email_format, check_phone_format)
+    result = await validator(contact)
+
+    if result.is_success():
+        print(f"Contact '{result.value_or('')}' is valid!")
+    else:
+        print(f"Validation failed: {result.error_or('')}")
+
+asyncio.run(validate_contact('user@example.com'))  # Valid as email
+asyncio.run(validate_contact('555-123-4567'))      # Valid as phone
+```
+
+**Notes:**
+- Empty validator list returns Failure (nothing can succeed)
+- Returns the first successful result's value
+
+### `sequence` - Sequential Composition
+
+Runs validators one after another, passing each result to the next. Stops on first failure.
+
+```python
+import asyncio
+from valid8r.async_validators import sequence
+from valid8r.core.maybe import Maybe
+
+async def trim_whitespace(value: str) -> Maybe[str]:
+    return Maybe.success(value.strip())
+
+async def to_lowercase(value: str) -> Maybe[str]:
+    return Maybe.success(value.lower())
+
+async def validate_not_empty(value: str) -> Maybe[str]:
+    if value:
+        return Maybe.success(value)
+    return Maybe.failure('Value cannot be empty')
+
+async def check_unique_in_db(value: str) -> Maybe[str]:
+    # Simulating database check
+    existing = ['admin', 'user', 'test']
+    if value not in existing:
+        return Maybe.success(value)
+    return Maybe.failure(f'Username "{value}" already exists')
+
+async def process_username(raw_input: str):
+    # Each validator transforms and passes to the next
+    validator = sequence(
+        trim_whitespace,
+        to_lowercase,
+        validate_not_empty,
+        check_unique_in_db
+    )
+
+    result = await validator(raw_input)
+
+    if result.is_success():
+        print(f"Processed username: {result.value_or('')}")
+    else:
+        print(f"Processing failed: {result.error_or('')}")
+
+asyncio.run(process_username('  JohnDoe  '))  # -> 'johndoe'
+```
+
+**Key difference from `all_of`:**
+- Runs sequentially, not in parallel
+- Each validator receives the output of the previous one
+- Use when validators have dependencies or transform data
+
+### Mixed Composition
+
+Combine composition types for complex validation logic:
+
+```python
+import asyncio
+from valid8r.async_validators import all_of, any_of, sequence
+from valid8r.core.maybe import Maybe
+
+# Define individual validators
+async def check_min_length(value: str) -> Maybe[str]:
+    if len(value) >= 8:
+        return Maybe.success(value)
+    return Maybe.failure('Must be at least 8 characters')
+
+async def check_has_digit(value: str) -> Maybe[str]:
+    if any(c.isdigit() for c in value):
+        return Maybe.success(value)
+    return Maybe.failure('Must contain a digit')
+
+async def check_has_uppercase(value: str) -> Maybe[str]:
+    if any(c.isupper() for c in value):
+        return Maybe.success(value)
+    return Maybe.failure('Must contain uppercase')
+
+async def check_has_special(value: str) -> Maybe[str]:
+    special = '!@#$%^&*'
+    if any(c in special for c in value):
+        return Maybe.success(value)
+    return Maybe.failure('Must contain special character')
+
+async def hash_password(value: str) -> Maybe[str]:
+    # Simulated hashing
+    return Maybe.success(f'hashed_{value}')
+
+async def validate_password(password: str):
+    # Complex validation: all requirements + hashing
+    validator = sequence(
+        # First: validate all password requirements (parallel)
+        all_of(
+            check_min_length,
+            check_has_digit,
+            check_has_uppercase,
+            check_has_special,
+            fail_fast=False  # Collect all missing requirements
+        ),
+        # Then: hash the valid password
+        hash_password
+    )
+
+    result = await validator(password)
+
+    if result.is_success():
+        print(f"Password valid and hashed: {result.value_or('')}")
+    else:
+        print(f"Password requirements not met: {result.error_or('')}")
+
+asyncio.run(validate_password('MyP@ss123'))  # Valid
+asyncio.run(validate_password('weak'))       # All errors listed
+```
+
+### Performance Comparison
+
+| Function | Execution | Use Case |
+|----------|-----------|----------|
+| `all_of` | Parallel | Independent checks, all must pass |
+| `any_of` | Parallel | Alternative formats, one must pass |
+| `sequence` | Sequential | Dependent validators, data transformation |
+
+**Timing example with 3 validators, each taking 0.1s:**
+- `all_of`: ~0.1s (parallel)
+- `any_of`: ~0.1s (parallel)
+- `sequence`: ~0.3s (sequential)
+
 ## Future Features
 
-This MVP release includes database validators only. Future releases will add:
+This module continues to evolve. Upcoming features include:
 
-- **API Validators**: Validate API keys and OAuth tokens
-- **Email Deliverability**: Check MX records and SMTP validation
-- **Rate Limiting**: Built-in rate limiting for external service calls
-- **Retry Logic**: Exponential backoff for transient failures
-- **Validator Composition**: Parallel and sequential validator chaining
-- **Caching**: Reduce redundant external calls with TTL-based caching
-
-See the GitHub milestones for upcoming features.
+- **More validators**: Additional API validators and service integrations
+- **Enhanced caching**: TTL-based caching with invalidation
+- **Circuit breaker**: Prevent cascade failures in external services
 
 ## Examples
 
