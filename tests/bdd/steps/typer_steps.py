@@ -455,7 +455,7 @@ def _run_cli(context: Context, args: list[str]) -> None:
 
     try:
         # Run the CLI as a subprocess
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, cli_file, *args],
             check=False,
             capture_output=True,

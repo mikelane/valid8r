@@ -340,7 +340,7 @@ def _run_example_scenario(context: Context, scenario: str, stdin: str | None = N
         raise AssertionError(msg)
 
     # Run the example
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, str(example_path), f'--scenario={scenario}'],
         check=False,
         capture_output=True,
