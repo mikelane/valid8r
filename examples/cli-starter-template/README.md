@@ -4,20 +4,41 @@ A production-ready CLI starter template demonstrating best practices for buildin
 
 ## Features
 
+- **Standalone Operation**: Copy just `cli.py` and it works - no external dependencies beyond valid8r
 - **Argument Parsing**: Parse and validate command-line arguments with clear error messages
 - **Interactive Prompts**: Prompt users for input with built-in validation and retry logic
 - **Configuration Files**: Load and validate YAML/JSON configuration files
 - **User Management**: Add, list, and delete users with comprehensive validation
 - **Output Modes**: Verbose (`-v`) and quiet (`-q`) output modes
 - **Proper Exit Codes**: 0 = success, 1 = user error, 2 = system error
-- **Clean Architecture**: Separated validation logic for easy customization
+- **Clean Architecture**: Self-contained validation logic for easy customization
 - **Comprehensive Tests**: Full test suite demonstrating testing patterns
 
 ## Quick Start
 
-### Installation
+### Minimal Setup (Just cli.py)
+
+The simplest way to use this template - copy a single file:
 
 ```bash
+# Copy just cli.py to your project
+cp cli.py /path/to/your/project/
+
+# Install dependencies
+pip install valid8r pyyaml
+
+# Run it
+python cli.py --help
+```
+
+### Full Template Setup
+
+For the complete template with examples and tests:
+
+```bash
+# Copy the entire template directory
+cp -r cli-starter-template/ /path/to/your/project/
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -25,33 +46,33 @@ pip install -r requirements.txt
 uv pip install -r requirements.txt
 ```
 
-### Usage
+## Usage
 
-#### Add User (Command-line mode)
+### Add User (Command-line mode)
 
 ```bash
 python cli.py add-user --name "John Doe" --age 25 --email john@example.com
 ```
 
-#### Add User (Interactive mode)
+### Add User (Interactive mode)
 
 ```bash
 python cli.py add-user --interactive
 ```
 
-#### List Users
+### List Users
 
 ```bash
 python cli.py list-users --file config.yaml
 ```
 
-#### Delete User
+### Delete User
 
 ```bash
 python cli.py delete-user --name "John Doe" --file config.yaml
 ```
 
-#### Load and Validate Configuration
+### Load and Validate Configuration
 
 ```bash
 python cli.py load-config --file config.yaml
@@ -62,15 +83,17 @@ python cli.py load-config --file config.json --verbose
 
 ```
 cli-starter-template/
-├── cli.py              # Main CLI with subcommands
-├── validators.py       # Validation logic using valid8r
-├── README.md          # This file
-├── requirements.txt   # Dependencies
+├── cli.py              # Main CLI with subcommands (standalone)
+├── validators.py       # Optional: Example custom validators
+├── README.md           # This file
+├── requirements.txt    # Dependencies
 └── tests/
     ├── __init__.py
-    ├── test_validators.py  # Unit tests for validators
+    ├── test_validators.py  # Tests for example validators
     └── test_cli.py         # Integration tests for CLI
 ```
+
+**Note**: `cli.py` is fully self-contained and works without `validators.py`. The validators module is provided as an example showing how to create and organize custom validators for larger projects.
 
 ## Configuration Files
 
@@ -131,9 +154,27 @@ python cli.py --quiet load-config --file config.yaml
 
 ### Adding Your Own Validators
 
-Edit `validators.py`:
+The `cli.py` file includes inline validators. To customize:
 
 ```python
+# In cli.py - modify the validation constants
+MAX_AGE = 150
+MIN_NAME_LENGTH = 2
+MAX_NAME_LENGTH = 100
+
+# Or modify the validation functions directly
+def parse_age(age_str: str) -> Maybe[int]:
+    """Customize age validation logic here."""
+    # Your custom logic
+    ...
+```
+
+### Separating Validators (For Larger Projects)
+
+For larger projects, you can extract validators into a separate module. See `validators.py` for examples:
+
+```python
+# validators.py
 from valid8r import Maybe, parsers, validators
 
 def parse_username(username_str: str) -> Maybe[str]:
@@ -153,6 +194,23 @@ def parse_username(username_str: str) -> Maybe[str]:
         return Maybe.failure('Username must be alphanumeric')
 
     return Maybe.success(username)
+```
+
+### Using Validator Composition
+
+valid8r supports combining validators with operators:
+
+```python
+from valid8r import validators
+
+# Combine validators with & (and)
+age_validator = validators.minimum(0) & validators.maximum(150)
+
+# Use or | for alternatives
+size_validator = validators.in_set({'small', 'medium', 'large'})
+
+# Negate with ~ (not)
+not_empty = ~validators.predicate(lambda x: x == '', 'Cannot be empty')
 ```
 
 ### Adding New Subcommands
@@ -250,9 +308,9 @@ $ echo $?
 
 ### For Simple CLIs
 
-1. Add validators to `validators.py`
+1. Modify validators in `cli.py`
 2. Add subcommands to `cli.py`
-3. Add tests to `tests/test_*.py`
+3. Add tests to `tests/test_cli.py`
 
 ### For Complex CLIs
 
