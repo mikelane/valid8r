@@ -295,6 +295,160 @@ Added environment variable support. All tests passing.
 - Include in CHANGELOG with "BREAKING CHANGE:" footer
 - Consider deprecation warnings before removal
 
+## **MANDATORY: Epic Structure with Documentation and Demo Stories**
+
+**Every epic MUST include Documentation and Demo stories. NO EXCEPTIONS.**
+
+Epics are not complete until users can read about the feature AND see it working. This discipline ensures documentation is never an afterthought.
+
+### Required Epic Structure
+
+Every epic MUST contain these story types with explicit dependency relationships:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          EPIC                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
+│   │ Feature  │  │ Feature  │  │ Feature  │   ... (N features)   │
+│   │ Story #1 │  │ Story #2 │  │ Story #3 │                      │
+│   └────┬─────┘  └────┬─────┘  └────┬─────┘                      │
+│        │             │             │                             │
+│        └─────────────┼─────────────┘                             │
+│                      │                                           │
+│                      ▼                                           │
+│              ┌───────────────┐                                   │
+│              │ Documentation │  ← BLOCKED BY all feature stories │
+│              │    Story      │                                   │
+│              └───────┬───────┘                                   │
+│                      │                                           │
+│                      ▼                                           │
+│              ┌───────────────┐                                   │
+│              │  Demo Story   │  ← BLOCKED BY documentation story │
+│              └───────────────┘                                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Story Definitions
+
+**Feature Stories** (1 to N):
+- Implement the actual functionality
+- Follow BDD + TDD workflow
+- Include unit tests and BDD scenarios
+- Can be worked in parallel (if independent)
+
+**Documentation Story** (exactly 1 per epic):
+- **Blocked by**: ALL feature stories in the epic
+- Updates user guide (`docs/user_guide/`)
+- Updates API reference (via docstrings)
+- Adds/updates examples in `examples/`
+- Updates README.md if user-facing
+- Verifies docs build (`uv run tox -e docs`)
+- **Cannot start** until all features are merged
+
+**Demo Story** (exactly 1 per epic):
+- **Blocked by**: Documentation story
+- Creates a working demonstration of the epic's features
+- Can be: script, notebook, video recording, or live demo
+- Validates that documentation is accurate and complete
+- Proves the feature works end-to-end
+- **Cannot start** until documentation is complete
+
+### GitHub Issue Templates
+
+**Documentation Story Template:**
+```markdown
+## Documentation Story: [Epic Name]
+
+**Blocked by:** #feature1, #feature2, #feature3
+
+### Scope
+- [ ] User guide section in `docs/user_guide/`
+- [ ] API docstrings complete with examples
+- [ ] Working examples in `examples/`
+- [ ] README.md updated (if applicable)
+- [ ] Docs build without errors
+
+### Acceptance Criteria
+- All new public APIs are documented
+- All code examples are tested and working
+- User can learn the feature from docs alone
+
+### Labels
+`documentation`, `epic:[epic-name]`
+```
+
+**Demo Story Template:**
+```markdown
+## Demo Story: [Epic Name]
+
+**Blocked by:** #documentation-story
+
+### Scope
+- [ ] Create working demonstration
+- [ ] Validate documentation accuracy
+- [ ] Record/document the demo
+
+### Demo Type
+- [ ] Script in `examples/`
+- [ ] Jupyter notebook
+- [ ] Video recording
+- [ ] Live demo checklist
+
+### Acceptance Criteria
+- Demo showcases all epic features
+- Demo follows documentation exactly
+- Demo can be reproduced by users
+
+### Labels
+`demo`, `epic:[epic-name]`
+```
+
+### Epic Completion Checklist
+
+An epic is **NOT complete** until:
+- [ ] All feature stories merged
+- [ ] Documentation story merged
+- [ ] Demo story merged
+- [ ] Epic issue closed
+
+### Why This Matters
+
+**Without this discipline:**
+- Features ship without documentation (what just happened with #242)
+- Users can't discover or learn new features
+- Demo/validation is skipped, bugs slip through
+- Technical debt accumulates in docs
+
+**With this discipline:**
+- Documentation is a first-class deliverable
+- Users can immediately use new features
+- Demos validate the entire workflow
+- Quality is enforced at epic level
+
+### Agent Responsibilities
+
+**PM Agent (product-technical-lead)**:
+- Creates epic with all required stories
+- Sets up blocked-by relationships
+- Ensures documentation and demo stories exist
+
+**Dev Agent (senior-developer)**:
+- Implements feature stories only
+- Does NOT close epic until docs/demo complete
+
+**Docs Agent (docs-agent)**:
+- Implements documentation story
+- Cannot start until features are merged
+- Verifies docs build and accuracy
+
+**QA Agent (qa-security-engineer)**:
+- Validates demo story
+- Confirms documentation matches implementation
+- Final sign-off before epic closure
+
 ## Common Development Commands
 
 **Note**: This project uses `uv` for dependency management. The migration from Poetry to uv was completed in November 2025 (PR #48), bringing 60% faster CI pipelines and 300x+ faster dependency resolution.
