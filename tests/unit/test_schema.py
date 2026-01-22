@@ -49,7 +49,7 @@ class DescribeField:
 
         assert field.parser == parsers.parse_int
         assert field.required is True
-        assert field.validator is None
+        assert field.validators is None
 
     def it_creates_optional_field(self) -> None:
         """Create an optional field (required=False)."""
@@ -60,8 +60,8 @@ class DescribeField:
         assert field.parser == parse_str
         assert field.required is False
 
-    def it_creates_field_with_validator(self) -> None:
-        """Create a field with both parser and validator."""
+    def it_creates_field_with_validators_list(self) -> None:
+        """Create a field with both parser and validators list."""
         from valid8r.core import (
             parsers,
             schema,
@@ -70,13 +70,31 @@ class DescribeField:
 
         field = schema.Field(
             parser=parsers.parse_int,
-            validator=validators.minimum(0),
+            validators=[validators.minimum(0)],
             required=True,
         )
 
         assert field.parser == parsers.parse_int
-        assert field.validator is not None
+        assert field.validators is not None
+        assert len(field.validators) == 1
         assert field.required is True
+
+    def it_rejects_deprecated_validator_parameter(self) -> None:
+        """Raise TypeError when deprecated validator parameter is used."""
+        import pytest
+
+        from valid8r.core import (
+            parsers,
+            schema,
+            validators,
+        )
+
+        with pytest.raises(TypeError, match='unexpected keyword argument'):
+            schema.Field(
+                parser=parsers.parse_int,
+                validator=validators.minimum(0),  # type: ignore[call-arg]
+                required=True,
+            )
 
 
 class DescribeSchemaBasicValidation:
@@ -131,8 +149,8 @@ class DescribeSchemaBasicValidation:
         assert '.age' in error_paths
         assert '.email' in error_paths
 
-    def it_validates_field_with_combined_parser_and_validator(self) -> None:
-        """Apply both parser and validator to a field."""
+    def it_validates_field_with_combined_parser_and_validators(self) -> None:
+        """Apply both parser and validators list to a field."""
         from valid8r.core import (
             parsers,
             schema,
@@ -143,7 +161,7 @@ class DescribeSchemaBasicValidation:
             fields={
                 'age': schema.Field(
                     parser=parsers.parse_int,
-                    validator=validators.minimum(0) & validators.maximum(120),
+                    validators=[validators.minimum(0) & validators.maximum(120)],
                     required=True,
                 ),
             }
@@ -240,12 +258,12 @@ class DescribeSchemaNestedValidation:
             fields={
                 'street': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
                 'city': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
             }
@@ -276,7 +294,7 @@ class DescribeSchemaNestedValidation:
             fields={
                 'name': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
                 'email': schema.Field(parser=parsers.parse_email, required=True),
@@ -377,7 +395,7 @@ class DescribeSchemaErrorContext:
             fields={
                 'age': schema.Field(
                     parser=parsers.parse_int,
-                    validator=validators.minimum(18),
+                    validators=[validators.minimum(18)],
                     required=True,
                 ),
             }
@@ -401,7 +419,7 @@ class DescribeSchemaErrorContext:
             fields={
                 'age': schema.Field(
                     parser=parsers.parse_int,
-                    validator=validators.minimum(18),
+                    validators=[validators.minimum(18)],
                     required=True,
                 ),
             }
@@ -463,17 +481,17 @@ class DescribeSchemaComplexScenarios:
             fields={
                 'street': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
                 'city': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
                 'zipcode': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
             }
@@ -483,13 +501,13 @@ class DescribeSchemaComplexScenarios:
             fields={
                 'username': schema.Field(
                     parser=parse_str,
-                    validator=validators.non_empty_string(),
+                    validators=[validators.non_empty_string()],
                     required=True,
                 ),
                 'email': schema.Field(parser=parsers.parse_email, required=True),
                 'password': schema.Field(
                     parser=parse_str,
-                    validator=validators.length(8, 100),
+                    validators=[validators.length(8, 100)],
                     required=True,
                 ),
                 'address': schema.Field(parser=address_schema.validate, required=True),

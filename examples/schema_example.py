@@ -29,7 +29,7 @@ def basic_validation_example() -> None:
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'name': schema.Field(
                 parser=parsers.parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
         }
@@ -73,12 +73,12 @@ def nested_schema_example() -> None:
         fields={
             'street': schema.Field(
                 parser=parsers.parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'city': schema.Field(
                 parser=parsers.parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'zipcode': schema.Field(parser=parsers.parse_str, required=True),
@@ -218,12 +218,12 @@ def validator_example() -> None:
         fields={
             'age': schema.Field(
                 parser=parsers.parse_int,
-                validator=validators.minimum(18) & validators.maximum(120),  # type: ignore[type-var]
+                validators=[validators.minimum(18) & validators.maximum(120)],  # type: ignore[type-var]
                 required=True,
             ),
             'username': schema.Field(
                 parser=parsers.parse_str,
-                validator=validators.length(3, 20),
+                validators=[validators.length(3, 20)],
                 required=True,
             ),
         }

@@ -130,7 +130,7 @@ def step_user_schema_fields(context: Context) -> None:
         fields={
             'name': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'email': schema.Field(parser=parsers.parse_email, required=True),
@@ -164,7 +164,7 @@ def step_schema_age_with_validators(context: Context, min_val: int, max_val: int
         fields={
             'age': schema.Field(
                 parser=parsers.parse_int,
-                validator=validators.minimum(min_val) & validators.maximum(max_val),
+                validators=[validators.minimum(min_val) & validators.maximum(max_val)],
                 required=True,
             ),
         }
@@ -192,7 +192,7 @@ def step_schema_required_and_optional(context: Context) -> None:
         fields={
             'name': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'age': schema.Field(parser=parsers.parse_int, required=False),
@@ -228,12 +228,12 @@ def step_address_schema_fields(context: Context) -> None:
         fields={
             'street': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'city': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
         }
@@ -299,12 +299,12 @@ def step_address_schema_street_zipcode(context: Context) -> None:
         fields={
             'street': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'zipcode': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
         }
@@ -332,7 +332,7 @@ def step_address_schema_street_zipcode(context: Context) -> None:
         fields={
             'name': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
         }
@@ -429,17 +429,17 @@ def step_schema_user_registration(context: Context) -> None:
         fields={
             'street': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'city': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'zipcode': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
         }
@@ -449,13 +449,13 @@ def step_schema_user_registration(context: Context) -> None:
         fields={
             'username': schema.Field(
                 parser=parse_str,
-                validator=validators.non_empty_string(),
+                validators=[validators.non_empty_string()],
                 required=True,
             ),
             'email': schema.Field(parser=parsers.parse_email, required=True),
             'password': schema.Field(
                 parser=parse_str,
-                validator=validators.length(8, 100),
+                validators=[validators.length(8, 100)],
                 required=True,
             ),
             'address': schema.Field(parser=address_schema.validate, required=True),
@@ -524,7 +524,7 @@ def step_schema_age_minimum(context: Context, min_val: int) -> None:
         fields={
             'age': schema.Field(
                 parser=parsers.parse_int,
-                validator=validators.minimum(min_val),
+                validators=[validators.minimum(min_val)],
                 required=True,
             ),
         }
