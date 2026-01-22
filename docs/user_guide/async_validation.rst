@@ -682,6 +682,287 @@ For more complex rate limiting scenarios, you can build your own:
         await rate_limiter.acquire()
         return await expensive_api_call(value)
 
+Batch Validation with parallel_validate
+---------------------------------------
+
+The ``parallel_validate`` function validates multiple values concurrently, returning all
+results (both successes and failures) in the same order as the input values.
+
+.. code-block:: python
+
+    from valid8r.async_validators import parallel_validate
+
+    async def validate_email(email: str) -> Maybe[str]:
+        """Validate email against external service."""
+        # ... validation logic
+        return Maybe.success(email)
+
+    async def validate_batch():
+        emails = ['a@example.com', 'b@example.com', 'c@example.com']
+
+        # All validations run in parallel
+        results = await parallel_validate(validate_email, emails)
+
+        # Process results (same order as input)
+        for email, result in zip(emails, results, strict=False):
+            if result.is_success():
+                print(f'{email}: Valid')
+            else:
+                print(f'{email}: {result.error_or("")}')
+
+**Function Signature:**
+
+.. code-block:: python
+
+    async def parallel_validate(
+        validator: AsyncValidator,
+        values: Sequence[T],
+        max_concurrency: int | None = None,
+    ) -> list[Maybe[T]]:
+        ...
+
+**Parameters:**
+
+``validator``
+    The async validator function to use for each value.
+
+``values``
+    Sequence of values to validate.
+
+``max_concurrency`` (default: ``None``)
+    Optional maximum number of concurrent validations. When ``None``, all validations
+    run in parallel without limit. When specified, uses an ``asyncio.Semaphore`` to
+    limit concurrent validations.
+
+**Limiting Concurrency:**
+
+Use ``max_concurrency`` to protect rate-limited external services from being overwhelmed:
+
+.. code-block:: python
+
+    from valid8r.async_validators import parallel_validate
+
+    async def validate_with_rate_limited_api(value: str) -> Maybe[str]:
+        """Validate against an API with rate limits."""
+        # This API only allows 5 concurrent requests
+        response = await http_client.get(f'https://api.example.com/validate/{value}')
+        if response.status_code == 200:
+            return Maybe.success(value)
+        return Maybe.failure('Validation failed')
+
+    async def validate_batch():
+        values = ['val1', 'val2', 'val3', 'val4', 'val5', 'val6', 'val7', 'val8']
+
+        # Limit to 3 concurrent validations
+        results = await parallel_validate(
+            validate_with_rate_limited_api,
+            values,
+            max_concurrency=3
+        )
+
+        # Process results
+        successes = [r for r in results if r.is_success()]
+        failures = [r for r in results if r.is_failure()]
+        print(f'Passed: {len(successes)}, Failed: {len(failures)}')
+
+**When to Use max_concurrency:**
+
+- External APIs with rate limits (e.g., 10 requests/second)
+- Database connections with limited pool size
+- Services that become unstable under high load
+- Preventing thundering herd problems
+
+**Performance Impact:**
+
+Without ``max_concurrency``:
+    All validations start immediately. Total time = slowest single validation.
+
+With ``max_concurrency=N``:
+    At most N validations run at once. Total time may be longer, but protects
+    external services and avoids rate limit errors.
+
+.. code-block:: python
+
+    # Example: 100 values, each validation takes 0.1s
+
+    # Without limit: ~0.1s (all 100 run in parallel)
+    await parallel_validate(validator, values)
+
+    # With max_concurrency=10: ~1.0s (10 batches of 0.1s each)
+    await parallel_validate(validator, values, max_concurrency=10)
+
+Timeout Handling with TimeoutValidator
+--------------------------------------
+
+The ``TimeoutValidator`` wrapper adds a timeout to any async validator, ensuring that slow
+validations fail gracefully instead of hanging indefinitely. This is essential when calling
+external services that may become unresponsive.
+
+.. code-block:: python
+
+    from valid8r.async_validators import TimeoutValidator
+    from valid8r.core.maybe import Maybe
+
+    async def slow_api_validator(value: str) -> Maybe[str]:
+        """Simulate a slow external API call."""
+        await asyncio.sleep(10)  # Takes 10 seconds
+        return Maybe.success(value)
+
+    # Wrap with 2 second timeout
+    validator = TimeoutValidator(slow_api_validator, timeout=2.0)
+
+    result = await validator('test-value')
+
+    if result.is_failure():
+        print(result.error_or(''))  # "Validation timeout after 2.0s"
+
+**Constructor Parameters:**
+
+``validator``
+    The async validator function to wrap. Must be a callable that takes a value
+    and returns ``Awaitable[Maybe[T]]``.
+
+``timeout``
+    Maximum time in seconds to wait for the validator to complete. If the validator
+    takes longer, a ``Failure`` with a descriptive message is returned.
+
+**Behavior:**
+
+- Uses ``asyncio.wait_for()`` internally for timeout handling
+- Original validator's ``Failure`` results pass through unchanged
+- Timeout error messages include the configured timeout duration
+- Can be composed with other validator wrappers (``RateLimitedValidator``, ``CachedValidator``, etc.)
+
+**Example: Composing with Retry Logic**
+
+.. code-block:: python
+
+    from valid8r.async_validators import TimeoutValidator, RetryingValidator
+
+    # First wrap with timeout, then with retry
+    timed_validator = TimeoutValidator(external_api_validator, timeout=5.0)
+    robust_validator = RetryingValidator(timed_validator, max_retries=3)
+
+    # Each attempt has a 5-second timeout
+    result = await robust_validator('my-value')
+
+TTL-Based Caching with CachedValidator
+--------------------------------------
+
+The ``CachedValidator`` wrapper caches successful validation results to avoid redundant
+calls to external services. Use this when validating values that don't change frequently
+and where the validation is expensive.
+
+.. code-block:: python
+
+    from valid8r.async_validators import CachedValidator
+    from valid8r.core.maybe import Maybe
+
+    async def expensive_api_validator(value: str) -> Maybe[str]:
+        """Validate against external API (expensive)."""
+        print(f'API call for {value}')
+        # Simulate expensive API call
+        await asyncio.sleep(1.0)
+        return Maybe.success(value)
+
+    # Cache results for 5 minutes (300 seconds)
+    validator = CachedValidator(expensive_api_validator, ttl=300.0)
+
+    # First call - hits the API
+    result1 = await validator('test')  # Prints: "API call for test"
+
+    # Second call - uses cache (no API call)
+    result2 = await validator('test')  # No print, cached
+
+    # Check how many times the API was actually called
+    print(f'API calls: {validator.call_count}')  # "API calls: 1"
+
+**Constructor Parameters:**
+
+``validator``
+    The async validator function to wrap. Must return ``Awaitable[Maybe[T]]``.
+
+``ttl`` (default: 300.0)
+    Time-to-live in seconds for cached results. After this time, the cached result
+    expires and the validator is called again.
+
+``key_func`` (default: ``str``)
+    Optional function to generate cache keys from values. Useful when validating
+    complex objects where only certain fields matter for caching.
+
+**Key Behaviors:**
+
+- Only successful validations are cached
+- Failed validations are NOT cached (allows immediate retry)
+- Cache is in-memory and not shared between instances
+- Uses ``time.monotonic()`` for accurate timing
+
+**Methods:**
+
+``invalidate(value)``
+    Manually remove a cached entry for the given value:
+
+    .. code-block:: python
+
+        validator.invalidate('test')  # Remove 'test' from cache
+
+``clear()``
+    Remove all cached entries:
+
+    .. code-block:: python
+
+        validator.clear()  # Clear entire cache
+
+**Attributes:**
+
+``call_count``
+    Number of times the wrapped validator was called (excluding cache hits).
+    Useful for testing and monitoring.
+
+**Example: Custom Key Function**
+
+.. code-block:: python
+
+    from dataclasses import dataclass
+
+    @dataclass
+    class User:
+        id: int
+        email: str
+        name: str
+
+    # Cache by user ID only, ignore other fields
+    validator = CachedValidator(
+        validate_user_permissions,
+        ttl=60.0,
+        key_func=lambda user: str(user.id)
+    )
+
+    user1 = User(id=42, email='a@example.com', name='Alice')
+    user2 = User(id=42, email='a@example.com', name='Alice Updated')
+
+    await validator(user1)  # API call
+    await validator(user2)  # Cache hit (same user ID)
+
+**Example: Monitoring Cache Performance**
+
+.. code-block:: python
+
+    import time
+
+    validator = CachedValidator(api_validator, ttl=300.0)
+
+    # Validate many values
+    for value in values:
+        await validator(value)
+
+    # Check cache effectiveness
+    total_validations = len(values)
+    api_calls = validator.call_count
+    cache_hits = total_validations - api_calls
+
+    print(f'Cache hit rate: {cache_hits / total_validations * 100:.1f}%')
+
 Retry Logic with Exponential Backoff
 -------------------------------------
 
