@@ -447,12 +447,135 @@ asyncio.run(validate_password('weak'))       # All errors listed
 - `any_of`: ~0.1s (parallel)
 - `sequence`: ~0.3s (sequential)
 
+## Validator Wrappers
+
+### TimeoutValidator
+
+Wraps any async validator with a timeout to ensure slow validations fail gracefully instead of hanging indefinitely.
+
+```python
+import asyncio
+from valid8r.async_validators import TimeoutValidator
+from valid8r.core.maybe import Maybe
+
+async def slow_api_validator(value: str) -> Maybe[str]:
+    """Simulate a slow external API call."""
+    await asyncio.sleep(10)  # Takes 10 seconds
+    return Maybe.success(value)
+
+async def main():
+    # Wrap with 2 second timeout
+    validator = TimeoutValidator(slow_api_validator, timeout=2.0)
+
+    result = await validator('test-value')
+
+    if result.is_failure():
+        print(result.error_or(''))  # "Validation timeout after 2.0s"
+
+asyncio.run(main())
+```
+
+**Parameters:**
+- `validator`: The async validator function to wrap
+- `timeout`: Maximum time in seconds to wait
+
+**Behavior:**
+- Uses `asyncio.wait_for()` internally
+- Returns `Failure` with descriptive message on timeout
+- Original validator's results pass through unchanged
+
+### CachedValidator
+
+Wraps an async validator with TTL-based result caching to avoid redundant external calls.
+
+```python
+import asyncio
+from valid8r.async_validators import CachedValidator
+from valid8r.core.maybe import Maybe
+
+async def expensive_api_validator(value: str) -> Maybe[str]:
+    """Validate against external API (expensive)."""
+    print(f'API call for {value}')
+    await asyncio.sleep(1.0)
+    return Maybe.success(value)
+
+async def main():
+    # Cache results for 5 minutes
+    validator = CachedValidator(expensive_api_validator, ttl=300.0)
+
+    # First call - hits the API
+    await validator('test')  # Prints: "API call for test"
+
+    # Second call - uses cache (no print)
+    await validator('test')
+
+    print(f'API calls: {validator.call_count}')  # "API calls: 1"
+
+asyncio.run(main())
+```
+
+**Parameters:**
+- `validator`: The async validator function to wrap
+- `ttl` (default: 300.0): Time-to-live in seconds for cached results
+- `key_func` (default: `str`): Function to generate cache keys from values
+
+**Key behaviors:**
+- Only successful validations are cached
+- Failed validations are NOT cached (allows immediate retry)
+- Uses `time.monotonic()` for accurate timing
+
+**Methods:**
+- `invalidate(value)`: Remove a specific value from cache
+- `clear()`: Remove all cached entries
+
+**Property:**
+- `call_count`: Number of times the wrapped validator was called (excluding cache hits)
+
+### Batch Validation with max_concurrency
+
+The `parallel_validate` function now supports limiting concurrent validations:
+
+```python
+import asyncio
+from valid8r.async_validators import parallel_validate
+from valid8r.core.maybe import Maybe
+
+async def validate_email(email: str) -> Maybe[str]:
+    """Validate email against rate-limited API."""
+    await asyncio.sleep(0.1)  # Simulate API call
+    return Maybe.success(email)
+
+async def main():
+    emails = [f'user{i}@example.com' for i in range(100)]
+
+    # Limit to 10 concurrent validations
+    results = await parallel_validate(
+        validate_email,
+        emails,
+        max_concurrency=10
+    )
+
+    successes = [r for r in results if r.is_success()]
+    print(f'Valid: {len(successes)}')
+
+asyncio.run(main())
+```
+
+**Parameters:**
+- `validator`: The async validator function
+- `values`: Sequence of values to validate
+- `max_concurrency` (default: `None`): Maximum concurrent validations. Uses `asyncio.Semaphore` internally.
+
+**When to use:**
+- Rate-limited external APIs
+- Limited database connection pools
+- Services unstable under high load
+
 ## Future Features
 
 This module continues to evolve. Upcoming features include:
 
 - **More validators**: Additional API validators and service integrations
-- **Enhanced caching**: TTL-based caching with invalidation
 - **Circuit breaker**: Prevent cascade failures in external services
 
 ## Examples
