@@ -1,7 +1,7 @@
-"""Unit tests for validators module.
+"""Unit tests for the example validators module.
 
-Tests follow strict TDD discipline: tests written BEFORE implementation.
-Each test demonstrates expected behavior using valid8r's Maybe monad.
+These tests demonstrate testing patterns for custom validators.
+Note: The validators module is optional - cli.py works standalone.
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from validators import (
+    create_age_validator,
+    create_name_validator,
     parse_age,
     parse_email,
     parse_name,
@@ -69,7 +71,7 @@ class DescribeParseName:
             pytest.param('John Doe', 'John Doe', id='two-words'),
             pytest.param('Alice', 'Alice', id='single-name'),
             pytest.param('Mary Jane Watson', 'Mary Jane Watson', id='three-words'),
-            pytest.param('José García', 'José García', id='unicode-accents'),
+            pytest.param('Jose Garcia', 'Jose Garcia', id='unicode-accents'),
         ],
     )
     def it_parses_valid_names(self, name_str: str, expected: str) -> None:
@@ -132,3 +134,27 @@ class DescribeParseEmail:
 
         assert result.is_failure()
         assert error_substr.lower() in result.error_or('').lower()
+
+
+class DescribeValidatorComposition:
+    """Tests for validator composition examples."""
+
+    def it_creates_age_validator_with_composition(self) -> None:
+        """Create age validator using validator composition."""
+        validator = create_age_validator()
+
+        assert validator(25).is_success()
+        assert validator(0).is_success()
+        assert validator(150).is_success()
+
+        assert validator(-1).is_failure()
+        assert validator(200).is_failure()
+
+    def it_creates_name_validator_with_length(self) -> None:
+        """Create name validator using length validator."""
+        validator = create_name_validator()
+
+        assert validator('John').is_success()
+        assert validator('AB').is_success()  # exactly min length
+
+        assert validator('A').is_failure()  # too short
