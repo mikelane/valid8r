@@ -87,6 +87,35 @@ class Maybe(ABC, Generic[T]):
         """Chain operations that might fail."""
 
     @abstractmethod
+    def and_then(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Chain operations that might fail. Python-friendly alias for bind().
+
+        This method is functionally identical to bind() but uses naming more
+        familiar to Python developers. Use whichever name fits your style.
+
+        Args:
+            f: Function that takes a value and returns Maybe[U]
+
+        Returns:
+            Maybe[U]: Result of applying f to the value if Success,
+                     or propagated Failure if already failed
+
+        Examples:
+            Chain operations using and_then:
+
+            >>> result = Maybe.success(5).and_then(lambda x: Maybe.success(x * 2))
+            >>> result.value_or(0)
+            10
+
+            Propagates failure:
+
+            >>> result = Maybe.failure('error').and_then(lambda x: Maybe.success(x * 2))
+            >>> result.is_failure()
+            True
+
+        """
+
+    @abstractmethod
     async def bind_async(self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
         """Async version of bind for composing async validators.
 
@@ -234,6 +263,81 @@ class Maybe(ABC, Generic[T]):
 
         """
 
+    @abstractmethod
+    def to_optional(self) -> T | None:
+        """Convert Maybe to an optional value.
+
+        Returns the contained value if Success, or None if Failure.
+        This is useful for interoperability with code that uses Optional[T].
+
+        Returns:
+            The contained value if Success, None if Failure
+
+        Examples:
+            Convert Success to optional:
+
+            >>> result = Maybe.success(42)
+            >>> result.to_optional()
+            42
+
+            Convert Failure to optional:
+
+            >>> result = Maybe.failure('error')
+            >>> result.to_optional() is None
+            True
+
+        """
+
+    @staticmethod
+    def from_optional(value: T | None, error_msg: str = 'Value was None') -> Maybe[T]:
+        """Convert an optional value to Maybe.
+
+        Returns Success(value) if value is not None, otherwise Failure with
+        the provided error message. This is useful for interoperability with
+        code that uses Optional[T].
+
+        Note: This method distinguishes only None from non-None values.
+        Falsy values like 0, '', [], and False are treated as valid values
+        and wrapped in Success.
+
+        Args:
+            value: The optional value to convert
+            error_msg: Error message to use if value is None (default: 'Value was None')
+
+        Returns:
+            Success(value) if value is not None, Failure(error_msg) otherwise
+
+        Examples:
+            Convert non-None value:
+
+            >>> result = Maybe.from_optional(42)
+            >>> result.value_or(0)
+            42
+
+            Convert None value:
+
+            >>> result = Maybe.from_optional(None)
+            >>> result.is_failure()
+            True
+
+            Custom error message:
+
+            >>> result = Maybe.from_optional(None, error_msg='User ID is required')
+            >>> result.error_or('')
+            'User ID is required'
+
+            Falsy values are valid:
+
+            >>> Maybe.from_optional(0).value_or(-1)
+            0
+            >>> Maybe.from_optional('').value_or('default')
+            ''
+
+        """
+        if value is None:
+            return Failure(error_msg)
+        return Success(value)
+
 
 class Success(Maybe[T]):
     """Represents a successful computation with a value."""
@@ -260,6 +364,10 @@ class Success(Maybe[T]):
     def bind(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """Chain operations that might fail."""
         return f(self.value)
+
+    def and_then(self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Chain operations that might fail. Python-friendly alias for bind()."""
+        return self.bind(f)
 
     async def bind_async(self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
         """Async version of bind for composing async validators."""
@@ -304,6 +412,13 @@ class Success(Maybe[T]):
 
         """
         raise UnwrapError('Called unwrap_err() on Success')
+
+    def to_optional(self) -> T | None:
+        """Return the contained value.
+
+        For Success, always returns the contained value.
+        """
+        return self.value
 
     def __str__(self) -> str:
         """Get a string representation."""
@@ -448,6 +563,13 @@ class Failure(Maybe[T]):
         """
         return Failure(self._validation_error)
 
+    def and_then(self, _f: Callable[[T], Maybe[U]]) -> Maybe[U]:
+        """Chain operations that might fail. Python-friendly alias for bind().
+
+        Function is unused in Failure case as we always propagate the error.
+        """
+        return self.bind(_f)
+
     async def bind_async(self, _f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
         """Async version of bind for composing async validators.
 
@@ -512,6 +634,13 @@ class Failure(Maybe[T]):
         For Failure, always returns the error message string.
         """
         return self._validation_error.message
+
+    def to_optional(self) -> T | None:
+        """Return None since Failure has no value.
+
+        For Failure, always returns None.
+        """
+        return None
 
     def __str__(self) -> str:
         """Get a string representation.
