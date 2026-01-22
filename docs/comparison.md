@@ -21,8 +21,8 @@ Valid8r is a Python validation library with a unique focus on **CLI applications
 
 | Feature | valid8r | Pydantic | marshmallow | cerberus |
 |---------|---------|----------|-------------|----------|
-| **Performance** | Moderate | ⭐ Excellent (Rust core) | Moderate | Good |
-| **Dependencies** | Minimal (pydantic) | pydantic-core (Rust) | None (core) | None |
+| **Performance** | Good (see benchmarks) | Good (Rust core) | Moderate | Good |
+| **Dependencies** | pydantic, email-validator | pydantic-core (Rust) | None (core) | None |
 | **Python Versions** | 3.11+ | 3.8+ | 3.8+ | 3.7+ |
 | **Error Handling** | Maybe monad | Exceptions | Exceptions | Non-blocking |
 | **Structured Network Results** | ⭐ Yes (dataclasses) | No | No | No |
@@ -127,8 +127,9 @@ match url_result:
    - valid8r: Built-in `prompt.ask()` with retry logic
 
 4. **Performance:**
-   - Pydantic: 5-50x faster (Rust core)
-   - valid8r: Adequate for CLI/web apps, not optimized for bulk processing
+   - Both libraries are fast enough for most use cases
+   - Benchmark results vary by operation (see [performance benchmarks](performance.md))
+   - For high-throughput APIs, profile your specific workload
 
 **When to Use Both:**
 
@@ -334,7 +335,7 @@ match (email, age, url):
 
 1. **Dependencies:**
    - cerberus: Zero dependencies
-   - valid8r: Requires pydantic (always included)
+   - valid8r: Requires pydantic and email-validator (~5MB install size)
 
 2. **Validation Style:**
    - cerberus: Dict-based schemas, non-blocking validation
@@ -384,33 +385,26 @@ if all(r.is_success() for r in results):
 
 ## Performance Benchmarks
 
-**Disclaimer:** Benchmarks are approximate and vary by use case. Always profile your specific workload.
+**Disclaimer:** Benchmarks vary significantly by operation type and use case. Always profile your specific workload.
 
-### Basic Type Validation (1 million iterations)
+### Summary
 
-| Library | Time (seconds) | Relative Speed |
-|---------|---------------|----------------|
-| Pydantic v2 | 0.5s | 1x (baseline) |
-| valid8r | 2.8s | 5.6x slower |
-| marshmallow | 8.5s | 17x slower |
-| cerberus | 3.2s | 6.4x slower |
+Performance comparisons between validation libraries are nuanced:
 
-**Interpretation:**
-- Pydantic is fastest for bulk validation due to Rust core
-- valid8r is adequate for CLI/web apps (not bulk processing)
-- All libraries are fast enough for typical user input validation
+- **Simple type parsing** (int, float, bool): valid8r's minimal abstraction provides fast parsing
+- **Complex models**: Performance depends on validation complexity and features used
+- **Email/URL validation**: valid8r uses comprehensive validation (email-validator with DNS checks), while simpler regex validation is faster but less thorough
+
+See [docs/performance.md](performance.md) for detailed benchmarks with methodology.
 
 ### When Performance Matters
 
-**Choose Pydantic if:**
-- Processing > 10,000 records per second
-- Real-time data pipelines
-- Latency-critical APIs
-
-**valid8r is fine if:**
-- Validating user input (< 1000 req/sec)
+**All libraries are fast enough for:**
+- User input validation in web forms
 - CLI applications (human interaction speed)
-- Background jobs with moderate throughput
+- Moderate-throughput APIs (<1000 req/sec)
+
+**Profile before optimizing:** Unless validation shows up in profiling as a bottleneck, choose the library that best fits your use case and development style rather than optimizing for benchmarks.
 
 ---
 
@@ -664,15 +658,14 @@ Valid8r is **not trying to replace** Pydantic for APIs or marshmallow for Flask.
 
 ### Is valid8r faster than Pydantic?
 
-**No.** Pydantic is 5-50x faster due to its Rust core.
+**It depends on the operation.** Both libraries have different performance characteristics.
 
-**When speed matters:** Choose Pydantic for bulk processing, real-time pipelines, or high-throughput APIs.
+See [docs/performance.md](performance.md) for detailed benchmarks. Key points:
 
-**When valid8r is fast enough:** CLI apps, user input validation (< 1000 req/sec), background jobs.
-
-**Example:** Parsing 1 million phone numbers:
-- Pydantic: ~0.5 seconds
-- valid8r: ~2.8 seconds
+- Both libraries are fast enough for typical validation use cases
+- Performance varies by operation type (simple parsing vs. complex models)
+- For most applications, choose based on features and API preference, not benchmarks
+- If validation is a bottleneck in profiling, test both libraries with your specific workload
 
 For CLI apps, the difference is negligible (human interaction is the bottleneck).
 
@@ -799,14 +792,15 @@ result = parse_hex_color("#ff5733")
 
 ### Is valid8r production-ready?
 
-**Yes, with caveats:**
+**Yes.**
 
-- ✅ Stable API (v0.7.x)
-- ✅ Comprehensive test coverage (>95%)
-- ✅ Type-safe (passes strict mypy)
-- ✅ Security: DoS protection, input length limits
-- ⚠️ Pre-1.0 (minor API changes possible before v1.0.0)
-- ⚠️ Smaller ecosystem than Pydantic/marshmallow
+- Stable API (v1.27.0+, semantic versioning)
+- Comprehensive test coverage (>95%)
+- Type-safe (passes strict mypy)
+- Security: DoS protection, input length limits
+- Actively maintained
+
+**Dependencies:** Valid8r requires Pydantic and email-validator as runtime dependencies (adds ~5MB to install size).
 
 **Production deployments:** See [Security Guide](../security.md) for rate limiting, input size limits, and defense-in-depth strategies.
 
