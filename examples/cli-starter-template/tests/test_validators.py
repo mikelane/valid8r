@@ -71,7 +71,7 @@ class DescribeParseName:
             pytest.param('John Doe', 'John Doe', id='two-words'),
             pytest.param('Alice', 'Alice', id='single-name'),
             pytest.param('Mary Jane Watson', 'Mary Jane Watson', id='three-words'),
-            pytest.param('Jose Garcia', 'Jose Garcia', id='unicode-accents'),
+            pytest.param('José García', 'José García', id='unicode-accents'),
         ],
     )
     def it_parses_valid_names(self, name_str: str, expected: str) -> None:
