@@ -63,7 +63,7 @@ def step_run_cli_with_invalid_arguments(context: Context) -> None:
     cli_script = ctx.template_path / 'cli.py'
 
     # Run the CLI with invalid arguments (e.g., invalid user age)
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, str(cli_script), 'add-user', '--name', 'John', '--age', 'not-a-number'],
         check=False,
         capture_output=True,
@@ -134,7 +134,7 @@ def step_run_cli_in_interactive_mode(context: Context) -> None:
 
     # Run the CLI in interactive mode with invalid then valid inputs
     # Simulating: invalid age "twenty", then valid age "25"
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, str(cli_script), 'add-user', '--interactive'],
         check=False,
         input='John Doe\ntwenty\n25\njohn@example.com\n',
@@ -229,7 +229,7 @@ def step_cli_loads_configuration(context: Context) -> None:
 
     cli_script = ctx.template_path / 'cli.py'
 
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, str(cli_script), 'load-config', '--file', str(ctx.config_file_path)],
         check=False,
         capture_output=True,
@@ -413,7 +413,7 @@ def step_run_tests_successfully(context: Context) -> None:
     assert len(test_files) > 0, 'No test files found in tests directory'
 
     # Run the tests
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, '-m', 'pytest', 'tests', '-v'],
         check=False,
         capture_output=True,
@@ -437,7 +437,7 @@ def step_build_project_without_errors(context: Context) -> None:
     # Try to import the main CLI module (syntax check)
     cli_file = ctx.template_path / 'cli.py'
 
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, '-m', 'py_compile', str(cli_file)],
         check=False,
         capture_output=True,
@@ -449,7 +449,7 @@ def step_build_project_without_errors(context: Context) -> None:
     # Try to compile validators module
     validators_file = ctx.template_path / 'validators.py'
 
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [sys.executable, '-m', 'py_compile', str(validators_file)],
         check=False,
         capture_output=True,

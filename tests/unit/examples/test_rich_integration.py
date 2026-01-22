@@ -27,7 +27,7 @@ class DescribeProjectWizard:
 
     def it_accepts_scenario_argument(self, example_path: Path) -> None:
         """The example accepts --scenario command-line argument."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=success'],
             check=False,
             capture_output=True,
@@ -39,7 +39,7 @@ class DescribeProjectWizard:
 
     def it_runs_success_scenario(self, example_path: Path) -> None:
         """The success scenario runs and produces output."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=success'],
             check=False,
             capture_output=True,
@@ -51,7 +51,7 @@ class DescribeProjectWizard:
 
     def it_runs_failure_scenario(self, example_path: Path) -> None:
         """The failure scenario runs and produces output."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=failure'],
             check=False,
             capture_output=True,
@@ -63,7 +63,7 @@ class DescribeProjectWizard:
 
     def it_runs_batch_scenario(self, example_path: Path) -> None:
         """The batch scenario runs and produces output."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=batch'],
             check=False,
             capture_output=True,
@@ -75,7 +75,7 @@ class DescribeProjectWizard:
 
     def it_runs_interactive_scenario(self, example_path: Path) -> None:
         """The interactive scenario runs with stdin input."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=interactive'],
             check=False,
             capture_output=True,
@@ -97,7 +97,7 @@ class DescribeRichStyling:
 
     def it_uses_ansi_color_codes(self, example_path: Path) -> None:
         """The example output contains ANSI color codes."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=success'],
             check=False,
             capture_output=True,
@@ -109,7 +109,7 @@ class DescribeRichStyling:
 
     def it_uses_box_drawing_characters(self, example_path: Path) -> None:
         """The example output contains box drawing characters (panels/tables)."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=success'],
             check=False,
             capture_output=True,
@@ -123,7 +123,7 @@ class DescribeRichStyling:
 
     def it_shows_success_indicators(self, example_path: Path) -> None:
         """The success scenario shows success indicators."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=success'],
             check=False,
             capture_output=True,
@@ -137,7 +137,7 @@ class DescribeRichStyling:
 
     def it_shows_error_indicators_on_failure(self, example_path: Path) -> None:
         """The failure scenario shows error indicators."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=failure'],
             check=False,
             capture_output=True,
@@ -151,7 +151,7 @@ class DescribeRichStyling:
 
     def it_shows_progress_indicators_in_batch(self, example_path: Path) -> None:
         """The batch scenario shows progress indicators."""
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             [sys.executable, str(example_path), '--scenario=batch'],
             check=False,
             capture_output=True,
