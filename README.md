@@ -35,59 +35,32 @@ print(f"Your age is {age}")
 
 **Security-First Design**: All parsers include DoS protection via input length validation and automated ReDoS detection prevents vulnerable regex patterns.
 
-**Framework Integrations**: Built-in support for Pydantic (always included) and optional Click integration for CLI apps.
+**Framework Integrations**: Built-in support for Pydantic and optional Click integration for CLI apps.
 
 **Interactive Prompts**: Built-in user input prompting with automatic retry and validation.
-
-**High Performance**: Valid8r is [4-300x faster than Pydantic](docs/performance.md) for basic parsing, making it ideal for high-throughput APIs and batch processing.
-
-## Performance
-
-Valid8r is designed for high-performance validation with minimal overhead:
-
-| Scenario | valid8r | Pydantic | Speedup |
-|----------|---------|----------|---------|
-| Integer parsing | 375ns | 102µs | **273x faster** |
-| Nested objects | 37µs | 568µs | **15x faster** |
-| List (100 items) | 30µs | 126µs | **4x faster** |
-
-**When to use valid8r**:
-- High-throughput APIs (>5K requests/sec)
-- Batch processing pipelines
-- CLI tools requiring structured parsing
-- Performance-critical code paths
-
-**When to use Pydantic**:
-- FastAPI applications (tight integration)
-- Complex data models with auto-schema generation
-- Developer experience > raw performance
-
-**Full benchmarks and methodology**: [docs/performance.md](docs/performance.md)
 
 ## Quick Start
 
 ### Installation
 
-**Basic installation** (includes Pydantic integration):
 ```bash
 pip install valid8r
 ```
 
-**With optional framework integrations**:
+**Requirements**: Python 3.11 or higher
+
+**Dependencies**: Valid8r includes Pydantic as a required dependency for its integration features and email validation (via `email-validator`). This adds approximately 5MB to installation size.
+
+**Optional extras**:
 ```bash
 # Click integration for CLI applications
 pip install 'valid8r[click]'
-
-# All optional integrations
-pip install 'valid8r[click]'
 ```
-
-**Requirements**: Python 3.11 or higher
 
 | Feature | Installation | Import |
 |---------|--------------|--------|
 | Core parsers & validators | `pip install valid8r` | `from valid8r import parsers, validators` |
-| Pydantic integration | _included by default_ | `from valid8r.integrations import validator_from_parser` |
+| Pydantic integration | _included with base install_ | `from valid8r.integrations import validator_from_parser` |
 | Click integration (CLI) | `pip install 'valid8r[click]'` | `from valid8r.integrations import ParamTypeAdapter` |
 
 ### Basic Parsing
@@ -727,18 +700,19 @@ git push origin feat/your-feature
 
 ## Project Status
 
-Valid8r is in active development (v0.7.x). The API is stabilizing but may change before v1.0.0.
+Valid8r is **production-ready** (v1.27.0+). The API is stable with semantic versioning.
 
-- ✅ Core parsers and validators
-- ✅ Maybe monad error handling
-- ✅ Interactive prompting
-- ✅ Network parsers (URL, Email, IP, Phone)
-- ✅ Collection parsers
-- ✅ Comprehensive testing utilities
-- 🚧 Additional validators (in progress)
-- 🚧 Custom error types (planned)
+- Core parsers and validators
+- Maybe monad error handling
+- Interactive prompting with retry logic
+- Network parsers (URL, Email, IP, Phone) with structured results
+- Collection and filesystem parsers
+- Pydantic and Click integrations
+- Comprehensive testing utilities
+- Async validation support
+- Structured error codes for API responses
 
-See [ROADMAP.md](ROADMAP.md) for planned features.
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
