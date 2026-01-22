@@ -183,6 +183,15 @@ def step_when_call_parse_str(context: Context) -> None:
     ctx.result = parse_str(ctx.input_value)
 
 
+@when('I call parse_str with the input and strip=False')
+def step_when_call_parse_str_no_strip(context: Context) -> None:
+    """Call parse_str with strip=False to preserve whitespace."""
+    from valid8r.core.parsers import parse_str
+
+    ctx = get_string_context(context)
+    ctx.result = parse_str(ctx.input_value, strip=False)
+
+
 @when('I call parse_str with the input and custom error message')
 def step_when_call_parse_str_with_error_message(context: Context) -> None:
     """Call parse_str with custom error message."""
