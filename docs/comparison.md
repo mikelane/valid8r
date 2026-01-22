@@ -757,9 +757,15 @@ print(url.value_or(None).query)     # {'q': '1'}
 
 ### Does valid8r support async validation?
 
-**No.** Valid8r is synchronous only.
+**Yes.** Valid8r provides comprehensive async validation support for I/O-bound operations like database checks, API calls, and external service validation.
 
-If you need async validation, use Pydantic or write custom async wrappers around valid8r parsers.
+Key features:
+- Concurrent execution of async validators across fields
+- Mixed sync and async validators (sync runs first for fail-fast behavior)
+- Configurable timeout support
+- Full error accumulation
+
+See the [Async Validation Guide](https://valid8r.readthedocs.io/en/latest/user_guide/async_validation.html) for details.
 
 ---
 

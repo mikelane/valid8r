@@ -4,7 +4,7 @@ Valid8r is designed for **high-performance validation** with minimal overhead. T
 
 ## TL;DR - The Bottom Line
 
-**Valid8r is 4-300x faster than Pydantic for basic parsing, but Pydantic offers superior developer experience.**
+**Both libraries are fast enough for most applications.** Performance differences only matter at extreme scale (>10K requests/sec) or in batch processing scenarios. The benchmarks below show valid8r is faster for basic parsing operations, but Pydantic's developer experience and ecosystem are often more valuable than raw speed.
 
 Choose valid8r when:
 - Performance is critical (APIs handling >10K req/sec)
@@ -178,7 +178,7 @@ Parsing list of 100 string integers to `list[int]`:
 - Built-in serialization/deserialization
 
 **Trade-offs**:
-- 4-300x slower than valid8r for basic parsing
+- Slower than valid8r for basic parsing (varies by operation)
 - Higher memory overhead
 - All-or-nothing feature set (can't opt out of overhead)
 
