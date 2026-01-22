@@ -316,3 +316,162 @@ class DescribeMaybe:
 
         assert extracted_name == 'Alice'
         assert extracted_age == 30
+
+
+class DescribeUnwrapError:
+    """Tests for the UnwrapError exception class."""
+
+    def it_is_an_exception(self) -> None:
+        """UnwrapError is a proper exception that can be raised and caught."""
+        from valid8r.core.maybe import UnwrapError
+
+        with pytest.raises(UnwrapError):
+            raise UnwrapError('test message')
+
+    def it_contains_error_message(self) -> None:
+        """UnwrapError stores and returns the error message."""
+        from valid8r.core.maybe import UnwrapError
+
+        error = UnwrapError('custom error message')
+        assert str(error) == 'custom error message'
+
+    def it_inherits_from_exception(self) -> None:
+        """UnwrapError inherits from Exception (or ValueError)."""
+        from valid8r.core.maybe import UnwrapError
+
+        assert issubclass(UnwrapError, Exception)
+
+
+class DescribeUnwrap:
+    """Tests for the unwrap() method on Maybe types."""
+
+    def it_returns_value_for_success(self) -> None:
+        """unwrap() returns the contained value for Success."""
+        result = Success(42)
+        assert result.unwrap() == 42
+
+    def it_returns_complex_value_for_success(self) -> None:
+        """unwrap() returns complex values for Success."""
+        data = {'key': [1, 2, 3]}
+        result = Success(data)
+        assert result.unwrap() == data
+
+    def it_raises_unwrap_error_for_failure(self) -> None:
+        """unwrap() raises UnwrapError for Failure."""
+        from valid8r.core.maybe import UnwrapError
+
+        result: Maybe[int] = Failure('something went wrong')
+        with pytest.raises(UnwrapError) as exc_info:
+            result.unwrap()
+        assert 'something went wrong' in str(exc_info.value)
+
+    def it_raises_with_error_message_in_exception(self) -> None:
+        """unwrap() includes the Failure error message in the UnwrapError."""
+        from valid8r.core.maybe import UnwrapError
+
+        result: Maybe[str] = Failure('validation failed: invalid email')
+        with pytest.raises(UnwrapError) as exc_info:
+            result.unwrap()
+        assert 'validation failed' in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ('value', 'expected'),
+        [
+            pytest.param(42, 42, id='integer'),
+            pytest.param('hello', 'hello', id='string'),
+            pytest.param([1, 2, 3], [1, 2, 3], id='list'),
+            pytest.param(None, None, id='None-value'),
+            pytest.param(0, 0, id='zero'),
+            pytest.param('', '', id='empty-string'),
+        ],
+    )
+    def it_unwraps_various_success_values(self, value: T, expected: T) -> None:
+        """unwrap() works with various value types including None and empty values."""
+        result = Success(value)
+        assert result.unwrap() == expected
+
+
+class DescribeExpect:
+    """Tests for the expect(msg) method on Maybe types."""
+
+    def it_returns_value_for_success(self) -> None:
+        """expect() returns the contained value for Success."""
+        result = Success(42)
+        assert result.expect('should have value') == 42
+
+    def it_raises_unwrap_error_with_custom_message_for_failure(self) -> None:
+        """expect() raises UnwrapError with custom message for Failure."""
+        from valid8r.core.maybe import UnwrapError
+
+        result: Maybe[int] = Failure('original error')
+        with pytest.raises(UnwrapError) as exc_info:
+            result.expect('custom error message for user')
+        assert str(exc_info.value) == 'custom error message for user'
+
+    def it_uses_custom_message_not_original_error(self) -> None:
+        """expect() uses the provided message, not the original Failure error."""
+        from valid8r.core.maybe import UnwrapError
+
+        result: Maybe[str] = Failure('internal: database connection lost')
+        with pytest.raises(UnwrapError) as exc_info:
+            result.expect('Failed to load user profile')
+        assert 'database' not in str(exc_info.value)
+        assert 'Failed to load user profile' in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ('value', 'expected'),
+        [
+            pytest.param(100, 100, id='integer'),
+            pytest.param({'a': 1}, {'a': 1}, id='dict'),
+        ],
+    )
+    def it_returns_various_success_values(self, value: T, expected: T) -> None:
+        """expect() works with various value types."""
+        result = Success(value)
+        assert result.expect('unused message') == expected
+
+
+class DescribeUnwrapErr:
+    """Tests for the unwrap_err() method on Maybe types."""
+
+    def it_returns_error_for_failure(self) -> None:
+        """unwrap_err() returns the error message for Failure."""
+        result: Maybe[int] = Failure('something went wrong')
+        assert result.unwrap_err() == 'something went wrong'
+
+    def it_raises_unwrap_error_for_success(self) -> None:
+        """unwrap_err() raises UnwrapError for Success."""
+        from valid8r.core.maybe import UnwrapError
+
+        result = Success(42)
+        with pytest.raises(UnwrapError) as exc_info:
+            result.unwrap_err()
+        assert 'Success' in str(exc_info.value) or 'unwrap_err' in str(exc_info.value)
+
+    def it_returns_various_error_messages(self) -> None:
+        """unwrap_err() returns the exact error message stored in Failure."""
+        result: Maybe[str] = Failure('Error: invalid input format')
+        assert result.unwrap_err() == 'Error: invalid input format'
+
+    def it_returns_empty_error_message(self) -> None:
+        """unwrap_err() returns empty string for Failure with empty error."""
+        result: Maybe[int] = Failure('')
+        assert result.unwrap_err() == ''
+
+
+class DescribeTypeSafetyAfterIsSuccess:
+    """Tests verifying type-safe extraction after is_success() check."""
+
+    def it_allows_type_safe_access_after_is_success_check(self) -> None:
+        """After is_success() returns True, unwrap() returns T (not T | None)."""
+        result: Maybe[int] = Success(42)
+        if result.is_success():
+            value: int = result.unwrap()
+            assert value == 42
+
+    def it_allows_type_safe_access_after_is_failure_check(self) -> None:
+        """After is_failure() returns True, unwrap_err() returns str."""
+        result: Maybe[int] = Failure('error message')
+        if result.is_failure():
+            error: str = result.unwrap_err()
+            assert error == 'error message'
