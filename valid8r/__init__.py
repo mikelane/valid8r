@@ -21,7 +21,11 @@ from .core.errors import (
     ErrorCode,
     ValidationError,
 )
-from .core.maybe import Maybe
+from .core.maybe import (
+    Failure,
+    Maybe,
+    Success,
+)
 from .core.parsers import (
     EmailAddress,
     PhoneNumber,
@@ -38,10 +42,12 @@ from .core.type_adapters import from_type
 __all__ = [
     'EmailAddress',
     'ErrorCode',
+    'Failure',
     'Field',
     'Maybe',
     'PhoneNumber',
     'Schema',
+    'Success',
     'UrlParts',
     'ValidationError',
     '__version__',
