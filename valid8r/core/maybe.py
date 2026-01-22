@@ -21,6 +21,38 @@ T = TypeVar('T')
 U = TypeVar('U')
 
 
+class UnwrapError(ValueError):
+    """Exception raised when unwrap() or expect() is called on Failure, or unwrap_err() on Success.
+
+    This exception provides type-safe value extraction from Maybe types.
+    When users need to extract a value and are certain the operation succeeded,
+    they can use unwrap() or expect() which will raise this exception on failure.
+
+    Inherits from ValueError since the error represents an invalid operation
+    on a value (attempting to extract from wrong state).
+
+    Examples:
+        Using unwrap() on Failure:
+
+        >>> result = Maybe.failure('validation error')
+        >>> try:
+        ...     result.unwrap()
+        ... except UnwrapError as e:
+        ...     print(f'Error: {e}')
+        Error: Called unwrap() on Failure: validation error
+
+        Using expect() with custom message:
+
+        >>> result = Maybe.failure('internal error')
+        >>> try:
+        ...     result.expect('User ID is required')
+        ... except UnwrapError as e:
+        ...     print(f'Error: {e}')
+        Error: User ID is required
+
+    """
+
+
 class Maybe(ABC, Generic[T]):
     """Base class for the Maybe monad."""
 
@@ -108,6 +140,100 @@ class Maybe(ABC, Generic[T]):
     def get_error(self) -> str | None:
         """Get the error message if present, otherwise None."""
 
+    @abstractmethod
+    def unwrap(self) -> T:
+        """Extract value or raise UnwrapError if Failure.
+
+        This method provides type-safe value extraction when you're confident
+        the Maybe is a Success. Unlike value_or(), it doesn't require a default
+        value and the return type is T (not T | default_type).
+
+        Returns:
+            The contained value of type T
+
+        Raises:
+            UnwrapError: If called on a Failure
+
+        Examples:
+            Safe extraction after validation:
+
+            >>> result = Maybe.success(42)
+            >>> result.unwrap()
+            42
+
+            Raises on Failure:
+
+            >>> result = Maybe.failure('invalid input')
+            >>> result.unwrap()  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+                ...
+            UnwrapError: Called unwrap() on Failure: invalid input
+
+        """
+
+    @abstractmethod
+    def expect(self, msg: str) -> T:
+        """Extract value or raise UnwrapError with custom message if Failure.
+
+        Similar to unwrap(), but allows providing a custom error message that
+        is more meaningful in the context where the extraction happens.
+
+        Args:
+            msg: Custom error message to use if this is a Failure
+
+        Returns:
+            The contained value of type T
+
+        Raises:
+            UnwrapError: If called on a Failure, with the custom message
+
+        Examples:
+            With meaningful context:
+
+            >>> result = Maybe.success(42)
+            >>> result.expect('User age is required')
+            42
+
+            Custom error message on failure:
+
+            >>> result = Maybe.failure('parse error')
+            >>> result.expect('Failed to load user profile')  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+                ...
+            UnwrapError: Failed to load user profile
+
+        """
+
+    @abstractmethod
+    def unwrap_err(self) -> str:
+        """Extract error message or raise UnwrapError if Success.
+
+        This method provides type-safe error extraction when you're confident
+        the Maybe is a Failure. Useful in error handling code paths.
+
+        Returns:
+            The error message string
+
+        Raises:
+            UnwrapError: If called on a Success
+
+        Examples:
+            Extract error for logging:
+
+            >>> result = Maybe.failure('validation failed')
+            >>> result.unwrap_err()
+            'validation failed'
+
+            Raises on Success:
+
+            >>> result = Maybe.success(42)
+            >>> result.unwrap_err()  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+                ...
+            UnwrapError: Called unwrap_err() on Success
+
+        """
+
 
 class Success(Maybe[T]):
     """Represents a successful computation with a value."""
@@ -154,6 +280,30 @@ class Success(Maybe[T]):
     def get_error(self) -> str | None:
         """Get None since Success has no error."""
         return None
+
+    def unwrap(self) -> T:
+        """Extract the contained value.
+
+        For Success, always returns the contained value.
+        """
+        return self.value
+
+    def expect(self, _msg: str) -> T:
+        """Extract the contained value, ignoring the message.
+
+        For Success, always returns the contained value. The message
+        parameter is ignored since extraction always succeeds.
+        """
+        return self.value
+
+    def unwrap_err(self) -> str:
+        """Raise UnwrapError since Success has no error.
+
+        Raises:
+            UnwrapError: Always, since Success doesn't contain an error
+
+        """
+        raise UnwrapError('Called unwrap_err() on Success')
 
     def __str__(self) -> str:
         """Get a string representation."""
@@ -331,6 +481,35 @@ class Failure(Maybe[T]):
         Returns:
             Error message from ValidationError
 
+        """
+        return self._validation_error.message
+
+    def unwrap(self) -> T:
+        """Raise UnwrapError since Failure has no value.
+
+        Raises:
+            UnwrapError: Always, with the error message from this Failure
+
+        """
+        error_msg = f'Called unwrap() on Failure: {self._validation_error.message}'
+        raise UnwrapError(error_msg)
+
+    def expect(self, msg: str) -> T:
+        """Raise UnwrapError with custom message.
+
+        Args:
+            msg: Custom error message to include in the exception
+
+        Raises:
+            UnwrapError: Always, with the custom message
+
+        """
+        raise UnwrapError(msg)
+
+    def unwrap_err(self) -> str:
+        """Extract the error message.
+
+        For Failure, always returns the error message string.
         """
         return self._validation_error.message
 
