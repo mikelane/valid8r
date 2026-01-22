@@ -151,6 +151,14 @@ Contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: Guides
+
+   guides/choosing-validation-approach
+   guides/async-validators
+   guides/fastapi-async-validation
+
+.. toctree::
+   :maxdepth: 2
    :caption: Examples
 
    examples/basic_example
