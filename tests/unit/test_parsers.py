@@ -749,14 +749,13 @@ class DescribeParseStr:
         ('input_value', 'expected_value'),
         [
             pytest.param('hello world', 'hello world', id='regular-string'),
-            pytest.param('', '', id='empty-string'),
-            pytest.param('   ', '   ', id='whitespace-only'),
             pytest.param('hello 世界 🌍', 'hello 世界 🌍', id='unicode-string'),
             pytest.param('a' * 10000, 'a' * 10000, id='long-string-10k-chars'),
+            pytest.param('  hello  ', 'hello', id='strips-whitespace'),
         ],
     )
     def it_parses_valid_string_inputs(self, input_value: str, expected_value: str) -> None:
-        """Parse valid string inputs successfully."""
+        """Parse valid string inputs successfully (strips whitespace by default)."""
         from valid8r.core.parsers import parse_str
 
         match parse_str(input_value):
@@ -805,22 +804,21 @@ class DescribeParseStr:
             case Failure(error):
                 assert error == custom_error
 
-    def it_preserves_string_exactly_as_provided(self) -> None:
-        """Return string exactly as provided without modifications."""
+    def it_preserves_string_content_with_strip_false(self) -> None:
+        """Return string exactly as provided when strip=False."""
         from valid8r.core.parsers import parse_str
 
         inputs = [
-            'hello',  # No stripping
+            'hello',  # No whitespace
             '  spaces  ',  # Preserve leading/trailing whitespace
             'MixedCase',  # Preserve case
             '\n\ttabs\n',  # Preserve special characters
         ]
 
         for input_str in inputs:
-            match parse_str(input_str):
+            match parse_str(input_str, strip=False, allow_empty=True):
                 case Success(value):
                     assert value == input_str
-                    assert value is input_str  # Same object reference
                 case Failure(error):
                     pytest.fail(f'Expected success but got failure: {error}')
 
@@ -829,7 +827,15 @@ class DescribeParseStr:
         from valid8r.core.parsers import parse_str
         from valid8r.core.validators import non_empty_string
 
-        # Empty string passes type validation but fails content validation
+        # Empty string passes type validation (allow_empty=True by default)
+        result = parse_str('')
+        match result:
+            case Success(value):
+                assert value == ''
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+        # Empty string passes parser but fails non_empty_string validator
         result = parse_str('').bind(non_empty_string())
         match result:
             case Success(value):
@@ -877,6 +883,115 @@ class DescribeParseStr:
                 assert len(username_errors) > 0
                 error_msg = str(username_errors[0])
                 assert 'expected string' in error_msg.lower()
+
+    @pytest.mark.parametrize(
+        ('input_value', 'expected_value'),
+        [
+            pytest.param('  hello  ', 'hello', id='strips-leading-trailing'),
+            pytest.param('\thello\n', 'hello', id='strips-tab-newline'),
+            pytest.param('hello', 'hello', id='no-whitespace-unchanged'),
+        ],
+    )
+    def it_strips_whitespace_by_default(self, input_value: str, expected_value: str) -> None:
+        """Strip leading and trailing whitespace by default (consistent with parse_int)."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str(input_value):
+            case Success(value):
+                assert value == expected_value
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_strips_whitespace_only_to_empty(self) -> None:
+        """Whitespace-only strings become empty after strip (allowed by default)."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str('   '):
+            case Success(value):
+                assert value == ''
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_rejects_whitespace_only_with_allow_empty_false(self) -> None:
+        """Whitespace-only strings are rejected when allow_empty=False."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str('   ', allow_empty=False):
+            case Success(value):
+                pytest.fail(f'Expected failure but got success with value: {value!r}')
+            case Failure(error):
+                assert 'empty' in error.lower()
+
+    @pytest.mark.parametrize(
+        ('input_value', 'expected_value'),
+        [
+            pytest.param('  hello  ', '  hello  ', id='preserves-leading-trailing'),
+            pytest.param('\thello\n', '\thello\n', id='preserves-tab-newline'),
+            pytest.param('  ', '  ', id='preserves-whitespace-only'),
+        ],
+    )
+    def it_preserves_whitespace_when_strip_is_false(self, input_value: str, expected_value: str) -> None:
+        """Preserve whitespace when strip=False is specified."""
+        from valid8r.core.parsers import parse_str
+
+        match parse_str(input_value, strip=False):
+            case Success(value):
+                assert value == expected_value
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_allows_empty_string_by_default(self) -> None:
+        """Allow empty strings by default (allow_empty=True)."""
+        from valid8r.core.parsers import parse_str
+
+        # Empty string passes by default
+        match parse_str(''):
+            case Success(value):
+                assert value == ''
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+        # Whitespace-only string becomes empty after strip and passes
+        match parse_str('   '):
+            case Success(value):
+                assert value == ''
+            case Failure(error):
+                pytest.fail(f'Expected success but got failure: {error}')
+
+    def it_rejects_empty_string_when_allow_empty_is_false(self) -> None:
+        """Reject empty strings when allow_empty=False is specified."""
+        from valid8r.core.parsers import parse_str
+
+        # Empty string rejected
+        match parse_str('', allow_empty=False):
+            case Success(value):
+                pytest.fail(f'Expected failure but got success with value: {value!r}')
+            case Failure(error):
+                assert 'empty' in error.lower()
+
+        # Whitespace-only string rejected after stripping
+        match parse_str('   ', allow_empty=False):
+            case Success(value):
+                pytest.fail(f'Expected failure but got success with value: {value!r}')
+            case Failure(error):
+                assert 'empty' in error.lower()
+
+    def it_behaves_consistently_with_parse_int(self) -> None:
+        """Verify parse_str strips whitespace like parse_int does."""
+        from valid8r.core.parsers import (
+            parse_int,
+            parse_str,
+        )
+
+        # parse_int('  42  ') returns Success(42) - strips whitespace
+        int_result = parse_int('  42  ')
+        assert int_result.is_success()
+        assert int_result.value_or(None) == 42
+
+        # parse_str('  hello  ') should return Success('hello') - also strips whitespace
+        str_result = parse_str('  hello  ')
+        assert str_result.is_success()
+        assert str_result.value_or(None) == 'hello'
 
 
 class DescribeParsePath:

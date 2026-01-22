@@ -13,9 +13,14 @@ Feature: String Parser with Type Validation
     When I call parse_str with the input
     Then it returns Success with value ""
 
-  Scenario: Parse string with only whitespace
+  Scenario: Parse string with only whitespace (strips by default)
     Given the input "   "
     When I call parse_str with the input
+    Then it returns Success with value ""
+
+  Scenario: Parse string preserving whitespace with strip=False
+    Given the input "   "
+    When I call parse_str with the input and strip=False
     Then it returns Success with value "   "
 
   Scenario: Parse unicode string
