@@ -246,15 +246,44 @@ Valid8r aims to become the go-to validation library for Python applications by:
 
 ---
 
+## Async Validation ✅ COMPLETED
+
+**Goal**: Enable non-blocking validation for I/O-bound operations
+
+### Async Validators Module
+- [x] `valid8r.async_validators` module with comprehensive async validation support
+  - `unique_in_db()` - Database uniqueness validation
+  - `exists_in_db()` - Foreign key validation
+  - `all_of()` - Parallel AND composition
+  - `any_of()` - Parallel OR composition
+  - `sequence()` - Sequential composition with data transformation
+  - `RateLimitedValidator` - Token bucket rate limiting for external APIs
+  - `RetryingValidator` - Exponential backoff retry logic
+
+### Schema Async Support
+- [x] `Schema.validate_async()` method for async validation workflows
+  - Concurrent execution of async validators across fields
+  - Mixed sync/async validators (sync runs first for fail-fast behavior)
+  - Configurable timeout support
+  - Full error accumulation across all fields
+
+### Documentation
+- [x] Comprehensive async validation user guide (`docs/user_guide/async_validation.rst`)
+- [x] Async validators guide (`docs/guides/async-validators.md`)
+- [x] FastAPI async validation integration guide (`docs/guides/fastapi-async-validation.md`)
+
+**Deliverable**: ✅ Full async validation support for database checks, API calls, and I/O-bound operations
+
+---
+
 ## Future Considerations (Post-1.0)
 
 ### Potential Features
-- **Async validation**: Support for async validators (API calls, database lookups)
 - **Localization**: Multi-language error messages
 - **GraphQL integration**: Schema validation for GraphQL APIs
 - **OpenAPI integration**: Generate validators from OpenAPI specs
 - **Performance**: Compiled validators using Cython or Rust extensions
-- **Web frameworks**: FastAPI, Flask, Django integration helpers
+- **Web frameworks**: Flask, Django integration helpers (FastAPI guide already available)
 
 ### Community Requests
 Feature requests and priorities will evolve based on community feedback. Issues labeled `enhancement` are candidates for future roadmap inclusion.
@@ -282,7 +311,7 @@ See [CLAUDE.md](./CLAUDE.md) for development workflow and [CONTRIBUTING.md](./CO
 
 ---
 
-*Last Updated: 2025-11-16*
-*Current Version: 1.15.0*
+*Last Updated: 2026-01-21*
+*Current Version: 1.27.0*
 *v1.0 Released: 2025-11-06*
 *Next Major Milestone: v2.0 (RFC-001 Complete - Estimated Q1 2026)*

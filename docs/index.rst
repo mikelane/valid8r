@@ -143,6 +143,7 @@ Contents
    user_guide/type_adapters
    user_guide/validators
    user_guide/schema
+   user_guide/async_validation
    user_guide/error_handling
    user_guide/prompting
    user_guide/advanced_usage

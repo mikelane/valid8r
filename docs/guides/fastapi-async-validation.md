@@ -605,15 +605,28 @@ def validate_email(email: str) -> bool:
 
 **Async Validation (For I/O-bound operations)**:
 ```python
-from valid8r.async_validation import validate_async
+from valid8r.core import schema, parsers
+from valid8r.core.maybe import Maybe
+
+async def check_mx_record(email: str) -> Maybe[str]:
+    """Check if email domain has valid MX records."""
+    # Simulate MX record lookup (replace with actual DNS query)
+    import asyncio
+    await asyncio.sleep(0.05)  # Network I/O
+    return Maybe.success(email)
+
+# Define schema with async validator
+email_schema = schema.Schema(fields={
+    'email': schema.Field(
+        parser=parsers.parse_email,
+        validators=[check_mx_record],  # Async validator
+        required=True
+    ),
+})
 
 async def validate_email_with_mx_check(email: str) -> bool:
     """Async validation with MX record lookup."""
-    result = await validate_async(
-        parsers.parse_email,
-        email,
-        check_mx_record=True  # I/O-bound operation
-    )
+    result = await email_schema.validate_async({'email': email})
     return result.is_success()
 
 # Benchmark: ~50-100 milliseconds (network latency)
