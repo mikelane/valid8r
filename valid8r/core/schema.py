@@ -71,7 +71,6 @@ class Field:
     Attributes:
         parser: Function that parses/validates the raw value, returns Maybe[T]
         validators: Optional list of validation functions to apply after parsing
-        validator: Deprecated single validator (for backward compatibility)
         required: Whether the field must be present in the input
 
     Examples:
@@ -99,22 +98,11 @@ class Field:
         >>> len(field.validators)
         2
 
-        Field with single validator (backward compatible):
-
-        >>> field = Field(
-        ...     parser=parsers.parse_int,
-        ...     validator=validators.minimum(0),
-        ...     required=True
-        ... )
-        >>> field.validators is not None
-        True
-
     """
 
     parser: Callable[[Any], Maybe[Any]]
     required: bool
     validators: list[Callable[[Any], Maybe[Any]]] | None = None
-    validator: Callable[[Any], Maybe[Any]] | None = None
 
 
 class Schema:
@@ -392,7 +380,7 @@ class Schema:
             case Failure() as failure_result:
                 self._handle_parse_failure(failure_result, field_name, raw_value, field_path, errors)
 
-    async def _apply_validators_async(  # noqa: PLR0913, PLR0912, C901
+    async def _apply_validators_async(  # noqa: PLR0913, C901
         self,
         field_name: str,
         field_def: Field,
@@ -417,21 +405,13 @@ class Schema:
             timeout: Optional timeout for async operations
 
         """
-        # Combine validators and validator into a single list
-        validators_to_apply = []
-        if field_def.validators:
-            validators_to_apply.extend(field_def.validators)
-        elif field_def.validator:
-            # Backward compatibility: convert single validator to list
-            validators_to_apply.append(field_def.validator)
-
-        if not validators_to_apply:
+        if not field_def.validators:
             validated_data[field_name] = parsed_value
             return
 
         # Separate sync and async validators
-        sync_validators = [v for v in validators_to_apply if not inspect.iscoroutinefunction(v)]
-        async_validators = [v for v in validators_to_apply if inspect.iscoroutinefunction(v)]
+        sync_validators = [v for v in field_def.validators if not inspect.iscoroutinefunction(v)]
+        async_validators = [v for v in field_def.validators if inspect.iscoroutinefunction(v)]
 
         # Run sync validators first (fail-fast)
         current_value = parsed_value
@@ -599,9 +579,6 @@ class Schema:
     ) -> None:
         """Apply validators to parsed value if validators are present.
 
-        This method handles both the new validators list and the deprecated
-        single validator for backward compatibility.
-
         Args:
             field_name: Name of the field
             field_def: Field definition with optional validators
@@ -611,21 +588,13 @@ class Schema:
             errors: List to accumulate errors
 
         """
-        # Combine validators and validator into a single list
-        validators_to_apply = []
-        if field_def.validators:
-            validators_to_apply.extend(field_def.validators)
-        elif field_def.validator:
-            # Backward compatibility: convert single validator to list
-            validators_to_apply.append(field_def.validator)
-
-        if not validators_to_apply:
+        if not field_def.validators:
             validated_data[field_name] = parsed_value
             return
 
         # Apply validators sequentially (sync validators only)
         current_value = parsed_value
-        for validator in validators_to_apply:
+        for validator in field_def.validators:
             # Skip async validators in sync validation
             if inspect.iscoroutinefunction(validator):
                 continue
