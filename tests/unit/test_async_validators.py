@@ -1992,3 +1992,394 @@ class DescribeSequence:
         assert result.is_success()
         # If sequential, should take ~0.15s (3 * 0.05)
         assert elapsed >= 0.14
+
+
+# =============================================================================
+# Tests for TimeoutValidator
+# =============================================================================
+
+
+class DescribeTimeoutValidator:
+    """Tests for TimeoutValidator wrapper class."""
+
+    @pytest.mark.asyncio
+    async def it_returns_success_when_validator_completes_before_timeout(self) -> None:
+        """Fast validators complete successfully before timeout."""
+        from valid8r.async_validators import TimeoutValidator
+
+        async def fast_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(0.01)
+            return Maybe.success(value)
+
+        timeout_validator = TimeoutValidator(fast_validator, timeout=1.0)
+        result = await timeout_validator('test-value')
+
+        assert result.is_success()
+        assert result.value_or(None) == 'test-value'
+
+    @pytest.mark.asyncio
+    async def it_returns_failure_when_validator_exceeds_timeout(self) -> None:
+        """Slow validators fail with timeout error."""
+        from valid8r.async_validators import TimeoutValidator
+
+        async def slow_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(2.0)
+            return Maybe.success(value)
+
+        timeout_validator = TimeoutValidator(slow_validator, timeout=0.1)
+        result = await timeout_validator('test-value')
+
+        assert result.is_failure()
+        assert 'timeout' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_includes_timeout_duration_in_error_message(self) -> None:
+        """Timeout error message includes the configured timeout duration."""
+        from valid8r.async_validators import TimeoutValidator
+
+        async def slow_validator(value: str) -> Maybe[str]:
+            await asyncio.sleep(2.0)
+            return Maybe.success(value)
+
+        timeout_validator = TimeoutValidator(slow_validator, timeout=0.5)
+        result = await timeout_validator('test-value')
+
+        assert result.is_failure()
+        error = result.error_or('')
+        assert '0.5' in error or '.5' in error
+
+    @pytest.mark.asyncio
+    async def it_propagates_failure_results_from_validator(self) -> None:
+        """Failure results from the wrapped validator pass through."""
+        from valid8r.async_validators import TimeoutValidator
+
+        async def failing_validator(_value: str) -> Maybe[str]:
+            return Maybe.failure('Validation failed')
+
+        timeout_validator = TimeoutValidator(failing_validator, timeout=1.0)
+        result = await timeout_validator('test-value')
+
+        assert result.is_failure()
+        assert 'validation failed' in result.error_or('').lower()
+
+    @pytest.mark.asyncio
+    async def it_is_callable_as_validator(self) -> None:
+        """TimeoutValidator can be used as a validator function."""
+        from valid8r.async_validators import TimeoutValidator
+
+        async def simple_validator(value: str) -> Maybe[str]:
+            return Maybe.success(value.upper())
+
+        timeout_validator = TimeoutValidator(simple_validator, timeout=1.0)
+
+        # Should work with parallel_validate
+        from valid8r.async_validators import parallel_validate
+
+        results = await parallel_validate(timeout_validator, ['a', 'b', 'c'])
+
+        assert len(results) == 3
+        assert all(r.is_success() for r in results)
+        assert [r.value_or('') for r in results] == ['A', 'B', 'C']
+
+
+# =============================================================================
+# Tests for CachedValidator
+# =============================================================================
+
+
+class DescribeCachedValidator:
+    """Tests for CachedValidator wrapper class."""
+
+    @pytest.mark.asyncio
+    async def it_caches_successful_validation_results(self) -> None:
+        """Successful results are cached to avoid redundant calls."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: str) -> Maybe[str]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(counting_validator, ttl=60.0)
+
+        # First call - should hit the validator
+        result1 = await cached_validator('test-value')
+        assert result1.is_success()
+        assert call_count == 1
+
+        # Second call - should use cache
+        result2 = await cached_validator('test-value')
+        assert result2.is_success()
+        assert call_count == 1  # Still 1 - cached
+
+    @pytest.mark.asyncio
+    async def it_does_not_cache_failure_results(self) -> None:
+        """Failure results are not cached."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def failing_then_success(value: str) -> Maybe[str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return Maybe.failure('First call fails')
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(failing_then_success, ttl=60.0)
+
+        # First call - fails
+        result1 = await cached_validator('test-value')
+        assert result1.is_failure()
+        assert call_count == 1
+
+        # Second call - should NOT use cache (failure was not cached)
+        result2 = await cached_validator('test-value')
+        assert result2.is_success()
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def it_respects_ttl_expiration(self) -> None:
+        """Cached results expire after TTL."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: str) -> Maybe[str]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(counting_validator, ttl=0.1)
+
+        # First call
+        await cached_validator('test-value')
+        assert call_count == 1
+
+        # Wait for TTL to expire
+        await asyncio.sleep(0.15)
+
+        # Second call - TTL expired, should hit validator again
+        await cached_validator('test-value')
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def it_uses_custom_key_function(self) -> None:
+        """Custom key function generates cache keys."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: dict[str, str]) -> Maybe[dict[str, str]]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        # Use email as cache key from dict
+        def email_key(value: dict[str, str]) -> str:
+            return value['email']
+
+        cached_validator = CachedValidator(counting_validator, ttl=60.0, key_func=email_key)
+
+        # Different dicts with same email should use same cache entry
+        await cached_validator({'email': 'test@example.com', 'name': 'Alice'})
+        assert call_count == 1
+
+        await cached_validator({'email': 'test@example.com', 'name': 'Bob'})
+        assert call_count == 1  # Same email, cached
+
+        await cached_validator({'email': 'other@example.com', 'name': 'Charlie'})
+        assert call_count == 2  # Different email, not cached
+
+    @pytest.mark.asyncio
+    async def it_supports_manual_invalidation(self) -> None:
+        """Cache entries can be manually invalidated."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: str) -> Maybe[str]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(counting_validator, ttl=60.0)
+
+        # Populate cache
+        await cached_validator('test-value')
+        assert call_count == 1
+
+        # Invalidate
+        cached_validator.invalidate('test-value')
+
+        # Should hit validator again
+        await cached_validator('test-value')
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def it_supports_clearing_all_cache(self) -> None:
+        """All cache entries can be cleared."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: str) -> Maybe[str]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(counting_validator, ttl=60.0)
+
+        # Populate cache with multiple entries
+        await cached_validator('value1')
+        await cached_validator('value2')
+        assert call_count == 2
+
+        # Clear all
+        cached_validator.clear()
+
+        # Both should hit validator again
+        await cached_validator('value1')
+        await cached_validator('value2')
+        assert call_count == 4
+
+    @pytest.mark.asyncio
+    async def it_tracks_call_count_for_testing(self) -> None:
+        """Exposes call count for testing purposes."""
+        from valid8r.async_validators import CachedValidator
+
+        async def simple_validator(value: str) -> Maybe[str]:
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(simple_validator, ttl=60.0)
+
+        assert cached_validator.call_count == 0
+
+        await cached_validator('test1')
+        assert cached_validator.call_count == 1
+
+        await cached_validator('test1')  # Cached
+        assert cached_validator.call_count == 1
+
+        await cached_validator('test2')  # New key
+        assert cached_validator.call_count == 2
+
+    @pytest.mark.asyncio
+    async def it_uses_default_str_key_function(self) -> None:
+        """Default key function uses str() representation."""
+        from valid8r.async_validators import CachedValidator
+
+        call_count = 0
+
+        async def counting_validator(value: int) -> Maybe[int]:
+            nonlocal call_count
+            call_count += 1
+            return Maybe.success(value)
+
+        cached_validator = CachedValidator(counting_validator, ttl=60.0)
+
+        await cached_validator(42)
+        assert call_count == 1
+
+        await cached_validator(42)  # Same value
+        assert call_count == 1
+
+
+# =============================================================================
+# Tests for parallel_validate with max_concurrency
+# =============================================================================
+
+
+class DescribeParallelValidateWithConcurrency:
+    """Tests for parallel_validate with max_concurrency parameter."""
+
+    @pytest.mark.asyncio
+    async def it_limits_concurrent_validations(self) -> None:
+        """max_concurrency limits the number of concurrent validators."""
+        concurrent_count = 0
+        max_concurrent = 0
+
+        async def tracking_validator(value: str) -> Maybe[str]:
+            nonlocal concurrent_count, max_concurrent
+            concurrent_count += 1
+            max_concurrent = max(max_concurrent, concurrent_count)
+            await asyncio.sleep(0.05)
+            concurrent_count -= 1
+            return Maybe.success(value)
+
+        values = ['a', 'b', 'c', 'd', 'e', 'f']
+        results = await parallel_validate(tracking_validator, values, max_concurrency=2)
+
+        assert len(results) == 6
+        assert all(r.is_success() for r in results)
+        assert max_concurrent <= 2, f'Max concurrent was {max_concurrent}, expected <= 2'
+
+    @pytest.mark.asyncio
+    async def it_works_without_max_concurrency(self) -> None:
+        """Without max_concurrency, all validations run in parallel."""
+        concurrent_count = 0
+        max_concurrent = 0
+
+        async def tracking_validator(value: str) -> Maybe[str]:
+            nonlocal concurrent_count, max_concurrent
+            concurrent_count += 1
+            max_concurrent = max(max_concurrent, concurrent_count)
+            await asyncio.sleep(0.05)
+            concurrent_count -= 1
+            return Maybe.success(value)
+
+        values = ['a', 'b', 'c', 'd', 'e', 'f']
+        results = await parallel_validate(tracking_validator, values)
+
+        assert len(results) == 6
+        assert all(r.is_success() for r in results)
+        # Without limit, all should run concurrently
+        assert max_concurrent == 6, f'Max concurrent was {max_concurrent}, expected 6'
+
+    @pytest.mark.asyncio
+    async def it_preserves_result_order_with_concurrency(self) -> None:
+        """Results maintain input order even with limited concurrency."""
+
+        async def delayed_validator(value: int) -> Maybe[int]:
+            # Later values complete faster to test ordering
+            await asyncio.sleep(0.01 * (10 - value))
+            return Maybe.success(value * 10)
+
+        values = [1, 2, 3, 4, 5]
+        results = await parallel_validate(delayed_validator, values, max_concurrency=2)
+
+        assert [r.value_or(0) for r in results] == [10, 20, 30, 40, 50]
+
+    @pytest.mark.asyncio
+    async def it_handles_failures_with_concurrency_limit(self) -> None:
+        """Failures are properly captured with limited concurrency."""
+
+        async def even_only_validator(value: int) -> Maybe[int]:
+            await asyncio.sleep(0.01)
+            if value % 2 == 0:
+                return Maybe.success(value)
+            return Maybe.failure(f'{value} is odd')
+
+        values = [1, 2, 3, 4, 5]
+        results = await parallel_validate(even_only_validator, values, max_concurrency=2)
+
+        successes = [r for r in results if r.is_success()]
+        failures = [r for r in results if r.is_failure()]
+
+        assert len(successes) == 2
+        assert len(failures) == 3
+
+    @pytest.mark.asyncio
+    async def it_accepts_max_concurrency_none(self) -> None:
+        """max_concurrency=None is equivalent to unlimited."""
+
+        async def simple_validator(value: str) -> Maybe[str]:
+            return Maybe.success(value)
+
+        values = ['a', 'b', 'c']
+        results = await parallel_validate(simple_validator, values, max_concurrency=None)
+
+        assert len(results) == 3
+        assert all(r.is_success() for r in results)

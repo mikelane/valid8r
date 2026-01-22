@@ -848,18 +848,243 @@ class RetryingValidator(Generic[T]):
         return Maybe.failure(f'Max retries exceeded: {last_error}')
 
 
+class TimeoutValidator(Generic[T]):
+    """Wrap async validator with timeout handling.
+
+    This validator wrapper adds a timeout to any async validator, ensuring
+    that slow validations fail gracefully instead of hanging indefinitely.
+    Use this when calling external services that may become unresponsive.
+
+    The wrapper uses asyncio.wait_for() internally and returns a Failure
+    with a descriptive error message when the timeout is exceeded.
+
+    Args:
+        validator: The async validator function to wrap. Must be a callable
+            that takes a value and returns Awaitable[Maybe[T]].
+        timeout: Maximum time in seconds to wait for the validator to complete.
+            If the validator takes longer than this, a Failure is returned.
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import TimeoutValidator
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def slow_api_validator(value: str) -> Maybe[str]:
+        ...     await asyncio.sleep(10)  # Simulates slow API call
+        ...     return Maybe.success(value)
+        >>>
+        >>> async def main():
+        ...     # Wrap with 2 second timeout
+        ...     validator = TimeoutValidator(slow_api_validator, timeout=2.0)
+        ...     result = await validator('test-value')
+        ...     if result.is_failure():
+        ...         print(result.error_or(''))  # "Validation timeout after 2.0s"
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - The original validator's Failure results pass through unchanged
+        - Timeout error messages include the configured timeout duration
+        - Can be composed with other validator wrappers (RateLimited, Cached, etc.)
+
+    """
+
+    def __init__(
+        self,
+        validator: Callable[[T], Awaitable[Maybe[T]]],
+        timeout: float,
+    ) -> None:
+        """Initialize the timeout validator.
+
+        Args:
+            validator: The async validator function to wrap
+            timeout: Timeout in seconds
+
+        """
+        self._validator = validator
+        self._timeout = timeout
+
+    async def __call__(self, value: T) -> Maybe[T]:
+        """Validate a value with timeout.
+
+        Attempts to run the wrapped validator within the configured timeout.
+        If the validator completes in time, its result is returned unchanged.
+        If it times out, a Failure with a descriptive message is returned.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Maybe[T]: Success or Failure from the validator, or Failure on timeout
+
+        """
+        try:
+            return await asyncio.wait_for(
+                self._validator(value),
+                timeout=self._timeout,
+            )
+        except TimeoutError:
+            return Maybe.failure(f'Validation timeout after {self._timeout}s')
+
+
+class CachedValidator(Generic[T]):
+    """Wrap async validator with TTL-based result caching.
+
+    This validator wrapper caches successful validation results to avoid
+    redundant calls to external services. Use this when validating values
+    that don't change frequently and where the validation is expensive.
+
+    The cache uses time-based expiration (TTL) and only caches successful
+    validations. Failed validations are not cached to allow retries.
+
+    Args:
+        validator: The async validator function to wrap. Must be a callable
+            that takes a value and returns Awaitable[Maybe[T]].
+        ttl: Time-to-live in seconds for cached results. After this time,
+            the cached result expires and the validator is called again.
+            Default: 300.0 (5 minutes).
+        key_func: Optional function to generate cache keys from values.
+            By default, uses str(value). Custom key functions are useful
+            when validating complex objects where only certain fields matter.
+
+    Attributes:
+        call_count: Number of times the wrapped validator has been called
+            (excludes cache hits). Useful for testing and monitoring.
+
+    Example:
+        >>> import asyncio
+        >>> from valid8r.async_validators import CachedValidator
+        >>> from valid8r.core.maybe import Maybe
+        >>>
+        >>> async def expensive_api_validator(value: str) -> Maybe[str]:
+        ...     print(f'API call for {value}')
+        ...     return Maybe.success(value)
+        >>>
+        >>> async def main():
+        ...     validator = CachedValidator(expensive_api_validator, ttl=60.0)
+        ...
+        ...     # First call - hits the API
+        ...     await validator('test')  # Prints: "API call for test"
+        ...
+        ...     # Second call - uses cache
+        ...     await validator('test')  # No print, cached
+        ...
+        ...     print(f'API calls: {validator.call_count}')  # "API calls: 1"
+        >>>
+        >>> asyncio.run(main())
+
+    Notes:
+        - Only successful validations are cached
+        - Failed validations are NOT cached (allows immediate retry)
+        - Cache is in-memory and not shared between instances
+        - Use invalidate() to manually remove a cached entry
+        - Use clear() to remove all cached entries
+
+    """
+
+    def __init__(
+        self,
+        validator: Callable[[T], Awaitable[Maybe[T]]],
+        ttl: float = 300.0,
+        key_func: Callable[[T], str] | None = None,
+    ) -> None:
+        """Initialize the cached validator.
+
+        Args:
+            validator: The async validator function to wrap
+            ttl: Time-to-live in seconds for cached results (default: 300.0)
+            key_func: Function to generate cache keys (default: str)
+
+        """
+        self._validator = validator
+        self._ttl = ttl
+        self._key_func = key_func or str
+        self._cache: dict[str, tuple[Maybe[T], float]] = {}
+        self._call_count = 0
+
+    @property
+    def call_count(self) -> int:
+        """Number of times the wrapped validator was called (excluding cache hits)."""
+        return self._call_count
+
+    async def __call__(self, value: T) -> Maybe[T]:
+        """Validate a value with caching.
+
+        Checks the cache first. On cache miss or expiration, calls the
+        wrapped validator and caches successful results.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Maybe[T]: Cached or fresh validation result
+
+        """
+        key = self._key_func(value)
+        now = time.monotonic()
+
+        # Check cache
+        if key in self._cache:
+            result, timestamp = self._cache[key]
+            if now - timestamp < self._ttl:
+                return result
+            # Expired, remove from cache
+            del self._cache[key]
+
+        # Cache miss or expired - call validator
+        self._call_count += 1
+        result = await self._validator(value)
+
+        # Only cache successful results
+        if result.is_success():
+            self._cache[key] = (result, now)
+
+        return result
+
+    def invalidate(self, value: T) -> None:
+        """Manually invalidate a cached result.
+
+        Removes the cached entry for the given value, if it exists.
+        The next validation will call the wrapped validator.
+
+        Args:
+            value: The value whose cached result should be invalidated
+
+        """
+        key = self._key_func(value)
+        self._cache.pop(key, None)
+
+    def clear(self) -> None:
+        """Clear all cached results.
+
+        Removes all entries from the cache. All subsequent validations
+        will call the wrapped validator.
+
+        """
+        self._cache.clear()
+
+
 async def parallel_validate(
     validator: AsyncValidator,
     values: Sequence[T],
+    max_concurrency: int | None = None,
 ) -> list[Maybe[T]]:
     """Validate multiple values concurrently.
 
     This helper function validates a sequence of values in parallel,
-    returning all results (both successes and failures).
+    returning all results (both successes and failures). Results are
+    returned in the same order as the input values.
+
+    Optionally limits the number of concurrent validations using a
+    semaphore, which is useful for protecting external services from
+    being overwhelmed.
 
     Args:
         validator: The async validator function to use
         values: Sequence of values to validate
+        max_concurrency: Optional maximum number of concurrent validations.
+            If None, all validations run in parallel. If specified,
+            limits concurrent validations to this number.
 
     Returns:
         List of Maybe[T] results in the same order as input values
@@ -870,13 +1095,37 @@ async def parallel_validate(
         >>>
         >>> async def validate_emails():
         ...     emails = ['a@example.com', 'b@example.com', 'c@example.com']
+        ...
+        ...     # All in parallel
         ...     results = await parallel_validate(email_validator, emails)
+        ...
+        ...     # Limited to 2 concurrent validations
+        ...     results = await parallel_validate(
+        ...         email_validator, emails, max_concurrency=2
+        ...     )
+        ...
         ...     successes = [r for r in results if r.is_success()]
         ...     failures = [r for r in results if r.is_failure()]
 
+    Notes:
+        - Results maintain the same order as input values
+        - All validations complete before returning (uses gather)
+        - max_concurrency=None means unlimited parallelism
+        - Use max_concurrency to protect rate-limited external services
+
     """
-    tasks = [validator(value) for value in values]
-    return await asyncio.gather(*tasks)
+    if max_concurrency is not None:
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def limited_validate(v: T) -> Maybe[Any]:
+            async with semaphore:
+                return await validator(v)
+
+        tasks: list[Awaitable[Maybe[Any]]] = [limited_validate(value) for value in values]
+    else:
+        tasks = [validator(value) for value in values]
+
+    return await asyncio.gather(*tasks)  # type: ignore[no-any-return]
 
 
 async def sequential_validate(
@@ -1141,10 +1390,12 @@ def sequence(
 __all__ = [
     'AsyncCache',
     'AsyncValidator',
+    'CachedValidator',
     'DNSResolver',
     'RateLimitedValidator',
     'RetryValidator',
     'RetryingValidator',
+    'TimeoutValidator',
     'all_of',
     'any_of',
     'compose_parallel',
