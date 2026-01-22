@@ -136,33 +136,25 @@ def validate_all(
         42
 
     """
-    # First, parse the value
     parse_result = parser(value)
 
-    # If parsing fails, return the parser error immediately
     if parse_result.is_failure():
         return parse_result
 
-    # Get the parsed value
     parsed_value = parse_result.value_or(None)  # type: ignore[arg-type]
     if parsed_value is None:
         return parse_result
 
-    # If no validators, return the parsed value
     if not validators:
         return parse_result
 
-    # Run all validators and collect errors
     errors: list[ValidationError] = []
-
     for validator in validators:
         result = validator(parsed_value)
         if result.is_failure() and isinstance(result, Failure):
             errors.append(result.validation_error)
 
-    # If there are errors, return a Failure with all of them
     if errors:
         return Failure(errors)  # type: ignore[arg-type]
 
-    # All validators passed, return the success with the parsed value
     return Maybe.success(parsed_value)
