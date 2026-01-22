@@ -475,3 +475,193 @@ class DescribeTypeSafetyAfterIsSuccess:
         if result.is_failure():
             error: str = result.unwrap_err()
             assert error == 'error message'
+
+
+class DescribeAndThen:
+    """Tests for the and_then() method - Python-friendly alias for bind() (#274)."""
+
+    def it_behaves_identically_to_bind_on_success(self) -> None:
+        """and_then() returns same result as bind() for Success."""
+        initial = Success(5)
+
+        def double(x: int) -> Maybe[int]:
+            return Success(x * 2)
+
+        bind_result = initial.bind(double)
+        and_then_result = initial.and_then(double)
+
+        assert bind_result.value_or(0) == and_then_result.value_or(0) == 10
+
+    def it_behaves_identically_to_bind_on_failure(self) -> None:
+        """and_then() returns same result as bind() for Failure."""
+        initial: Maybe[int] = Failure('original error')
+
+        def double(x: int) -> Maybe[int]:
+            return Success(x * 2)
+
+        bind_result = initial.bind(double)
+        and_then_result = initial.and_then(double)
+
+        assert bind_result.error_or('') == and_then_result.error_or('') == 'original error'
+
+    def it_chains_operations_correctly(self) -> None:
+        """and_then() chains multiple operations correctly."""
+        result = Maybe.success(5).and_then(lambda x: Maybe.success(x * 2)).and_then(lambda x: Maybe.success(x + 3))
+
+        assert result.is_success()
+        assert result.value_or(0) == 13  # (5*2)+3 = 13
+
+    def it_propagates_failure_through_chain(self) -> None:
+        """and_then() propagates Failure and skips subsequent operations."""
+        result = (
+            Maybe.success(5)
+            .and_then(lambda _: Maybe.failure('error occurred'))
+            .and_then(lambda x: Maybe.success(x * 100))
+        )
+
+        assert result.is_failure()
+        assert result.error_or('') == 'error occurred'
+
+    @pytest.mark.parametrize(
+        ('initial_value', 'transform_func', 'expected'),
+        [
+            pytest.param(10, lambda x: Success(str(x)), '10', id='int-to-string'),
+            pytest.param('hello', lambda s: Success(len(s)), 5, id='string-to-int'),
+            pytest.param([1, 2, 3], lambda lst: Success(sum(lst)), 6, id='list-to-sum'),
+        ],
+    )
+    def it_allows_type_transformation(
+        self, initial_value: int | str | list[int], transform_func: T, expected: str | int
+    ) -> None:
+        """and_then() allows changing the type of the contained value."""
+        result = Success(initial_value).and_then(transform_func)
+        assert result.value_or(None) == expected
+
+
+class DescribeFromOptional:
+    """Tests for the from_optional() class method (#281)."""
+
+    def it_returns_success_with_value(self) -> None:
+        """from_optional() returns Success when given a non-None value."""
+        result = Maybe.from_optional(42)
+        assert result.is_success()
+        assert result.value_or(0) == 42
+
+    def it_returns_success_with_zero(self) -> None:
+        """from_optional() returns Success for zero (falsy but not None)."""
+        result = Maybe.from_optional(0)
+        assert result.is_success()
+        assert result.value_or(-1) == 0
+
+    def it_returns_success_with_empty_string(self) -> None:
+        """from_optional() returns Success for empty string (falsy but not None)."""
+        result = Maybe.from_optional('')
+        assert result.is_success()
+        assert result.value_or('default') == ''
+
+    def it_returns_success_with_false(self) -> None:
+        """from_optional() returns Success for False (falsy but not None)."""
+        result = Maybe.from_optional(False)
+        assert result.is_success()
+        assert result.value_or(True) is False
+
+    def it_returns_failure_with_none(self) -> None:
+        """from_optional() returns Failure when given None."""
+        result = Maybe.from_optional(None)
+        assert result.is_failure()
+
+    def it_uses_default_error_message_for_none(self) -> None:
+        """from_optional() uses default error message when None is provided."""
+        result = Maybe.from_optional(None)
+        assert 'None' in result.error_or('')
+
+    def it_uses_custom_error_message_for_none(self) -> None:
+        """from_optional() uses custom error message when provided."""
+        result = Maybe.from_optional(None, error_msg='Value is required')
+        assert result.error_or('') == 'Value is required'
+
+    @pytest.mark.parametrize(
+        ('value', 'expected'),
+        [
+            pytest.param(42, 42, id='integer'),
+            pytest.param('hello', 'hello', id='string'),
+            pytest.param([1, 2, 3], [1, 2, 3], id='list'),
+            pytest.param({'a': 1}, {'a': 1}, id='dict'),
+        ],
+    )
+    def it_preserves_various_value_types(self, value: T, expected: T) -> None:
+        """from_optional() preserves various value types."""
+        result = Maybe.from_optional(value)
+        assert result.value_or(None) == expected
+
+
+class DescribeToOptional:
+    """Tests for the to_optional() instance method (#282)."""
+
+    def it_returns_value_for_success(self) -> None:
+        """to_optional() returns the contained value for Success."""
+        result = Success(42)
+        assert result.to_optional() == 42
+
+    def it_returns_none_for_failure(self) -> None:
+        """to_optional() returns None for Failure."""
+        result: Maybe[int] = Failure('error')
+        assert result.to_optional() is None
+
+    def it_returns_zero_for_success_with_zero(self) -> None:
+        """to_optional() returns zero for Success containing zero."""
+        result = Success(0)
+        assert result.to_optional() == 0
+
+    def it_returns_empty_string_for_success_with_empty_string(self) -> None:
+        """to_optional() returns empty string for Success containing empty string."""
+        result = Success('')
+        assert result.to_optional() == ''
+
+    def it_returns_false_for_success_with_false(self) -> None:
+        """to_optional() returns False for Success containing False."""
+        result = Success(False)
+        assert result.to_optional() is False
+
+    @pytest.mark.parametrize(
+        ('value', 'expected'),
+        [
+            pytest.param(42, 42, id='integer'),
+            pytest.param('hello', 'hello', id='string'),
+            pytest.param([1, 2, 3], [1, 2, 3], id='list'),
+            pytest.param({'a': 1}, {'a': 1}, id='dict'),
+            pytest.param(None, None, id='None-value'),
+        ],
+    )
+    def it_returns_various_success_values(self, value: T, expected: T) -> None:
+        """to_optional() returns the contained value for various types."""
+        result = Success(value)
+        assert result.to_optional() == expected
+
+
+class DescribeFromOptionalToOptionalRoundTrip:
+    """Tests for round-trip conversion between optional and Maybe (#281, #282)."""
+
+    @pytest.mark.parametrize(
+        'value',
+        [
+            pytest.param(42, id='integer'),
+            pytest.param('hello', id='string'),
+            pytest.param([1, 2, 3], id='list'),
+            pytest.param({'key': 'value'}, id='dict'),
+            pytest.param(0, id='zero'),
+            pytest.param('', id='empty-string'),
+            pytest.param(False, id='false'),
+        ],
+    )
+    def it_preserves_value_through_round_trip(self, value: T) -> None:
+        """from_optional -> to_optional round trip preserves the value."""
+        maybe = Maybe.from_optional(value)
+        result = maybe.to_optional()
+        assert result == value
+
+    def it_returns_none_for_none_round_trip(self) -> None:
+        """from_optional(None) -> to_optional returns None."""
+        maybe = Maybe.from_optional(None)
+        result = maybe.to_optional()
+        assert result is None
