@@ -15,7 +15,7 @@ jobs:
   size-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: codelytv/pr-size-labeler@v1.10.3
+      - uses: codelytv/pr-size-labeler@v1.10.4
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           xs_label: 'size/XS'
