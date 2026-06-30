@@ -43,8 +43,16 @@ jobs:
 
       # Merging a PR that touches .github/workflows/*.yml requires the
       # workflows:write permission. workflows:write is NOT available to the
-      # automatic GITHUB_TOKEN, so we use a dedicated PAT stored as a repository
-      # secret. See the repository onboarding docs for how to rotate this token.
+      # automatic GITHUB_TOKEN, so this step uses a dedicated PAT stored as a
+      # repository secret named DEPENDABOT_WORKFLOW_TOKEN.
+      #
+      # Token requirements:
+      #   - Classic PAT with repo + workflow scopes, OR a GitHub App token with
+      #     equivalent permissions (contents:write, pull-requests:write,
+      #     workflows:write on this repository).
+      #   - Owned by a bot/service account, not a personal user account.
+      #   - Rotated at least annually; coordinate rotation with a maintainer so the
+      #     secret can be updated without interrupting Dependabot merges.
       - name: Enable auto-merge for Dependabot PRs
         if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' || (steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major' && steps.dependabot-metadata.outputs.dependency-type == 'direct:development')}}
         run: gh pr merge --auto --squash "$PR_URL"
