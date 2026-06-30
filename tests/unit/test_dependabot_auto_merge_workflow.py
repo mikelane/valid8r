@@ -68,6 +68,18 @@ class DescribeDependabotAutoMergeWorkflow:
             'GITHUB_TOKEN cannot be granted workflows:write; requesting it makes the workflow file fail validation'
         )
 
+    def it_only_requests_pull_requests_write_for_github_token(self) -> None:
+        """Least privilege for the automatic GITHUB_TOKEN.
+
+        Reviews, comments, and labels only need pull-requests:write. The merge step
+        uses a dedicated PAT, so contents:write is not required for GITHUB_TOKEN.
+        """
+        job = self.workflow['jobs']['review-dependabot-pr']
+        permissions = job.get('permissions', {})
+        assert set(permissions.keys()) == {'pull-requests'}, (
+            'GITHUB_TOKEN should only be granted pull-requests:write; the PAT handles the workflows:write merge'
+        )
+
     def it_prevents_duplicate_comments_on_pr_updates(self) -> None:
         """pull_request_target defaults to running on synchronize events.
 
