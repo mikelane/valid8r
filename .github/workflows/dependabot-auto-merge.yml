@@ -1,8 +1,9 @@
 name: Dependabot Auto-Merge
 
 on:
-  - pull_request_target
-  - workflow_dispatch
+  pull_request_target:
+    types: [opened, reopened]
+  workflow_dispatch:
 
 jobs:
   review-dependabot-pr:
@@ -41,6 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       - name: Enable auto-merge for Dependabot PRs
+        if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' || (steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major' && steps.dependabot-metadata.outputs.dependency-type == 'direct:development')}}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
