@@ -36,6 +36,38 @@ class DescribeDependabotAutoMergeWorkflow:
             'Auto-merge guard must reference major production update classification'
         )
 
+    def it_uses_an_elevated_token_for_merge(self) -> None:
+        """Merging workflow-modifying PRs requires workflows:write.
+
+        The automatic GITHUB_TOKEN cannot be granted workflows:write, so the merge
+        step must use a dedicated PAT stored as a repository secret. Reviews and
+        comments use the standard GITHUB_TOKEN because they only need pull-requests:write.
+        """
+        auto_merge_step = next(
+            (step for step in self.steps if step.get('name') == 'Enable auto-merge for Dependabot PRs'),
+            None,
+        )
+        assert auto_merge_step is not None, 'Expected an auto-merge step'
+        token_ref = auto_merge_step.get('env', {}).get('GITHUB_TOKEN', '')
+        assert token_ref, 'Auto-merge step must specify a GITHUB_TOKEN env var'
+        assert 'DEPENDABOT_WORKFLOW_TOKEN' in token_ref, (
+            'Auto-merge step must use the DEPENDABOT_WORKFLOW_TOKEN secret '
+            'because GITHUB_TOKEN cannot be granted workflows:write'
+        )
+
+    def it_does_not_request_workflows_write_for_github_token(self) -> None:
+        """workflows:write is not an available permission for GITHUB_TOKEN.
+
+        GitHub Actions rejects workflow files that request permissions the automatic
+        token cannot possess. The job should only request the permissions it actually
+        needs for reviews, comments, and labels.
+        """
+        job = self.workflow['jobs']['review-dependabot-pr']
+        permissions = job.get('permissions', {})
+        assert 'workflows' not in permissions, (
+            'GITHUB_TOKEN cannot be granted workflows:write; requesting it makes the workflow file fail validation'
+        )
+
     def it_prevents_duplicate_comments_on_pr_updates(self) -> None:
         """pull_request_target defaults to running on synchronize events.
 
